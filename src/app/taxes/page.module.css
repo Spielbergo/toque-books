@@ -1,0 +1,271 @@
+.page {
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Summary row */
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.summaryCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border-left: 4px solid var(--border);
+}
+.summaryCard_danger { border-left-color: var(--danger); }
+.summaryCard_warning { border-left-color: var(--warning); }
+.summaryCard_success { border-left-color: var(--success); }
+.summaryCard_info { border-left-color: var(--accent); }
+.summaryLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.summaryValue {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.summarySub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Section */
+.section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.sectionTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.sectionBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sectionBody {
+  padding: 1.25rem;
+}
+
+/* Two column layout */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+/* Sub-section */
+.subSection {
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.subSectionTitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 0.5rem 0.875rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Rows */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.875rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.row:last-child { border-bottom: none; }
+.rowBold {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  background: var(--bg-tertiary);
+}
+.dividerRow {
+  height: 1px;
+  background: var(--border);
+  margin: 0 0.875rem;
+}
+
+/* Total bar */
+.totalBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--danger);
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+  margin-top: 0.75rem;
+  color: white;
+  font-size: 0.9rem;
+}
+.totalBar strong { font-size: 1.1rem; }
+
+/* Deadline bar */
+.deadlineBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.deadlineBar strong { color: var(--text-primary); }
+
+/* HST */
+.hstGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.hstCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.hstCardTotal {
+  border-color: var(--accent);
+}
+.hstLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.hstValue {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.hstCredit { color: var(--success); }
+.hstSub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.alertBox {
+  margin-top: 0.75rem;
+  background: var(--warning-bg, #fef3cd);
+  border: 1px solid var(--warning-border, #ffc107);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  color: var(--warning-text, #856404);
+}
+
+/* Integration */
+.integrationBlurb {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0 0 1rem;
+}
+.integrationGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.intItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.875rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.intItem strong { color: var(--text-primary); font-size: 0.875rem; }
+.intItemBold {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+.intItemBold strong { font-size: 1rem; }
+.intItem_success { border-left: 3px solid var(--success); }
+.intItem_danger  { border-left: 3px solid var(--danger); }
+
+.integrationNote {
+  margin-top: 0.875rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  padding: 0.875rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+/* Global disclaimer */
+.globalDisclaimer {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning, #f59e0b);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.globalDisclaimer strong { color: var(--text-primary); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .summaryRow { grid-template-columns: 1fr 1fr; }
+  .twoCol { grid-template-columns: 1fr; }
+  .integrationGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .summaryRow { grid-template-columns: 1fr 1fr; }
+  .hstGrid { grid-template-columns: 1fr; }
+  .deadlineBar { flex-wrap: wrap; }
+}
+@media (max-width: 420px) {
+  .summaryRow { grid-template-columns: 1fr; }
+}

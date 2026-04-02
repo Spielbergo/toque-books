@@ -1,0 +1,277 @@
+.page {
+  max-width: 860px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 1.75rem;
+  gap: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--text-primary); }
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Section */
+.section {}
+.sectionHeader { margin-bottom: 1.5rem; }
+.sectionHeader h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.35rem;
+}
+.sectionHeader p {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Form */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.savedMsg {
+  font-size: 0.825rem;
+  color: var(--success);
+}
+
+.explainerBox {
+  margin-top: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+}
+.explainerBox h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.explainerBox ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.explainerBox li {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Dividends tab */
+.divHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.divHeader h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+}
+.divSub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.divSummary {
+  display: flex;
+  gap: 1.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.divSummaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.divSummaryItem span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.divSummaryItem strong {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.divList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.divRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+  gap: 1rem;
+}
+.divLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.divDate {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.divType {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.divNotes {
+  font-size: 0.775rem;
+  color: var(--text-muted);
+}
+.divRight {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-shrink: 0;
+}
+.divAmount {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.divDelete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  padding: 0.2rem;
+}
+.divDelete:hover { opacity: 1; }
+
+/* Dividend form modal */
+.divFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+}
+.colSpan2 { grid-column: span 2; }
+
+/* Tax breakdown */
+.taxBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.taxSection {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.taxSectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+.taxRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.taxRow:last-child { border-bottom: none; }
+.taxRowBold {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  font-size: 0.875rem;
+}
+
+.taxTotal {
+  background: var(--accent);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.taxTotalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.925rem;
+  color: white;
+}
+.taxTotalRow span { opacity: 0.85; }
+.taxTotalRow strong { font-size: 1.1rem; }
+
+.t1Disclaimer {
+  background: var(--warning-bg, #fef3cd);
+  border: 1px solid var(--warning-border, #ffc107);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  font-size: 0.8rem;
+  color: var(--warning-text, #856404);
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .formGrid { grid-template-columns: 1fr; }
+  .divFormGrid { grid-template-columns: 1fr; }
+  .colSpan2 { grid-column: span 1; }
+  .divHeader { flex-direction: column; align-items: flex-start; }
+  .taxRow { font-size: 0.8rem; }
+}

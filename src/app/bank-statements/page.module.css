@@ -1,0 +1,277 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Upload panel */
+.uploadPanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+/* Results panel */
+.resultsPanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.resultsPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.resultsPanelHeader h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.resultCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
+}
+
+.resultCard:last-child { border-bottom: none; }
+
+.resultCardError { background: var(--danger-light); }
+
+.resultInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.resultFilename {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  truncate: ellipsis;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultBank, .resultPeriod {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.resultTxCount {
+  font-size: 0.8rem;
+  color: var(--success-text, var(--success));
+}
+
+.resultError {
+  font-size: 0.875rem;
+  color: var(--danger-text, var(--danger));
+  margin: 0;
+}
+
+/* Saved statements */
+.stmtList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stmtCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.stmtHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.stmtMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.stmtBank {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.stmtPeriod {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.stmtFilename {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.stmtActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.stmtBalances {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.stmtBalance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.stmtBalLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.stmtBalVal {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Transaction modal */
+.txModal {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.txEmpty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.rawSummary {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.rawPre {
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: var(--bg-input);
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.txTableWrap {
+  overflow-x: auto;
+}
+
+.txTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.txTable thead tr {
+  border-bottom: 2px solid var(--border-color);
+}
+
+.txTable th {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.txTable td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.txRow:last-child td { border-bottom: none; }
+.txRow:hover td { background: var(--bg-hover); }
+
+.txDate {
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.txDesc {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.right { text-align: right !important; }
+
+.txCredit { color: var(--success); font-weight: 600; }
+.txDebit  { color: var(--danger-text, var(--danger)); font-weight: 600; }
+
+/* Add expense confirm */
+.addExpBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.addExpDetail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+}
+
+.addExpHint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}

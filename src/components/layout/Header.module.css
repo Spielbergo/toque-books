@@ -1,0 +1,246 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+
+.menuBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.pageInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pageTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pageSub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: none;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .pageSub {
+    display: block;
+  }
+
+  .pageTitle {
+    font-size: 1.1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .header {
+    padding: 0 2rem;
+  }
+
+  .menuBtn {
+    display: none;
+  }
+}
+
+/* ── Company selector ──────────────────────────────────── */
+.companyBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  max-width: 160px;
+  transition: border-color var(--transition), background var(--transition);
+  white-space: nowrap;
+}
+
+.companyBtn:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.companyName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+/* ── Dropdown ──────────────────────────────────────────── */
+.dropdown {
+  position: relative;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+  padding: 0.25rem 0;
+}
+
+.dropdownMenuRight {
+  right: 0;
+  left: auto;
+}
+
+.dropdownLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 0.875rem 0.25rem;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition);
+}
+
+.dropdownItem:hover {
+  background: var(--bg-hover);
+}
+
+.dropdownItemActive {
+  color: var(--accent-text);
+}
+
+.dropdownItemIcon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.dropdownItemText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownSep {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0.25rem 0;
+}
+
+/* ── User avatar ──────────────────────────────────────── */
+.avatarBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition);
+}
+
+.avatarBtn:hover {
+  border-color: var(--accent);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarInitials {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.userInfo {
+  padding: 0.625rem 0.875rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.userName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.userEmail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
