@@ -93,12 +93,18 @@ const NAV_ITEMS = [
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
   const router   = useRouter();
-  const { state, activeCompany } = useApp();
+  const { state, dispatch, activeCompany } = useApp();
   const { user, signOut } = useAuth();
   const companyName = activeCompany?.name || state.settings.companyName || 'Toque Books';
 
   const userInitials = (user?.displayName || user?.email || '?')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  const fiscalYearKeys = Object.keys(state.fiscalYears || {}).sort().reverse();
+
+  const handleFYChange = e => {
+    dispatch({ type: 'SET_ACTIVE_FISCAL_YEAR', payload: e.target.value });
+  };
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
@@ -121,7 +127,17 @@ export default function Sidebar({ isOpen, onClose }) {
           <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
           <line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-        <span>{state.activeFiscalYear}</span>
+        <select
+          className={styles.yearSelect}
+          value={state.activeFiscalYear}
+          onChange={handleFYChange}
+          aria-label="Select fiscal year"
+        >
+          <option value="all">All Time</option>
+          {fiscalYearKeys.map(key => (
+            <option key={key} value={key}>{state.fiscalYears[key].label || key}</option>
+          ))}
+        </select>
       </div>
 
       <nav className={styles.nav}>

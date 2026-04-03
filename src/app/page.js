@@ -18,9 +18,28 @@ function getStatusColor(status) {
 export default function DashboardPage() {
   const { state, activeFY, activePY } = useApp();
 
-  if (!activeFY) return null;
+  const isAllTime = state.activeFiscalYear === 'all';
 
-  const { invoices = [], expenses = [], homeOffice = {}, dividendsPaid = [] } = activeFY;
+  // Pool ALL data from ALL fiscal year buckets — invoices may have landed in the
+  // wrong bucket if they were imported while a different FY was active.
+  const allFYData    = Object.values(state.fiscalYears || {});
+  const allInvoices  = allFYData.flatMap(fy => fy.invoices  || []);
+  const allExpenses  = allFYData.flatMap(fy => fy.expenses  || []);
+
+  // Filter to the selected FY's date range, or use everything for "All Time"
+  const { startDate, endDate } = activeFY || {};
+  const inRange = date => !date || (!startDate && !endDate) || (
+    (!startDate || date >= startDate) && (!endDate || date <= endDate)
+  );
+
+  const invoices = isAllTime ? allInvoices : allInvoices.filter(inv => inRange(inv.issueDate));
+  const expenses = isAllTime ? allExpenses : allExpenses.filter(exp => inRange(exp.date));
+  const homeOffice    = isAllTime ? {} : (activeFY?.homeOffice    || {});
+  const dividendsPaid = isAllTime
+    ? allFYData.flatMap(fy => fy.dividendsPaid || [])
+    : (activeFY?.dividendsPaid || []);
+
+  if (!isAllTime && !activeFY) return null;
 
   const totalRevenue = invoices
     .filter(inv => inv.status === 'paid')
@@ -52,6 +71,12 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Dashboard</h1>
+        <span className={styles.fyLabel}>
+          {isAllTime ? 'All Time' : (activeFY?.label || state.activeFiscalYear)}
+        </span>
+      </div>
       <div className={styles.statsGrid}>
         <StatCard label="Revenue (paid)" value={formatCurrency(totalRevenue)} sub={`${invoices.filter(i => i.status === 'paid').length} paid invoices`} color="success" icon="💰" />
         <StatCard label="Outstanding" value={formatCurrency(totalOutstanding)} sub={`${invoices.filter(i => ['sent','overdue'].includes(i.status)).length} invoices`} color={totalOutstanding > 0 ? 'warning' : 'default'} icon="⏳" />

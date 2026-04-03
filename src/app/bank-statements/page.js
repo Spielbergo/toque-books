@@ -13,7 +13,7 @@ import styles from './page.module.css';
 
 export default function BankStatementsPage() {
   const { state, activeFY, dispatch } = useApp();
-  const statements = activeFY?.bankStatements ?? [];
+  const statements = Object.values(state.fiscalYears || {}).flatMap(fy => fy.bankStatements || []);
 
   const [uploading, setUploading]     = useState(false);
   const [uploadResults, setUpload]    = useState([]);
@@ -49,6 +49,8 @@ export default function BankStatementsPage() {
       uploadedAt: new Date().toISOString(),
       bank: result.parsed?.bank || 'Unknown Bank',
       period: result.parsed?.period || '',
+      periodStart: result.parsed?.periodStart || null,
+      periodEnd: result.parsed?.periodEnd || null,
       openingBalance: result.parsed?.openingBalance ?? null,
       closingBalance: result.parsed?.closingBalance ?? null,
       transactions: result.transactions || [],

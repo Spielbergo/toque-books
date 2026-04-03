@@ -273,15 +273,23 @@ function reducer(state, action) {
 
     // Bank statements
     case 'ADD_BANK_STATEMENT': {
-      const fy = state.activeFiscalYear;
+      const allFYKeys = Object.keys(state.fiscalYears || {}).filter(k => k !== 'all').sort();
+      const fy = (state.activeFiscalYear !== 'all' && state.fiscalYears[state.activeFiscalYear])
+        ? state.activeFiscalYear
+        : allFYKeys[allFYKeys.length - 1];
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       const stmt = { id: uuidv4(), ...action.payload, uploadedAt: new Date().toISOString() };
       return updateFY(state, fy, { bankStatements: [...(fyData.bankStatements || []), stmt] });
     }
     case 'DELETE_BANK_STATEMENT': {
-      const fy = state.activeFiscalYear;
-      const fyData = state.fiscalYears[fy];
-      return updateFY(state, fy, {
+      // Search all FYs for the statement to delete
+      const targetFY = Object.entries(state.fiscalYears || {}).find(([, fyData]) =>
+        (fyData.bankStatements || []).some(s => s.id === action.payload)
+      )?.[0];
+      if (!targetFY) return state;
+      const fyData = state.fiscalYears[targetFY];
+      return updateFY(state, targetFY, {
         bankStatements: (fyData.bankStatements || []).filter(s => s.id !== action.payload),
       });
     }

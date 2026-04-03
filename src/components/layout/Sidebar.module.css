@@ -83,6 +83,21 @@
   font-weight: 600;
 }
 
+.yearSelect {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  /* Show native dropdown arrow */
+  appearance: auto;
+}
+
 .nav {
   flex: 1;
   padding: 0.5rem 0.75rem;

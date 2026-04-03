@@ -94,11 +94,27 @@ async function downloadInvoicesZIP(invoices, settings, filename) {
 export default function InvoicesPage() {
   const { state, activeFY, dispatch } = useApp();
   const hstRate = HST_RATES[state.settings.province ?? 'ON'];
-  const invoices = activeFY?.invoices ?? [];
+
+  // Pool all invoices from every FY bucket, then filter by the active FY's date range.
+  // This corrects invoices that were imported while a different FY was active.
+  const isAllTime = state.activeFiscalYear === 'all';
+  const allInvoices = Object.values(state.fiscalYears || {}).flatMap(fy => fy.invoices || []);
+  const { startDate, endDate } = activeFY || {};
+  const invoices = isAllTime
+    ? allInvoices
+    : allInvoices.filter(inv =>
+        (!startDate || (inv.issueDate ?? '') >= startDate) &&
+        (!endDate   || (inv.issueDate ?? '') <= endDate)
+      );
+
   const clients = state.clients || [];
 
   const [search, setSearch]         = useState('');
   const [statusFilter, setStatus]   = useState('all');
+  const [yearFilter, setYearFilter]  = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 25;
   const [selected, setSelected]     = useState(new Set());
   const [showModal, setShowModal]   = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -107,6 +123,7 @@ export default function InvoicesPage() {
   const [importing, setImporting]   = useState(false);
   const [importResults, setImportResults] = useState([]);
   const [importIdx, setImportIdx]   = useState(0);
+  const [importSaveMode, setImportSaveMode] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [zipLoading, setZipLoading] = useState(false);
@@ -125,7 +142,7 @@ export default function InvoicesPage() {
     setShowModal(true);
   };
 
-  const closeModal = () => { setShowModal(false); setEditInv(null); };
+  const closeModal = () => { setShowModal(false); setEditInv(null); setImportSaveMode(false); };
 
   // ── Client picker ──────────────────────────────────
   const pickClient = clientId => {
@@ -215,7 +232,17 @@ export default function InvoicesPage() {
     } else {
       dispatch({ type: 'ADD_INVOICE', payload: form });
     }
-    closeModal();
+    if (importSaveMode) {
+      const savedIdx = importIdx;
+      setImportResults(prev => prev.map((r, i) => i === savedIdx ? { ...r, saved: true } : r));
+      const nextUnsaved = importResults.findIndex((r, i) => i > savedIdx && !r.saved && !r.error);
+      if (nextUnsaved >= 0) setImportIdx(nextUnsaved);
+      setShowModal(false);
+      setEditInv(null);
+      setImportSaveMode(false);
+    } else {
+      closeModal();
+    }
   };
 
   // ── Delete ────────────────────────────────────────
@@ -307,6 +334,21 @@ export default function InvoicesPage() {
 
       const results = (data.results || []).map(r => {
         const p = r.parsed || {};
+        const parsedItems = Array.isArray(p.lineItems) && p.lineItems.length > 0
+          ? p.lineItems.map(li => ({
+              id: uuidv4(),
+              description: li.description || 'Services rendered',
+              quantity: li.quantity ?? 1,
+              rate: li.rate ?? 0,
+              amount: li.amount ?? 0,
+            }))
+          : [{
+              id: uuidv4(),
+              description: p.description || 'Services rendered',
+              quantity: 1,
+              rate: p.subtotal || (p.total ? +(p.total / (1 + hstRate)).toFixed(2) : 0),
+              amount: p.subtotal || (p.total ? +(p.total / (1 + hstRate)).toFixed(2) : 0),
+            }];
         return {
           filename: r.filename,
           parsed: p,
@@ -315,17 +357,12 @@ export default function InvoicesPage() {
             ...makeBlankInvoice(hstRate),
             invoiceNumber: p.documentNumber || '',
             issueDate: p.date || today(),
+            dueDate: p.dueDate || p.date || today(),
             client: { name: p.client || '', email: '', address: '' },
             subtotal: p.subtotal || (p.total ? +(p.total / (1 + hstRate)).toFixed(2) : 0),
             hstAmount: p.hst || (p.subtotal ? +(p.subtotal * hstRate).toFixed(2) : 0),
             total: p.total || 0,
-            lineItems: [{
-              id: uuidv4(),
-              description: p.description || 'Services rendered',
-              quantity: 1,
-              rate: p.subtotal || (p.total ? +(p.total / (1 + hstRate)).toFixed(2) : 0),
-              amount: p.subtotal || (p.total ? +(p.total / (1 + hstRate)).toFixed(2) : 0),
-            }],
+            lineItems: parsedItems,
             notes: '',
           },
         };
@@ -340,14 +377,35 @@ export default function InvoicesPage() {
 
   const handleUseImported = () => {
     const result = importResults[importIdx];
-    if (!result || result.error) return;
+    if (!result || result.error || result.saved) return;
     setForm(result.formData);
     setEditInv(null);
-    setShowImport(false);
+    setImportSaveMode(true);
     setShowModal(true);
+    // Import modal auto-hides via isOpen={showImport && !showModal}
+  };
+
+  const handleSkipImport = () => {
+    setImportIdx(i => Math.min(importResults.length - 1, i + 1));
+  };
+
+  // ── Bulk status change ────────────────────────────
+  const handleBulkStatus = newStatus => {
+    selected.forEach(id => {
+      const inv = invoices.find(i => i.id === id);
+      if (!inv) return;
+      const update = { ...inv, status: newStatus };
+      if (newStatus === 'paid' && !inv.paidDate) update.paidDate = today();
+      dispatch({ type: 'UPDATE_INVOICE', payload: update });
+    });
+    setSelected(new Set());
   };
 
   // ── Filter & search ───────────────────────────────
+  const invoiceYears = [...new Set(
+    invoices.map(inv => inv.issueDate?.slice(0, 4)).filter(Boolean)
+  )].sort((a, b) => b - a);
+
   const filtered = invoices.filter(inv => {
     const matchStatus = statusFilter === 'all' || inv.status === statusFilter;
     const q = search.toLowerCase();
@@ -355,7 +413,9 @@ export default function InvoicesPage() {
       || inv.invoiceNumber?.toLowerCase().includes(q)
       || inv.client?.name?.toLowerCase().includes(q)
       || inv.notes?.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    const matchYear  = yearFilter  === 'all' || inv.issueDate?.startsWith(yearFilter);
+    const matchMonth = monthFilter === 'all' || inv.issueDate?.slice(5, 7) === monthFilter;
+    return matchStatus && matchSearch && matchYear && matchMonth;
   });
 
   // ── Totals ────────────────────────────────────────
@@ -366,6 +426,14 @@ export default function InvoicesPage() {
   };
 
   const currentImport = importResults[importIdx];
+  const importSavedCount = importResults.filter(r => r.saved).length;
+  const importTotalValid  = importResults.filter(r => !r.error).length;
+  const allImportsDone    = importTotalValid > 0 && importSavedCount >= importTotalValid;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(currentPage, totalPages);
+  const pageStart  = (safePage - 1) * PAGE_SIZE;
+  const paginated  = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <div className={styles.page}>
@@ -391,33 +459,63 @@ export default function InvoicesPage() {
 
       {/* Toolbar */}
       <div className={styles.toolbar}>
-        <input
-          type="search"
-          className={styles.search}
-          placeholder="Search invoices…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <Select value={statusFilter} onChange={e => setStatus(e.target.value)} className={styles.filterSelect}>
-          <option value="all">All statuses</option>
-          {INVOICE_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </Select>
-        <div className={styles.toolbarActions}>
-          {filtered.length > 0 && (
-            <Button
-              variant="secondary" size="sm"
-              onClick={handleDownloadZIP}
-              loading={zipLoading}
-              title={selected.size > 0 ? `Download ${selected.size} selected as ZIP` : `Download all ${filtered.length} as ZIP`}
-            >
-              ⬇ {selected.size > 0 ? `ZIP (${selected.size})` : 'ZIP All'}
-            </Button>
+        {/* Main row: search + filters + action buttons all on one line */}
+        <div className={styles.filterRow}>
+          <input
+            type="search"
+            className={styles.search}
+            placeholder="Search invoices…"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+          />
+          <Select value={statusFilter} onChange={e => { setStatus(e.target.value); setCurrentPage(1); }} className={styles.filterSelect}>
+            <option value="all">All statuses</option>
+            {INVOICE_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </Select>
+          <Select value={yearFilter} onChange={e => { setYearFilter(e.target.value); setMonthFilter('all'); setCurrentPage(1); }} className={styles.filterSelect}>
+            <option value="all">All years</option>
+            {invoiceYears.map(y => <option key={y} value={y}>{y}</option>)}
+          </Select>
+          {yearFilter !== 'all' && (
+            <Select value={monthFilter} onChange={e => { setMonthFilter(e.target.value); setCurrentPage(1); }} className={styles.filterSelect}>
+              <option value="all">All months</option>
+              {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => (
+                <option key={m} value={m}>{new Date(2000, i).toLocaleString('en-CA', { month: 'long' })}</option>
+              ))}
+            </Select>
           )}
-          <Button variant="secondary" size="sm" onClick={() => { setImportResults([]); setImportIdx(0); setShowImport(true); }}>
-            📎 Import PDFs
-          </Button>
-          <Button size="sm" onClick={openCreate}>+ New Invoice</Button>
+          <div className={styles.toolbarActions}>
+            {filtered.length > 0 && (
+              <Button
+                variant="secondary" size="sm"
+                onClick={handleDownloadZIP}
+                loading={zipLoading}
+                title={selected.size > 0 ? `Download ${selected.size} selected as ZIP` : `Download all ${filtered.length} as ZIP`}
+              >
+                ⬇ {selected.size > 0 ? `ZIP (${selected.size})` : `ZIP (${filtered.length})`}
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => { setImportResults([]); setImportIdx(0); setShowImport(true); }}>
+              📎 Import PDFs
+            </Button>
+            <Button size="sm" onClick={openCreate}>+ New Invoice</Button>
+          </div>
         </div>
+
+        {/* Bulk-select row — only visible when rows are checked */}
+        {selected.size > 0 && (
+          <div className={styles.bulkActions}>
+            <span className={styles.bulkCount}>{selected.size} selected</span>
+            <Select
+              className={styles.filterSelect}
+              defaultValue=""
+              onChange={e => { if (e.target.value) { handleBulkStatus(e.target.value); e.target.value = ''; } }}
+            >
+              <option value="" disabled>Change status…</option>
+              {INVOICE_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* List */}
@@ -444,15 +542,15 @@ export default function InvoicesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(inv => (
+                {paginated.map(inv => (
                   <tr key={inv.id} className={`${styles.tableRow} ${selected.has(inv.id) ? styles.rowSelected : ''}`}>
                     <td className={styles.checkCell}>
                       <input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggleSelect(inv.id)} />
                     </td>
                     <td className={styles.invNum}>{inv.invoiceNumber}</td>
                     <td>{inv.client?.name || '—'}</td>
-                    <td>{formatDate(inv.issueDate, { style: 'short' })}</td>
-                    <td>{formatDate(inv.dueDate, { style: 'short' })}</td>
+                    <td>{formatDate(inv.issueDate)}</td>
+                    <td>{formatDate(inv.dueDate)}</td>
                     <td className={styles.right}>{formatCurrency(inv.subtotal)}</td>
                     <td className={styles.right}>{formatCurrency(inv.hstAmount)}</td>
                     <td className={`${styles.right} ${styles.totalCell}`}>{formatCurrency(inv.total)}</td>
@@ -490,7 +588,7 @@ export default function InvoicesPage() {
 
           {/* Mobile cards */}
           <div className={styles.mobileList}>
-            {filtered.map(inv => (
+            {paginated.map(inv => (
               <div key={inv.id} className={`${styles.mobileCard} ${selected.has(inv.id) ? styles.rowSelected : ''}`}>
                 <div className={styles.mobileTop}>
                   <label className={styles.mobileCheck}>
@@ -501,7 +599,7 @@ export default function InvoicesPage() {
                 </div>
                 <div className={styles.mobileClient}>{inv.client?.name || 'Unknown client'}</div>
                 <div className={styles.mobileMeta}>
-                  <span>{formatDate(inv.issueDate, { style: 'short' })}</span>
+                  <span>{formatDate(inv.issueDate)}</span>
                   <span className={styles.mobileTotal}>{formatCurrency(inv.total)}</span>
                 </div>
                 <div className={styles.mobileActions}>
@@ -521,6 +619,30 @@ export default function InvoicesPage() {
             ))}
           </div>
         </>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <button className={styles.pageBtn} onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</button>
+          <button className={styles.pageBtn} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>‹</button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+            .reduce((acc, p, idx, arr) => {
+              if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === '…'
+                ? <span key={`ellipsis-${i}`} className={styles.pageEllipsis}>…</span>
+                : <button key={p} className={`${styles.pageBtn} ${p === safePage ? styles.pageBtnActive : ''}`} onClick={() => setCurrentPage(p)}>{p}</button>
+            )
+          }
+          <button className={styles.pageBtn} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>›</button>
+          <button className={styles.pageBtn} onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages}>»</button>
+          <span className={styles.pageInfo}>{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}</span>
+        </div>
       )}
 
       {/* ── Invoice Form Modal ── */}
@@ -675,10 +797,12 @@ export default function InvoicesPage() {
       </Modal>
 
       {/* ── Multi-PDF Import Modal ── */}
-      <Modal isOpen={showImport} onClose={() => setShowImport(false)} title="Import Invoices from PDF" size="lg"
+      <Modal isOpen={showImport && !showModal} onClose={() => setShowImport(false)} title="Import Invoices from PDF" size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowImport(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setShowImport(false)}>
+              {allImportsDone ? 'Done ✓' : 'Close'}
+            </Button>
             {importResults.length > 1 && (
               <div className={styles.importNav}>
                 <Button variant="secondary" size="xs" onClick={() => setImportIdx(i => Math.max(0, i - 1))} disabled={importIdx === 0}>←</Button>
@@ -686,8 +810,16 @@ export default function InvoicesPage() {
                 <Button variant="secondary" size="xs" onClick={() => setImportIdx(i => Math.min(importResults.length - 1, i + 1))} disabled={importIdx === importResults.length - 1}>→</Button>
               </div>
             )}
-            {currentImport && !currentImport.error && (
-              <Button onClick={handleUseImported}>Use this data →</Button>
+            {currentImport && !currentImport.error && !currentImport.saved && (
+              <>
+                {importResults.length > 1 && (
+                  <Button variant="secondary" onClick={handleSkipImport} disabled={importIdx === importResults.length - 1}>Skip</Button>
+                )}
+                <Button onClick={handleUseImported}>Edit &amp; Save →</Button>
+              </>
+            )}
+            {currentImport?.saved && (
+              <span className={styles.importSavedBadge}>✅ Saved</span>
             )}
           </>
         }
@@ -710,7 +842,13 @@ export default function InvoicesPage() {
               ) : (
                 <div className={styles.importPreview}>
                   <div className={styles.importPreviewHeader}>
-                    <p className={styles.importPreviewTitle}>✅ Extracted from: <strong>{currentImport?.filename}</strong></p>
+                    <p className={styles.importPreviewTitle}>
+                      {currentImport?.saved ? '✅ Saved: ' : '📄 Extracted from: '}
+                      <strong>{currentImport?.filename}</strong>
+                    </p>
+                    {importTotalValid > 1 && (
+                      <p className={styles.importProgress}>{importSavedCount} of {importTotalValid} saved</p>
+                    )}
                   </div>
                   {Object.entries(currentImport?.parsed || {}).filter(([, v]) => v != null).map(([k, v]) => (
                     <div key={k} className={styles.importRow}>
