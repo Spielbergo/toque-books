@@ -189,7 +189,93 @@
   transition: opacity 0.15s;
   padding: 0.2rem;
 }
-.divDelete:hover { opacity: 1; }
+.divDelete:hover { opacity: 1;}
+
+.divBankTag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Bank import panel */
+.importPanel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+.importPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+.importPanelTitle {
+  display: block;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.importPanelSub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+.importTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.importTable th {
+  text-align: left;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+.importTable td {
+  padding: 0.45rem 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+  border-right: 1px solid var(--border-subtle, var(--border));
+}
+.importTable td:last-child { border-right: none; }
+.importTable th { border-right: 1px solid var(--border-subtle, var(--border)); }
+.importTable th:last-child { border-right: none; }
+.importTable tr:last-child td { border-bottom: none; }
+.importTable tbody tr { cursor: pointer; transition: background 0.1s; }
+.importTable tbody tr:nth-child(even) td { background: var(--bg-tertiary); }
+.importTable tbody tr:hover td { background: color-mix(in srgb, var(--accent, #4f7df3) 10%, var(--bg-tertiary)); }
+.importRowSelected td { background: color-mix(in srgb, var(--accent, #4f7df3) 14%, var(--bg-secondary)) !important; }
+.importChk { width: 2rem; text-align: center; }
+.importStmt { color: var(--text-muted); font-size: 0.75rem; }
+.importAmount { font-weight: 600; color: var(--text-primary); }
+.importDone {
+  font-size: 0.8rem;
+  color: var(--success, #16a34a);
+  background: var(--success-bg, #f0fdf4);
+  border: 1px solid var(--success-border, #bbf7d0);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1rem;
+  margin-bottom: 1.25rem;
+}
 
 /* Dividend form modal */
 .divFormGrid {
@@ -258,7 +344,7 @@
 .taxTotalRow strong { font-size: 1.1rem; }
 
 .t1Disclaimer {
-  background: var(--warning-bg, #fef3cd);
+  /* background: var(--warning-bg, #fef3cd); */
   border: 1px solid var(--warning-border, #ffc107);
   border-radius: var(--radius-md);
   padding: 1rem 1.25rem;
@@ -275,3 +361,216 @@
   .divHeader { flex-direction: column; align-items: flex-start; }
   .taxRow { font-size: 0.8rem; }
 }
+
+/* ── Year picker ─────────────────────────────────────────────── */
+.yearPicker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.yearPickerLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.yearNav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.yearArrow {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+.yearArrow:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.yearArrow:disabled { opacity: 0.35; cursor: not-allowed; }
+.yearSelect {
+  appearance: none;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 5rem;
+  text-align: center;
+}
+.yearAdd {
+  margin-left: auto;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.yearAdd:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Sync bar ────────────────────────────────────────────────── */
+.syncBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  /* background: var(--accent-bg, #f0f4ff); */
+  border: 1px solid var(--accent-border, #c7d7ff);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1rem;
+  margin-bottom: 1.25rem;
+}
+.syncBarText {
+  font-size: 0.8rem;
+  color: var(--accent-text, #2d4da5);
+}
+.syncBarEmpty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Suggestion badges ───────────────────────────────────────── */
+.sugAvailable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-top: 0.3rem;
+}
+.sugSynced {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: var(--success, #16a34a);
+  margin-top: 0.3rem;
+}
+.sugOverride {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--warning-text, #856404);
+  margin-top: 0.3rem;
+}
+.sugLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.sugLink:hover { opacity: 0.7; }
+
+/* ── App data reference card ─────────────────────────────────── */
+.refCard {
+  margin-top: 1.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+}
+.refCardTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+}
+.refCardHint {
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+.refGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.875rem 1.25rem;
+}
+.refItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.refLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.refValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.refSub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ── Matched transaction detail table ───────────────────────── */
+.refTxDetails {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.refTxSummary {
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0.75rem;
+}
+.refTxSummary:hover { text-decoration: underline; }
+.refTxTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.refTxTable th {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.refTxTable td {
+  padding: 0.35rem 0.5rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.refTxTable tr:last-child td { border-bottom: none; }
+.refTxStmt { color: var(--text-muted); font-size: 0.75rem; }
+.refTxAmount { font-weight: 600; color: var(--text-primary); }
+.right { text-align: right; }

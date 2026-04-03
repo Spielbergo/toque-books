@@ -16,10 +16,22 @@ import styles from './page.module.css';
 export default function TaxesPage() {
   const { state, activeFY, activePY } = useApp();
 
+  if (state.activeFiscalYear === 'all') {
+    return (
+      <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Select a fiscal year to view tax estimates</p>
+        <p style={{ fontSize: '0.875rem' }}>Corporate T2 and personal T1 estimates are calculated per fiscal year. Choose a year in the sidebar.</p>
+      </div>
+    );
+  }
+
   if (!activeFY) return <p>No fiscal year data found.</p>;
 
-  const invoices = activeFY.invoices ?? [];
-  const expenses = activeFY.expenses ?? [];
+  const allFYData = Object.values(state.fiscalYears || {});
+  const { startDate, endDate } = activeFY;
+  const inRange = date => !date || ((!startDate || date >= startDate) && (!endDate || date <= endDate));
+  const invoices = allFYData.flatMap(fy => fy.invoices || []).filter(inv => inRange(inv.issueDate));
+  const expenses = allFYData.flatMap(fy => fy.expenses || []).filter(exp => inRange(exp.date));
   const homeOffice = activeFY.homeOffice ?? {};
   const dividendsPaid = activeFY.dividendsPaid ?? [];
 

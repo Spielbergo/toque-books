@@ -193,7 +193,7 @@
 
 @media (min-width: 640px) {
   .statsGrid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 
   .twoCol {

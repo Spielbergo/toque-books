@@ -31,7 +31,16 @@ function makeBlankExpense() {
 export default function ExpensesPage() {
   const { state, activeFY, dispatch } = useApp();
   const hstRate = HST_RATES[state.settings.province ?? 'ON'];
-  const { expenses = [], homeOffice = {} } = activeFY || {};
+  const isAllTime = state.activeFiscalYear === 'all';
+  const allExpenses = Object.values(state.fiscalYears || {}).flatMap(fy => fy.expenses || []);
+  const { startDate, endDate } = activeFY || {};
+  const expenses = isAllTime
+    ? allExpenses
+    : allExpenses.filter(exp =>
+        (!startDate || (exp.date ?? '') >= startDate) &&
+        (!endDate   || (exp.date ?? '') <= endDate)
+      );
+  const homeOffice = activeFY?.homeOffice ?? {};
 
   const [tab, setTab] = useState(0);
   const [search, setSearch] = useState('');

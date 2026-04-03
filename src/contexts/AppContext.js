@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS = {
   website: '',
   logo: null,           // base64 data URL
   invoiceFooterNotes: '',
+  // Personal account matching
+  personalAccountKeywords: '',  // comma-separated nicknames/keywords e.g. "spielbergo, personal"
 };
 
 const DEFAULT_HOME_OFFICE = {
@@ -165,14 +167,16 @@ function reducer(state, action) {
 
     // Invoices
     case 'ADD_INVOICE': {
-      const fy = state.activeFiscalYear;
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       const hstRate = HST_RATES[state.settings.province] ?? 0.13;
       const inv = buildInvoice(action.payload, hstRate, fyData.invoices.length + 1, state.settings);
       return updateFY(state, fy, { invoices: [...fyData.invoices, inv] });
     }
     case 'UPDATE_INVOICE': {
-      const fy = state.activeFiscalYear;
+      const fy = findItemFY(state, 'invoices', action.payload.id) || resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       return updateFY(state, fy, {
         invoices: fyData.invoices.map(inv =>
@@ -181,7 +185,8 @@ function reducer(state, action) {
       });
     }
     case 'DELETE_INVOICE': {
-      const fy = state.activeFiscalYear;
+      const fy = findItemFY(state, 'invoices', action.payload) || resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       return updateFY(state, fy, {
         invoices: fyData.invoices.filter(inv => inv.id !== action.payload),
@@ -190,13 +195,15 @@ function reducer(state, action) {
 
     // Expenses
     case 'ADD_EXPENSE': {
-      const fy = state.activeFiscalYear;
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       const exp = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
       return updateFY(state, fy, { expenses: [...fyData.expenses, exp] });
     }
     case 'UPDATE_EXPENSE': {
-      const fy = state.activeFiscalYear;
+      const fy = findItemFY(state, 'expenses', action.payload.id) || resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       return updateFY(state, fy, {
         expenses: fyData.expenses.map(e =>
@@ -205,7 +212,8 @@ function reducer(state, action) {
       });
     }
     case 'DELETE_EXPENSE': {
-      const fy = state.activeFiscalYear;
+      const fy = findItemFY(state, 'expenses', action.payload) || resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       return updateFY(state, fy, {
         expenses: fyData.expenses.filter(e => e.id !== action.payload),
@@ -214,7 +222,8 @@ function reducer(state, action) {
 
     // Home office
     case 'UPDATE_HOME_OFFICE': {
-      const fy = state.activeFiscalYear;
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       return updateFY(state, fy, {
         homeOffice: { ...fyData.homeOffice, ...action.payload },
@@ -223,7 +232,8 @@ function reducer(state, action) {
 
     // Dividends
     case 'ADD_DIVIDEND': {
-      const fy = state.activeFiscalYear;
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       const div = { id: uuidv4(), ...action.payload };
       const total = [...fyData.dividendsPaid, div].reduce((s, d) => s + (d.amount || 0), 0);
@@ -239,7 +249,8 @@ function reducer(state, action) {
       };
     }
     case 'DELETE_DIVIDEND': {
-      const fy = state.activeFiscalYear;
+      const fy = findItemFY(state, 'dividendsPaid', action.payload) || resolveMutableFY(state);
+      if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       const remaining = fyData.dividendsPaid.filter(d => d.id !== action.payload);
       const total = remaining.reduce((s, d) => s + (d.amount || 0), 0);
@@ -320,6 +331,21 @@ function updateFY(state, fy, patch) {
       [fy]: { ...state.fiscalYears[fy], ...patch },
     },
   };
+}
+
+// Resolves the FY key to use for mutations. When 'all' is active, falls back to newest real FY.
+function resolveMutableFY(state) {
+  if (state.activeFiscalYear !== 'all' && state.fiscalYears[state.activeFiscalYear]) {
+    return state.activeFiscalYear;
+  }
+  const keys = Object.keys(state.fiscalYears || {}).filter(k => k !== 'all').sort();
+  return keys[keys.length - 1] || null;
+}
+
+// Finds which FY contains an item by id in a given array key.
+function findItemFY(state, arrayKey, id) {
+  return Object.entries(state.fiscalYears || {})
+    .find(([, fyData]) => (fyData[arrayKey] || []).some(item => item.id === id))?.[0] || null;
 }
 
 function buildInvoice(data, hstRate, invoiceCount, settings) {

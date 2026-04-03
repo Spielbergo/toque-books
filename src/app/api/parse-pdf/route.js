@@ -563,8 +563,12 @@ function extractRBCTransactions(text, openingBalance, periodStart) {
 
     } else if (currentDate) {
       if (HEX_REF_RE.test(line)) {
-        // e-Transfer reference line: its amounts belong to the preceding entry
-        const amounts = [...line.matchAll(AMOUNT_RE)].map(m => parseFloat(m[1].replace(/,/g, '')));
+        // RBC e-Transfer reference IDs are 32-char hex hashes (MD5) followed
+        // immediately by the transaction amount — e.g. "b87ae1d...63585,000.00".
+        // The hash's trailing digits corrupt the amount regex (reads 585,000 not 5,000).
+        // Fix: strip exactly 32 hex chars before parsing amounts.
+        const stripped = line.length >= 32 ? line.slice(32) : line.replace(/^[0-9a-f]+/i, '');
+        const amounts = [...stripped.matchAll(AMOUNT_RE)].map(m => parseFloat(m[1].replace(/,/g, '')));
         if (amounts.length && entries.length > 0) {
           entries[entries.length - 1].amounts.push(...amounts);
         }

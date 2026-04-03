@@ -81,6 +81,7 @@ export default function DashboardPage() {
         <StatCard label="Revenue (paid)" value={formatCurrency(totalRevenue)} sub={`${invoices.filter(i => i.status === 'paid').length} paid invoices`} color="success" icon="💰" />
         <StatCard label="Outstanding" value={formatCurrency(totalOutstanding)} sub={`${invoices.filter(i => ['sent','overdue'].includes(i.status)).length} invoices`} color={totalOutstanding > 0 ? 'warning' : 'default'} icon="⏳" />
         <StatCard label="Deductible Expenses" value={formatCurrency(totalDeductibleExp)} sub={`${expenses.length} entries`} color="info" icon="🧾" />
+        <StatCard label="HST to Remit" value={formatCurrency(hst.netRemittance)} sub={`Collected ${formatCurrency(hst.hstCollected)} − ITC ${formatCurrency(hst.itcTotal)}`} color={hst.netRemittance > 0 ? 'warning' : 'default'} icon="🏦" />
         <StatCard label="Est. Tax Owing" value={formatCurrency(totalTaxOwing)} sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`} color="danger" icon="🍁" />
       </div>
 

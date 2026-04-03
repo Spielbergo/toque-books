@@ -158,6 +158,24 @@ export default function SettingsPage() {
               </FormField>
             </div>
 
+            <div className={styles.subsectionHeader}>
+              <h4>Personal Account Matching</h4>
+              <p>Bank statement transfers to your personal account will be suggested as dividend payments. Enter any names or keywords that appear in your statement descriptions when you pay yourself.</p>
+            </div>
+            <div className={styles.formGrid}>
+              <FormField
+                label="Personal Account Nicknames / Keywords"
+                hint="Comma-separated. Case-insensitive. e.g. spielbergo, personal chq, e-transfer self"
+                className={styles.colSpan2}
+              >
+                <Input
+                  value={form.personalAccountKeywords || ''}
+                  onChange={e => setForm(f => ({ ...f, personalAccountKeywords: e.target.value }))}
+                  placeholder="spielbergo, personal, etransfer self"
+                />
+              </FormField>
+            </div>
+
             <div className={styles.toggleRow}>
               <label className={styles.toggleLabel}>
                 <button

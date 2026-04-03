@@ -1,6 +1,6 @@
 import styles from './FormField.module.css';
 
-export function FormField({ label, error, hint, required, children, className = '' }) {
+export function FormField({ label, error, hint, extra, required, children, className = '' }) {
   return (
     <div className={`${styles.field} ${className}`}>
       {label && (
@@ -12,6 +12,7 @@ export function FormField({ label, error, hint, required, children, className = 
       {children}
       {hint && !error && <p className={styles.hint}>{hint}</p>}
       {error && <p className={styles.error}>{error}</p>}
+      {extra}
     </div>
   );
 }

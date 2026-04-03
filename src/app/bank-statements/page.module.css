@@ -60,8 +60,6 @@
   font-weight: 600;
   font-size: 0.875rem;
   color: var(--text-primary);
-  truncate: ellipsis;
-  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -87,83 +85,237 @@
   margin: 0;
 }
 
-/* Saved statements */
-.stmtList {
-  display: flex;
-  flex-direction: column;
+/* Summary bar */
+.summaryBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
-}
-
-.stmtCard {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
-  box-shadow: var(--shadow-sm);
 }
 
-.stmtHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.stmtMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-.stmtBank {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--text-primary);
-}
-
-.stmtPeriod {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.stmtFilename {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.stmtActions {
-  display: flex;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.stmtBalances {
-  display: flex;
-  gap: 1.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.stmtBalance {
+.summaryItem {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
 }
 
-.stmtBalLabel {
+.summaryLabel {
   font-size: 0.7rem;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
   font-weight: 500;
 }
 
-.stmtBalVal {
-  font-size: 1rem;
+.summaryValue {
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.summaryHint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.summaryCredit { color: var(--success); }
+.summaryDebit  { color: var(--danger-text, var(--danger)); }
+
+@media (max-width: 600px) {
+  .summaryBar { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Saved statements table */
+.stmtTable {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Toolbar */
+.tableToolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tableSearch {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+}
+.tableSearch:focus { border-color: var(--primary); }
+
+.tableCount {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Bulk actions bar */
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  background: var(--primary-light, var(--bg-hover));
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.bulkCount {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 0.25rem;
+}
+
+.bulkClear {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.bulkClear:hover { color: var(--text-primary); }
+
+/* Checkbox column */
+.checkCell {
+  width: 2.25rem;
+  padding-left: 1rem !important;
+  padding-right: 0.5rem !important;
+}
+
+/* Sortable header */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.sortable:hover { color: var(--text-primary); }
+
+/* No results */
+.noResults {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 2.5rem 1rem !important;
+}
+
+/* Selected row highlight */
+.stmtRowSelected td {
+  background: var(--primary-light, rgba(99,102,241,0.06)) !important;
+}
+
+.stmtTbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.stmtTbl thead tr {
+  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-hover);
+}
+
+.stmtTbl th {
+  padding: 0.65rem 1rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.stmtTbl td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.stmtRow:last-child td { border-bottom: none; }
+.stmtRow:hover td { background: var(--bg-hover); }
+
+.stmtPeriodCell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.stmtPeriodText {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.stmtBankPill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.45rem;
+  flex-shrink: 0;
+}
+
+.txCountBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.2rem 0.6rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.txCountBtn:hover {
+  background: var(--primary-light, var(--bg-hover));
+  color: var(--primary, var(--text-primary));
+  border-color: var(--primary-light, var(--border-color));
+}
+
+.stmtRowActions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.center { text-align: center !important; }
+
+.netPositive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.netNegative {
+  color: var(--danger-text, var(--danger));
+  font-weight: 600;
 }
 
 /* Transaction modal */
