@@ -24,11 +24,11 @@ export default function AppShell({ children }) {
 
   // Redirect to /companies if no company selected (and not already there)
   useEffect(() => {
-    if (appLoading) return;
+    if (authLoading || appLoading) return;
     if (!activeCompanyId && pathname !== '/companies') {
       router.replace('/companies');
     }
-  }, [appLoading, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, appLoading, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close sidebar on resize to desktop
   useEffect(() => {

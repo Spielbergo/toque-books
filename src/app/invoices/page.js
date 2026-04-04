@@ -533,7 +533,7 @@ export default function InvoicesPage() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.checkCell}>
+                  <th className={styles.checkCell} style={{ position: 'relative', left: 5 }}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                   </th>
                   <th>Invoice #</th><th>Client</th><th>Date</th><th>Due</th>

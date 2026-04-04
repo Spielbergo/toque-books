@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDate } from '@/lib/formatters';
 import ToqueLogo from '@/components/ToqueLogo';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -13,7 +12,7 @@ import styles from './page.module.css';
 export default function CompaniesPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { companies, activeCompanyId, createCompany, selectCompany, updateCompanyName, deleteCompany, appLoading } = useApp();
+  const { companies, activeCompanyId, createCompany, selectCompany, updateCompanyName, deleteCompany, appLoading, activeCompany } = useApp();
 
   const [showCreate, setShowCreate]   = useState(false);
   const [newName, setNewName]         = useState('');
@@ -83,12 +82,21 @@ export default function CompaniesPage() {
   const userInitials = (user?.displayName || user?.email || '?')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
+  const formatTs = ts => {
+    if (!ts) return null;
+    const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   return (
     <div className={styles.page}>
       {/* Top bar */}
       <div className={styles.topBar}>
         <div className={styles.brand}>
-          <ToqueLogo size={28} />
+          {activeCompany?.badgeLogo
+            ? <img src={activeCompany.badgeLogo} alt="logo" className={styles.brandBadge} />
+            : <ToqueLogo size={28} />}
           <span className={styles.brandName}>Toque Books</span>
         </div>
         <div className={styles.userRow}>
@@ -134,41 +142,45 @@ export default function CompaniesPage() {
               const isEditing = editingId === company.id;
               return (
                 <div key={company.id} className={`${styles.card} ${isActive ? styles.cardActive : ''}`}>
-                  <div className={styles.cardTop}>
+                  <div className={styles.cardHeader}>
                     <div className={styles.cardIconWrap}>
-                      <span className={styles.cardIcon}>🏢</span>
+                      {company.badgeLogo
+                        ? <img src={company.badgeLogo} alt="logo" className={styles.cardBadgeImg} />
+                        : <span className={styles.cardIcon}>🏢</span>}
                     </div>
-                    {isActive && <span className={styles.activeBadge}>Active</span>}
+                    <div className={styles.cardMeta}>
+                      {isEditing ? (
+                        <form onSubmit={handleRename} className={styles.renameForm}>
+                          <input
+                            className={styles.renameInput}
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            autoFocus
+                            required
+                          />
+                          <div className={styles.renameActions}>
+                            <Button type="submit" size="xs" loading={saving}>Save</Button>
+                            <Button type="button" variant="ghost" size="xs" onClick={() => setEditingId(null)}>Cancel</Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <h3 className={styles.cardName}>{company.name}</h3>
+                      )}
+                      {formatTs(company.createdAt)
+                        ? <span className={styles.cardDate}>Created {formatTs(company.createdAt)}</span>
+                        : <span className={styles.cardDateNew}>New company</span>}
+                    </div>
+                    {isActive && <span className={styles.activeBadge}>● Active</span>}
                   </div>
-
-                  {isEditing ? (
-                    <form onSubmit={handleRename} className={styles.renameForm}>
-                      <input
-                        className={styles.renameInput}
-                        value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        autoFocus
-                        required
-                      />
-                      <div className={styles.renameActions}>
-                        <Button type="submit" size="xs" loading={saving}>Save</Button>
-                        <Button type="button" variant="ghost" size="xs" onClick={() => setEditingId(null)}>Cancel</Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <h3 className={styles.cardName}>{company.name}</h3>
-                  )}
-
-                  <p className={styles.cardDate}>Created {formatDate(company.created_at, { style: 'short' })}</p>
 
                   <div className={styles.cardActions}>
                     <Button size="sm" variant={isActive ? 'secondary' : 'primary'} onClick={() => handleSelect(company.id)}>
-                      {isActive ? '← Back to dashboard' : 'Open'}
+                      {isActive ? '← Dashboard' : 'Open'}
                     </Button>
                     <Button size="xs" variant="ghost" onClick={() => { setEditingId(company.id); setEditName(company.name); }}>
                       Rename
                     </Button>
-                    <Button size="xs" variant="ghost" onClick={() => setConfirmDelete(company.id)}>
+                    <Button size="xs" variant="ghost" onClick={() => setConfirmDelete(company.id)} title="Delete company">
                       🗑
                     </Button>
                   </div>

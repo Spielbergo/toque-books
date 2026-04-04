@@ -175,6 +175,16 @@
   flex-shrink: 0;
   width: 18px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropdownBadgeImg {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
 }
 
 .dropdownItemText {

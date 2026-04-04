@@ -96,6 +96,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const { state, dispatch, activeCompany } = useApp();
   const { user, signOut } = useAuth();
   const companyName = activeCompany?.name || state.settings.companyName || 'Toque Books';
+  const badgeLogo = state.settings.badgeLogo || null;
 
   const userInitials = (user?.displayName || user?.email || '?')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -109,7 +110,11 @@ export default function Sidebar({ isOpen, onClose }) {
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
       <div className={styles.logo}>
-        <ToqueLogo size={32} className={styles.logoIcon} />
+        {badgeLogo ? (
+          <img src={badgeLogo} alt="" className={styles.badgeLogoImg} />
+        ) : (
+          <ToqueLogo size={32} className={styles.logoIcon} />
+        )}
         <div className={styles.logoText}>
           <span className={styles.logoName}>{companyName}</span>
           <span className={styles.logoSub}>Toque Books</span>

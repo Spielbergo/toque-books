@@ -23,9 +23,23 @@ function makeBlankExpense() {
     description: '',
     amount: '',
     hst: '',
+    shipping: '',
     businessUsePercent: 100,
     notes: '',
+    isRecurring: false,
+    months: 12,
   };
+}
+
+// Total pre-tax cost (monthly x months for recurring, else just amount)
+function expTotal(exp) {
+  const base = exp.amount || 0;
+  return exp.isRecurring ? base * (exp.months || 1) : base;
+}
+
+function expHSTTotal(exp) {
+  const base = exp.hst || 0;
+  return exp.isRecurring ? base * (exp.months || 1) : base;
 }
 
 export default function ExpensesPage() {
@@ -50,8 +64,10 @@ export default function ExpensesPage() {
   const [editExp, setEditExp] = useState(null);
   const [form, setForm] = useState(makeBlankExpense());
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState(null);
+  const [importResults, setImportResults] = useState([]);
+  const [importIdx, setImportIdx] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [importSaveMode, setImportSaveMode] = useState(false);
 
   // Home office form state
   const [hoForm, setHoForm] = useState(homeOffice);
@@ -74,6 +90,41 @@ export default function ExpensesPage() {
     } else {
       dispatch({ type: 'ADD_EXPENSE', payload });
     }
+    // If we're stepping through an import queue, mark saved and advance
+    if (importSaveMode) {
+      const savedIdx = importIdx;
+      setImportResults(prev => prev.map((r, i) => i === savedIdx ? { ...r, saved: true } : r));
+      const next = importResults.findIndex((r, i) => i > savedIdx && !r.saved && !r.error);
+      if (next >= 0) {
+        setImportIdx(next);
+        const p = importResults[next].parsed || {};
+        const rawSubtotal = p.subtotal;
+        const rawTotal = p.total;
+        let subAmt, hstAmt;
+        if (rawSubtotal) {
+          subAmt = rawSubtotal;
+          hstAmt = p.hst != null ? p.hst : rawTotal && rawTotal > rawSubtotal ? +(rawTotal - rawSubtotal).toFixed(2) : +(rawSubtotal * hstRate).toFixed(2);
+        } else {
+          const total = rawTotal || 0;
+          hstAmt = p.hst != null ? p.hst : +(total * hstRate / (1 + hstRate)).toFixed(2);
+          subAmt = +(total - hstAmt).toFixed(2);
+        }
+        setEditExp(null);
+        setForm({
+          ...makeBlankExpense(),
+          date: p.date || today(),
+          vendor: p.vendor || p.client || '',
+          description: importResults[next].firstDesc || '',
+          amount: String(subAmt || ''),
+          hst: String(hstAmt || ''),
+          shipping: p.shipping ? String(p.shipping) : '',
+          notes: p.documentNumber ? `Ref: ${p.documentNumber}` : '',
+        });
+        return; // stay in modal with next item's data
+      }
+      setImportSaveMode(false);
+      setShowImport(false);
+    }
     closeModal();
   };
 
@@ -89,40 +140,63 @@ export default function ExpensesPage() {
     setForm(f => ({ ...f, amount: val, hst: String(hst) }));
   };
 
-  // PDF import
+  // PDF import — multi-file
   const handleImportFiles = useCallback(async files => {
     setImporting(true);
-    setImportResult(null);
-    const file = files[0];
+    setImportResults([]);
+    setImportIdx(0);
     const fd = new FormData();
-    fd.append('file', file);
+    for (const f of files) fd.append('file', f);
     try {
       const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setImportResult(data);
-      const p = data.parsed || {};
-      // Determine if HST is included in total or if total is before tax
-      const total = p.total || 0;
-      const hstAmt = p.hst || +(total * hstRate / (1 + hstRate)).toFixed(2);
-      const amtBeforeTax = p.subtotal || +(total / (1 + hstRate)).toFixed(2);
-      setForm(f => ({
-        ...makeBlankExpense(),
-        date: p.date || today(),
-        vendor: p.vendor || p.client || '',
-        description: p.description || '',
-        amount: String(amtBeforeTax || ''),
-        hst: String(hstAmt || ''),
-        notes: p.documentNumber ? `Ref: ${p.documentNumber}` : '',
-      }));
+      const results = (data.results || []).map(r => {
+        const p = r.parsed || {};
+        const firstDesc = '';
+        return { filename: r.filename, parsed: p, text: r.text, firstDesc, error: r.error };
+      });
+      setImportResults(results);
     } catch (err) {
-      setImportResult({ error: err.message });
+      setImportResults([{ error: err.message }]);
     } finally {
       setImporting(false);
     }
-  }, [hstRate, state.settings.hstRegistered]);
+  }, []);
 
-  const handleUseImported = () => { setShowImport(false); setEditExp(null); setShowModal(true); };
+  const handleUseImported = () => {
+    const result = importResults[importIdx];
+    if (!result || result.error || result.saved) return;
+    const p = result.parsed || {};
+    const rawSubtotal = p.subtotal;
+    const rawTotal = p.total;
+    let subAmt, hstAmt;
+    if (rawSubtotal) {
+      subAmt = rawSubtotal;
+      hstAmt = p.hst != null ? p.hst : rawTotal && rawTotal > rawSubtotal ? +(rawTotal - rawSubtotal).toFixed(2) : +(rawSubtotal * hstRate).toFixed(2);
+    } else {
+      const total = rawTotal || 0;
+      hstAmt = p.hst != null ? p.hst : +(total * hstRate / (1 + hstRate)).toFixed(2);
+      subAmt = +(total - hstAmt).toFixed(2);
+    }
+    setEditExp(null);
+    setImportSaveMode(true);
+    setForm({
+      ...makeBlankExpense(),
+      date: p.date || today(),
+      vendor: p.vendor || p.client || '',
+      description: result.firstDesc || '',
+      amount: String(subAmt || ''),
+      hst: String(hstAmt || ''),
+      shipping: p.shipping ? String(p.shipping) : '',
+      notes: p.documentNumber ? `Ref: ${p.documentNumber}` : '',
+    });
+    setShowModal(true);
+  };
+
+  const handleSkipImport = () => {
+    setImportIdx(i => Math.min(importResults.length - 1, i + 1));
+  };
 
   // Save home office
   const saveHomeOffice = e => {
@@ -143,8 +217,8 @@ export default function ExpensesPage() {
   });
 
   const totalDeductible = expenses.reduce((s, e) =>
-    s + getDeductibleAmount(e.amount || 0, e.category, e.businessUsePercent), 0);
-  const totalHST = expenses.reduce((s, e) => s + (e.hst || 0), 0);
+    s + getDeductibleAmount(expTotal(e), e.category, e.businessUsePercent), 0);
+  const totalHST = expenses.reduce((s, e) => s + expHSTTotal(e), 0);
 
   const catLabel = v => EXPENSE_CATEGORIES.find(c => c.value === v)?.label || v;
 
@@ -176,7 +250,7 @@ export default function ExpensesPage() {
               {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
             <div className={styles.toolbarActions}>
-              <Button variant="secondary" size="sm" onClick={() => { setImportResult(null); setShowImport(true); }}>📎 Import Receipt</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setImportResults([]); setImportIdx(0); setShowImport(true); }}>📎 Import Receipts</Button>
               <Button size="sm" onClick={openCreate}>+ Add Expense</Button>
             </div>
           </div>
@@ -197,7 +271,8 @@ export default function ExpensesPage() {
                   </thead>
                   <tbody>
                     {filtered.map(exp => {
-                      const deductible = getDeductibleAmount(exp.amount || 0, exp.category, exp.businessUsePercent);
+                      const total = expTotal(exp);
+                      const deductible = getDeductibleAmount(total, exp.category, exp.businessUsePercent);
                       const isPartial = PARTIAL_DEDUCTION_CATEGORIES[exp.category];
                       return (
                         <tr key={exp.id} className={styles.tableRow}>
@@ -206,10 +281,16 @@ export default function ExpensesPage() {
                           <td>
                             <Badge color="default">{catLabel(exp.category)}</Badge>
                             {isPartial && <span className={styles.partial}> (50%)</span>}
+                            {exp.isRecurring && <span className={styles.recurBadge}>↻ ×{exp.months}mo</span>}
                           </td>
-                          <td className={styles.descCell}>{exp.description || '—'}</td>
-                          <td className={styles.right}>{formatCurrency(exp.amount)}</td>
-                          <td className={styles.right}>{exp.hst ? formatCurrency(exp.hst) : '—'}</td>
+                          <td className={styles.descCell} title={exp.description || undefined}>{exp.description || '—'}</td>
+                          <td className={styles.right}>
+                            {exp.isRecurring
+                              ? <span title={`${formatCurrency(exp.amount)}/mo`}>{formatCurrency(total)}</span>
+                              : formatCurrency(exp.amount)
+                            }
+                          </td>
+                          <td className={styles.right}>{expHSTTotal(exp) ? formatCurrency(expHSTTotal(exp)) : '—'}</td>
                           <td className={styles.right}>{formatCurrency(deductible)}</td>
                           <td>
                             <div className={styles.rowActions}>
@@ -227,16 +308,23 @@ export default function ExpensesPage() {
               {/* Mobile */}
               <div className={styles.mobileList}>
                 {filtered.map(exp => {
-                  const deductible = getDeductibleAmount(exp.amount || 0, exp.category, exp.businessUsePercent);
+                  const total = expTotal(exp);
+                  const deductible = getDeductibleAmount(total, exp.category, exp.businessUsePercent);
                   return (
                     <div key={exp.id} className={styles.mobileCard}>
                       <div className={styles.mobileTop}>
                         <Badge color="default">{catLabel(exp.category)}</Badge>
                         <span className={styles.mobileDate}>{formatDate(exp.date, { style: 'short' })}</span>
                       </div>
-                      <div className={styles.mobileVendor}>{exp.vendor || exp.description || 'Expense'}</div>
+                      <div className={styles.mobileVendor}>
+                        {exp.vendor || exp.description || 'Expense'}
+                        {exp.isRecurring && <span className={styles.recurBadge}> ↻ ×{exp.months}mo</span>}
+                      </div>
                       <div className={styles.mobileMeta}>
-                        <span>{formatCurrency(exp.amount)}</span>
+                        <span>
+                          {formatCurrency(total)}
+                          {exp.isRecurring && <span className={styles.recurMonthly}> ({formatCurrency(exp.amount)}/mo)</span>}
+                        </span>
                         <span className={styles.mobileDeductible}>Deductible: {formatCurrency(deductible)}</span>
                       </div>
                       <div className={styles.mobileActions}>
@@ -355,21 +443,58 @@ export default function ExpensesPage() {
                 {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </Select>
             </FormField>
-            <FormField label="Vendor / Merchant" className={styles.colSpan2}>
-              <Input placeholder="Adobe Inc., Rogers, etc." value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} />
-            </FormField>
+            <div className={styles.vendorBizRow}>
+              <FormField label="Vendor / Merchant" className={styles.vendorField}>
+                <Input placeholder="Adobe Inc., Rogers, etc." value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} />
+              </FormField>
+              <FormField label="Business Use %" className={styles.bizField}>
+                <Input type="number" min="0" max="100" step="1" suffix="%" value={form.businessUsePercent} onChange={e => setForm(f => ({ ...f, businessUsePercent: e.target.value }))} />
+              </FormField>
+            </div>
             <FormField label="Description" className={styles.colSpan2}>
               <Input placeholder="Brief description of the expense" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </FormField>
             <FormField label="Amount (before HST)" required>
               <Input type="number" min="0" step="0.01" prefix="$" value={form.amount} onChange={e => handleAmountChange(e.target.value)} required />
             </FormField>
-            <FormField label="HST Paid" hint="Leave 0 if no HST receipt">
+            <FormField label="HST Paid">
               <Input type="number" min="0" step="0.01" prefix="$" value={form.hst} onChange={e => setForm(f => ({ ...f, hst: e.target.value }))} />
             </FormField>
-            <FormField label="Business Use %" hint="100% unless mixed personal/business" className={styles.colSpan2}>
-              <Input type="number" min="0" max="100" step="1" suffix="%" value={form.businessUsePercent} onChange={e => setForm(f => ({ ...f, businessUsePercent: e.target.value }))} />
+            <FormField label="Shipping">
+              <Input type="number" min="0" step="0.01" prefix="$" value={form.shipping} onChange={e => setForm(f => ({ ...f, shipping: e.target.value }))} />
             </FormField>
+
+            {/* Recurring toggle */}
+            <div className={`${styles.colSpan2} ${styles.recurRow}`}>
+              <label className={styles.recurToggle}>
+                <input
+                  type="checkbox"
+                  checked={!!form.isRecurring}
+                  onChange={e => setForm(f => ({ ...f, isRecurring: e.target.checked }))}
+                />
+                <span>Recurring / subscription (monthly charge)</span>
+              </label>
+              {form.isRecurring && (
+                <div className={styles.recurMonthsWrap}>
+                  <FormField label="Months in this fiscal period" hint="How many months this expense recurs (max 12)">
+                    <Input
+                      type="number" min="1" max="12" step="1"
+                      value={form.months}
+                      onChange={e => setForm(f => ({ ...f, months: parseInt(e.target.value) || 1 }))}
+                      suffix="mo"
+                    />
+                  </FormField>
+                  <p className={styles.recurTotal}>
+                    Total: <strong>{formatCurrency((parseFloat(form.amount) || 0) * (form.months || 1))}</strong>
+                    {(parseFloat(form.hst) || 0) > 0 && (
+                      <> + <strong>{formatCurrency((parseFloat(form.hst) || 0) * (form.months || 1))}</strong> HST</>
+                    )}
+                    {' '}over {form.months} month{form.months !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+
             {PARTIAL_DEDUCTION_CATEGORIES[form.category] && (
               <div className={`${styles.colSpan2} ${styles.noteBox}`}>
                 ℹ️ <strong>{catLabel(form.category)}</strong> is only 50% deductible under CRA rules.
@@ -383,33 +508,102 @@ export default function ExpensesPage() {
       </Modal>
 
       {/* ── Import Modal ── */}
-      <Modal isOpen={showImport} onClose={() => setShowImport(false)} title="Import Receipt" size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowImport(false)}>Cancel</Button>
-            {importResult && !importResult.error && (
-              <Button onClick={handleUseImported}>Use extracted data →</Button>
-            )}
-          </>
-        }
-      >
-        <div className={styles.importBody}>
-          <FileDropzone onFiles={handleImportFiles} label={importing ? 'Extracting…' : 'Drop receipt PDF or image here'} hint="Supports PDF, PNG, JPG" />
-          {importing && <p className={styles.importStatus}>⏳ Parsing…</p>}
-          {importResult?.error && <p className={styles.importError}>❌ {importResult.error}</p>}
-          {importResult && !importResult.error && (
-            <div className={styles.importPreview}>
-              <p className={styles.importPreviewTitle}>✅ Extracted fields:</p>
-              {Object.entries(importResult.parsed || {}).map(([k, v]) => v != null && (
-                <div key={k} className={styles.importRow}>
-                  <span className={styles.importKey}>{k}:</span>
-                  <span className={styles.importVal}>{String(v)}</span>
-                </div>
-              ))}
+      {(() => {
+        const currentImport = importResults[importIdx];
+        const importTotalValid = importResults.filter(r => !r.error).length;
+        const importSavedCount = importResults.filter(r => r.saved).length;
+        const allImportsDone = importTotalValid > 0 && importSavedCount >= importTotalValid;
+        return (
+          <Modal isOpen={showImport && !showModal} onClose={() => { setShowImport(false); setImportSaveMode(false); }} title="Import Receipts from PDF" size="lg"
+            footer={
+              <>
+                <Button variant="secondary" onClick={() => { setShowImport(false); setImportSaveMode(false); }}>
+                  {allImportsDone ? 'Done ✓' : 'Close'}
+                </Button>
+                {importResults.length > 1 && (
+                  <div className={styles.importNav}>
+                    <Button variant="secondary" size="xs" onClick={() => setImportIdx(i => Math.max(0, i - 1))} disabled={importIdx === 0}>←</Button>
+                    <span>{importIdx + 1} / {importResults.length}</span>
+                    <Button variant="secondary" size="xs" onClick={() => setImportIdx(i => Math.min(importResults.length - 1, i + 1))} disabled={importIdx === importResults.length - 1}>→</Button>
+                  </div>
+                )}
+                {currentImport && !currentImport.error && !currentImport.saved && (
+                  <>
+                    {importResults.length > 1 && (
+                      <Button variant="secondary" onClick={handleSkipImport} disabled={importIdx === importResults.length - 1}>Skip</Button>
+                    )}
+                    <Button onClick={handleUseImported}>Edit &amp; Save →</Button>
+                  </>
+                )}
+                {currentImport?.saved && <span className={styles.importSavedBadge}>✅ Saved</span>}
+              </>
+            }
+          >
+            <div className={styles.importBody}>
+              {importResults.length === 0 && (
+                <FileDropzone
+                  onFiles={handleImportFiles}
+                  label={importing ? 'Parsing files…' : 'Drop one or more receipt PDFs here'}
+                  hint="Supports PDF, PNG, JPG. Vendor, amount, HST and description are pre-filled from extracted text."
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  multiple
+                />
+              )}
+              {importing && <p className={styles.importStatus}>⏳ Extracting text…</p>}
+              {importResults.length > 0 && (
+                <>
+                  {currentImport?.error ? (
+                    <p className={styles.importError}>\u274c {currentImport.filename}: {currentImport.error}</p>
+                  ) : (
+                    <div className={styles.importPreview}>
+                      <div className={styles.importPreviewHeader}>
+                        <p className={styles.importPreviewTitle}>
+                          {currentImport?.saved ? '✅ Saved: ' : '🧾 Extracted from: '}
+                          <strong>{currentImport?.filename}</strong>
+                        </p>
+                        {importTotalValid > 1 && (
+                          <p className={styles.importProgress}>{importSavedCount} of {importTotalValid} saved</p>
+                        )}
+                      </div>
+                      {currentImport?.firstDesc && (
+                        <div className={styles.importRow}>
+                          <span className={styles.importKey}>item:</span>
+                          <span className={styles.importVal}>{currentImport.firstDesc}</span>
+                        </div>
+                      )}
+                      {Object.entries(currentImport?.parsed || {})
+                        .filter(([k, v]) => v != null && k !== 'lineItems' && k !== 'vendor' && k !== 'description')
+                        .map(([k, v]) => (
+                          <div key={k} className={styles.importRow}>
+                            <span className={styles.importKey}>{k}:</span>
+                            <span className={styles.importVal}>{String(v)}</span>
+                          </div>
+                        ))}
+                      {currentImport?.parsed?.vendor && (
+                        <div className={styles.importRow}>
+                          <span className={styles.importKey}>vendor:</span>
+                          <span className={styles.importVal}>{currentImport.parsed.vendor}</span>
+                        </div>
+                      )}
+                      {currentImport?.text && (
+                        <details className={styles.rawText}>
+                          <summary>Raw extracted text</summary>
+                          <pre>{currentImport.text.slice(0, 1000)}</pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
+                  <div className={styles.importReset}>
+                    <Button variant="ghost" size="xs" onClick={() => { setImportResults([]); setImportIdx(0); }}>
+                      ← Upload different files
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
-          )}
-        </div>
-      </Modal>
+          </Modal>
+        );
+      })()}
 
       {/* ── Confirm Delete ── */}
       <Modal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete Expense?" size="sm"

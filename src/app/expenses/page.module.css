@@ -89,7 +89,7 @@
 
 .search:focus { border-color: var(--accent); }
 
-.filterSelect { width: auto; min-width: 150px; }
+.filterSelect { width: auto !important; min-width: 150px; }
 
 .toolbarActions {
   display: flex;
@@ -147,6 +147,70 @@
 .partial {
   font-size: 0.7rem;
   color: var(--warning-text);
+}
+
+.recurBadge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-bg, rgba(79, 125, 243, 0.1));
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.recurMonthly {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Recurring toggle in expense form */
+.recurRow {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recurToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.recurToggle input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.recurMonthsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.recurTotal {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.recurTotal strong {
+  color: var(--text-primary);
 }
 
 .rowActions {
@@ -216,6 +280,16 @@
 }
 
 .colSpan2 { grid-column: span 2; }
+
+/* Vendor + Business Use % side by side (75 / 25) */
+.vendorBizRow {
+  grid-column: span 2;
+  display: flex;
+  gap: 0.875rem;
+  align-items: flex-start;
+}
+.vendorField { flex: 3; min-width: 0; }
+.bizField    { flex: 1; min-width: 80px; }
 
 .noteBox {
   background: var(--info-light);
@@ -365,6 +439,52 @@
 .importRow:last-of-type { border-bottom: none; }
 .importKey { color: var(--text-muted); min-width: 100px; flex-shrink: 0; }
 .importVal { color: var(--text-primary); word-break: break-all; }
+
+.importPreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.importProgress {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.importNav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.importSavedBadge {
+  font-size: 0.8rem;
+  color: var(--success-text);
+  font-weight: 500;
+}
+
+.importReset {
+  text-align: right;
+}
+
+.rawText {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.rawText pre {
+  max-height: 120px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 
 .confirmText {
   color: var(--text-secondary);

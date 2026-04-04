@@ -27,7 +27,8 @@ const DEFAULT_SETTINGS = {
   postalCode: '',
   phone: '',
   website: '',
-  logo: null,           // base64 data URL
+  logo: null,           // base64 data URL — used on PDF invoices
+  badgeLogo: null,      // base64 data URL — used as sidebar/app badge icon
   invoiceFooterNotes: '',
   // Personal account matching
   personalAccountKeywords: '',  // comma-separated nicknames/keywords e.g. "spielbergo, personal"
@@ -385,7 +386,7 @@ function generateInvoiceNumber(count) {
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const { user } = useAuth();
+  const { user, authLoading } = useAuth();
 
   const [state, dispatch]               = useReducer(reducer, null, makeInitialState);
   const [companies, setCompanies]       = useState([]);
@@ -426,7 +427,11 @@ export function AppProvider({ children }) {
       setCompanies([]);
       setActiveId(null);
       activeIdRef.current = null;
-      setAppLoading(false);
+      // Only stop the loading spinner once we know auth has fully resolved
+      // with no user. If authLoading is still true, Firebase hasn't checked
+      // yet — keep showing the loader so the redirect guard in AppShell
+      // doesn't fire prematurely.
+      if (!authLoading) setAppLoading(false);
       return;
     }
 
@@ -439,7 +444,7 @@ export function AppProvider({ children }) {
         );
         const snap = await getDocs(q);
         const list = snap.docs
-          .map(d => ({ id: d.id, name: d.data().name, createdAt: d.data().createdAt }))
+          .map(d => ({ id: d.id, name: d.data().name, createdAt: d.data().createdAt, badgeLogo: d.data().data?.settings?.badgeLogo || null }))
           .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
         setCompanies(list);
 
@@ -454,7 +459,16 @@ export function AppProvider({ children }) {
         setAppLoading(false);
       }
     })();
-  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.uid, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Keep active company's badgeLogo in sync in the companies list ────
+  useEffect(() => {
+    const id = activeIdRef.current;
+    if (!id) return;
+    setCompanies(prev => prev.map(c =>
+      c.id === id ? { ...c, badgeLogo: state.settings?.badgeLogo || null } : c
+    ));
+  }, [state.settings?.badgeLogo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Debounced sync back to Firestore ──────────────────────────────────
   useEffect(() => {

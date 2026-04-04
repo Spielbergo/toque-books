@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { exportDataAsJSON, importDataFromJSON, clearData } from '@/lib/storage';
 import { formatDate, today } from '@/lib/formatters';
@@ -32,8 +32,22 @@ export default function SettingsPage() {
   const [form, setForm] = useState({ ...state.settings });
   const [saved, setSaved] = useState(false);
 
-  // Logo upload
+  // Logo uploads
   const logoInputRef = useRef(null);
+  const badgeLogoInputRef = useRef(null);
+
+  const handleBadgeLogoUpload = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 300 * 1024) {
+      alert('Badge logo is too large. Please use an image under 300 KB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => setForm(f => ({ ...f, badgeLogo: ev.target.result }));
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleLogoUpload = e => {
     const file = e.target.files?.[0];
@@ -87,6 +101,26 @@ export default function SettingsPage() {
   };
 
   const setActiveFY = key => dispatch({ type: 'SET_ACTIVE_FISCAL_YEAR', payload: key });
+
+  // Sorted FY entries with cross-bucket date-based stats
+  const fyEntries = useMemo(() => {
+    const allInvoices = Object.values(state.fiscalYears).flatMap(fy => fy.invoices || []);
+    const allExpenses = Object.values(state.fiscalYears).flatMap(fy => fy.expenses || []);
+    const allDivs    = Object.values(state.fiscalYears).flatMap(fy => fy.dividendsPaid || []);
+    return Object.entries(state.fiscalYears)
+      .sort(([, a], [, b]) => (b.startDate || '').localeCompare(a.startDate || ''))
+      .map(([key, fy]) => {
+        const { startDate: s, endDate: e } = fy;
+        const inRange = date => date && (!s || date >= s) && (!e || date <= e);
+        return {
+          key,
+          fy,
+          invCount: allInvoices.filter(i => inRange(i.issueDate)).length,
+          expCount: allExpenses.filter(ex => inRange(ex.date)).length,
+          divCount: allDivs.filter(d => inRange(d.date)).length,
+        };
+      });
+  }, [state.fiscalYears]);
 
   const handleExport = () => exportDataAsJSON(state);
 
@@ -156,6 +190,26 @@ export default function SettingsPage() {
               <FormField label="Default Payment Terms (days)" hint="Shown on new invoices as due date offset">
                 <Input type="number" min="0" max="365" value={form.defaultPaymentTerms} onChange={e => setForm(f => ({ ...f, defaultPaymentTerms: parseInt(e.target.value) || 30 }))} />
               </FormField>
+            </div>
+
+            <div className={styles.subsectionHeader}>
+              <h4>App Badge Logo</h4>
+              <p>Shown in the sidebar next to your company name. Square image works best (PNG with transparency recommended).</p>
+            </div>
+            <div className={styles.badgeLogoSection}>
+              <div className={styles.badgeLogoPreviewWrap}>
+                {form.badgeLogo ? (
+                  <img src={form.badgeLogo} alt="Badge logo" className={styles.badgeLogoPreview} />
+                ) : (
+                  <div className={styles.badgeLogoPlaceholder}>No badge</div>
+                )}
+              </div>
+              <div className={styles.logoActions}>
+                <Button type="button" variant="secondary" size="sm" onClick={() => badgeLogoInputRef.current?.click()}>Upload Badge Logo</Button>
+                {form.badgeLogo && <Button type="button" variant="ghost" size="sm" onClick={() => setForm(f => ({ ...f, badgeLogo: null }))}>Remove</Button>}
+                <input type="file" accept="image/*" ref={badgeLogoInputRef} className={styles.fileInput} onChange={handleBadgeLogoUpload} />
+                <p className={styles.logoHint}>Square PNG or SVG, max 300 KB. Stored in your browser.</p>
+              </div>
             </div>
 
             <div className={styles.subsectionHeader}>
@@ -275,13 +329,13 @@ export default function SettingsPage() {
           </div>
 
           <div className={styles.fyList}>
-            {Object.entries(state.fiscalYears).map(([key, fy]) => (
+            {fyEntries.map(({ key, fy, invCount, expCount, divCount }) => (
               <div key={key} className={`${styles.fyRow} ${key === state.activeFiscalYear ? styles.fyRowActive : ''}`}>
                 <div className={styles.fyInfo}>
                   <strong className={styles.fyKey}>{fy.label || key}</strong>
                   <span className={styles.fyDates}>{formatDate(fy.startDate)} – {formatDate(fy.endDate)}</span>
                   <span className={styles.fyStats}>
-                    {(fy.invoices?.length || 0)} invoices · {(fy.expenses?.length || 0)} expenses · {(fy.dividendsPaid?.length || 0)} dividends
+                    {invCount} invoices · {expCount} expenses · {divCount} dividends
                   </span>
                 </div>
                 <div className={styles.fyActions}>

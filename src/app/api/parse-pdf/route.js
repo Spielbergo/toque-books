@@ -68,6 +68,50 @@ export async function POST(request) {
   }
 }
 
+/**
+ * Search lines[] for a label matching labelPattern and return the $ amount
+ * at the END of that line, or at the START of the NEXT line.
+ * This handles PDFs where label and value appear on adjacent lines.
+ * Returns null if not found.
+ */
+function extractLabeledAmount(lines, labelPattern) {
+  for (let i = 0; i < lines.length; i++) {
+    if (!labelPattern.test(lines[i])) continue;
+    // Amount at end of same line: "Total payable / ... $40.57"
+    const sameLine = lines[i].match(/\$\s*([\d,]+\.\d{2})\s*$/);
+    if (sameLine) return parseFloat(sameLine[1].replace(/,/g, ''));
+    // Amount on next line: "Total payable / ...\n$40.57"
+    if (i + 1 < lines.length) {
+      const nextLine = lines[i + 1].match(/^\s*\$?\s*([\d,]+\.\d{2})\b/);
+      if (nextLine) return parseFloat(nextLine[1].replace(/,/g, ''));
+    }
+  }
+  return null;
+}
+
+// ─── PLATFORM / MARKETPLACE VENDOR DETECTION ────────────────────────────────
+const PLATFORM_PATTERNS = [
+  [/amazon\.ca|amazon\.com\.ca|amazon\.com\b/i, 'Amazon.ca'],
+  [/\bnewegg\.ca|\bnewegg\.com/i, 'Newegg'],
+  [/\bgoogle\s+pay|\bgoogle\s+store|\bgoogle\.com/i, 'Google'],
+  [/\bapple\s+store|\bapple\.com/i, 'Apple'],
+  [/\bmicrosoft\.com|\bxbox\b/i, 'Microsoft'],
+  [/\badobe\.com/i, 'Adobe'],
+  [/\bshopify\b/i, 'Shopify'],
+];
+
+/**
+ * Return a canonical marketplace name if text (or the GST/HST remitter name) betrays
+ * that this is a marketplace receipt, otherwise returns null.
+ */
+function detectPlatformVendor(text, remitterName) {
+  const haystack = (remitterName ? remitterName + '\n' : '') + text;
+  for (const [pat, name] of PLATFORM_PATTERNS) {
+    if (pat.test(haystack)) return name;
+  }
+  return null;
+}
+
 // ─── SMART FIELD EXTRACTION ─────────────────────────────────────────────────
 
 function parseDocumentText(text) {
@@ -78,7 +122,9 @@ function parseDocumentText(text) {
 
   // --- Date extraction ---
   // WaveApps format: "Invoice Date:October 7, 2024" and "Payment Due:October 7, 2024"
-  const issueDateMatch = text.match(/Invoice\s*Date\s*:([^\n\r]+)/i);
+  // Bilingual format: "Invoice date / Date de facturation: 29 April 2025"
+  // Amazon: "Order date / Date de commande: March 3, 2026"
+  const issueDateMatch = text.match(/(?:Invoice|Order)\s*date\s*(?:\/[^:\n]+)?:\s*([^\n\r]+)/i);
   if (issueDateMatch) {
     const parsed = parseDateString(issueDateMatch[1].trim());
     if (parsed) result.date = parsed;
@@ -109,7 +155,8 @@ function parseDocumentText(text) {
 
   // --- Invoice number ---
   // WaveApps: "Invoice Number:96" (no space after colon)
-  const sameLine = text.match(/invoice\s*(?:number|num|no\.?|#)\s*:?\s*(\S{1,30})/i);
+  // Bilingual: "Invoice # / # de facture: CA51OI5A5QQI"
+  const sameLine = text.match(/invoice\s*(?:#|number|num|no\.?)\s*(?:\/[^:\n]+)?\s*:?\s*(\S{1,30})/i);
   if (sameLine) {
     const c = sameLine[1].trim().replace(/[.,]$/, '');
     if (!/^(date|from|to|due)$/i.test(c)) result.documentNumber = c;
@@ -129,14 +176,97 @@ function parseDocumentText(text) {
   }
 
   // --- Amounts ---
-  const totalMatch = text.match(/(?:total|amount\s+due|balance\s+due|grand\s+total|total\s+due)[^\d$\n]*\$?([\d,]+\.?\d{0,2})/i);
-  if (totalMatch) result.total = parseFloat(totalMatch[1].replace(/,/g, ''));
+  // Use extractLabeledAmount() so label and value can be on adjacent lines —
+  // pdf-parse sometimes puts them on separate lines when extracting box/table layouts.
 
-  const subtotalMatch = text.match(/(?:subtotal|sub-total|sub\s+total)[^\d$\n]*\$?([\d,]+\.?\d{0,2})/i);
-  if (subtotalMatch) result.subtotal = parseFloat(subtotalMatch[1].replace(/,/g, ''));
+  // Total: most-specific labels first to avoid matching subtotal labels
+  result.total =
+    extractLabeledAmount(lines, /total\s+payable/i) ||
+    extractLabeledAmount(lines, /order\s+total/i) ||
+    extractLabeledAmount(lines, /amount\s+due/i) ||
+    extractLabeledAmount(lines, /grand\s+total/i) ||
+    extractLabeledAmount(lines, /balance\s+due/i) ||
+    extractLabeledAmount(lines, /total\s+due/i) ||
+    // Bare "total" line — but NOT "total before/avant/partiel" (those are subtotal synonyms)
+    (() => {
+      for (let i = 0; i < lines.length; i++) {
+        if (!/\btotal\b/i.test(lines[i])) continue;
+        if (/(?:before|avant|partiel|excl|sub-?total)/i.test(lines[i])) continue;
+        const m = lines[i].match(/\$\s*([\d,]+\.\d{2})\s*$/) ||
+                  (lines[i + 1] && lines[i + 1].match(/^\s*\$?\s*([\d,]+\.\d{2})\b/));
+        if (m) return parseFloat(m[1].replace(/,/g, ''));
+      }
+      return null;
+    })() ||
+    null;
 
-  const hstMatch = text.match(/(?:HST|GST|tax)[^\d$\n]*\$?([\d,]+\.?\d{0,2})/i);
-  if (hstMatch) result.hst = parseFloat(hstMatch[1].replace(/,/g, ''));
+  // Subtotal (pre-tax):
+  //   "Total before tax / Montant avant taxes: $35.90"  ← Amazon
+  //   "Item subtotal", "before tax", "excl. tax"         ← generic
+  //   "Subtotal" / "Sub-total"                           ← WaveApps / others
+  //   NOT "Invoice subtotal" (Amazon: = total incl. tax)
+  result.subtotal =
+    extractLabeledAmount(lines, /total\s+before\s+tax/i) ||
+    extractLabeledAmount(lines, /montant\s+avant\s+taxes?/i) ||
+    extractLabeledAmount(lines, /item\s+subtotal/i) ||
+    extractLabeledAmount(lines, /(?:excl\.?\s*tax|before\s+tax)/i) ||
+    (() => {
+      for (let i = 0; i < lines.length; i++) {
+        if (!/\bsub-?total\b/i.test(lines[i])) continue;
+        if (/invoice/i.test(lines[i])) continue; // skip "Invoice subtotal" (= total incl. tax on Amazon)
+        const m = lines[i].match(/\$\s*([\d,]+\.\d{2})\s*$/) ||
+                  (lines[i + 1] && lines[i + 1].match(/^\s*\$?\s*([\d,]+\.\d{2})\b/));
+        if (m) return parseFloat(m[1].replace(/,/g, ''));
+      }
+      return null;
+    })() ||
+    null;
+
+  // HST/GST — line-based, most-specific first.
+  // Registration number lines (e.g. "85730 5932 RT0001") have no "$X.XX" so are
+  // skipped naturally by extractLabeledAmount's dollar-sign requirement.
+  const hstLabelPatterns = [
+    /estimated\s+gst\/hst/i,
+    /federal\s+tax/i,
+    /taxe\s+f[eé]d[eé]rale/i,
+    /\b(?:gst|hst)\b(?![\s\d]*(?:#|RT|RP))/i,
+  ];
+  for (const pat of hstLabelPatterns) {
+    const v = extractLabeledAmount(lines, pat);
+    if (v != null) {
+      const plausibleTotal = result.total || result.subtotal || 10000;
+      if (v > 0 && v < plausibleTotal * 0.25) { result.hst = v; break; }
+    }
+  }
+
+  // Shipping (only stored when > $0)
+  const shippingAmt = extractLabeledAmount(lines, /shipping(?:\s+(?:charges?|&\s*handling|and\s+handling))?/i);
+  if (shippingAmt != null && shippingAmt > 0) result.shipping = shippingAmt;
+
+  // --- Vendor / Seller ---
+  // Step 1: check for known marketplace platforms (Amazon, Newegg, Google, Apple, etc.)
+  // by looking at the domain or "GST/HST remitted by" field which names the platform operator
+  const remittedBy = text.match(/(?:GST|HST|TPS|TVH)\s+remitted\s+by[^:\n]*:\s*([^\n\r]+)/i);
+  const platformVendor = detectPlatformVendor(text, remittedBy?.[1]);
+  if (platformVendor) {
+    result.vendor = platformVendor;
+  } else {
+    // Step 2: explicit "Sold by" label on same or next line
+    const soldByInline = text.match(/Sold\s+by\s*(?:\/[^:\n]+)?:\s*([^\n\r$\d]{2,80})/i);
+    if (soldByInline) {
+      result.vendor = soldByInline[1].trim().replace(/\s+/g, ' ');
+    }
+    if (!result.vendor) {
+      const sellerMatch = text.match(/(?:Seller|Vendor)\s*:\s*([^\n\r$\d]{2,80})/i);
+      if (sellerMatch) result.vendor = sellerMatch[1].trim();
+    }
+    if (!result.vendor) {
+      const soldByIdx = lines.findIndex(l => /^Sold\s+by\s*(?:\/.*)?$/i.test(l));
+      if (soldByIdx >= 0 && lines[soldByIdx + 1]) {
+        result.vendor = lines[soldByIdx + 1].trim();
+      }
+    }
+  }
 
   // --- Client (Bill To) ---
   // Look for lines after "Bill To:" or "Billed To:" label
@@ -154,10 +284,10 @@ function parseDocumentText(text) {
   if (hstNumMatch) result.hstNumber = hstNumMatch[1].trim().replace(/\s+/g, ' ');
 
   // --- Line items (table parsing) ---
-  // Pass where the Bill To address block ends so the parser never searches inside it
+  // Pass where the Bill To / address block ends so the parser never searches inside it.
   let addressEndIdx = 0;
   if (billToIdx >= 0) {
-    // Advance past the address lines (name + up to 6 address lines: street, city, province, postal, country, phone)
+    // WaveApps-style: "Bill To:" on its own line, followed by address lines
     let k = billToIdx + 1;
     while (k < lines.length && k < billToIdx + 8) {
       if (/^(description|item|service|product|qty|quantity|unit price|amount|rate)\b/i.test(lines[k])) break;
@@ -165,12 +295,35 @@ function parseDocumentText(text) {
     }
     addressEndIdx = k;
   }
+
+  // Amazon-style: "Billing address / Adresse de facturation" begins a 3-column section
+  // (Billing | Delivery | Sold by) — advance addressEndIdx past the whole block so the
+  // header search starts from the actual item table, not from interleaved address lines.
+  const amazonAddrIdx = lines.findIndex(l => /^billing\s*address\b/i.test(l));
+  if (amazonAddrIdx >= 0) {
+    let k = amazonAddrIdx + 1;
+    while (k < lines.length) {
+      // Stop at the next major section header that precedes the item table
+      if (/^(?:order\s+(?:information|date|#)|invoice\s+details|shipment\s+date)\b/i.test(lines[k])) break;
+      k++;
+    }
+    addressEndIdx = Math.max(addressEndIdx, k);
+  }
   result.lineItems = parseLineItems(lines, text, addressEndIdx);
 
   // Single description fallback (used when no table found)
   if (result.lineItems.length === 0) {
     const descLines = lines.filter(l => isLikelyItemDescription(l));
     result.description = descLines[0] || '';
+  }
+
+  // If line items have amounts, use their sum as the authoritative pre-tax subtotal —
+  // but only when no label-based subtotal was already found (label is more reliable).
+  if (!result.subtotal && Array.isArray(result.lineItems) && result.lineItems.length > 0) {
+    const liTotal = result.lineItems.reduce((s, li) => s + (li.amount || 0), 0);
+    if (liTotal > 0 && (!result.total || liTotal <= result.total + 0.02)) {
+      result.subtotal = +liTotal.toFixed(2);
+    }
   }
 
   return result;
@@ -325,6 +478,62 @@ function parseLineItems(lines, text, addressEndIdx = 0) {
       });
     }
   }
+  if (items.length > 0) return items;
+
+  // ── Strategy D: Amazon/receipt format – 5+ column rows ───────────────────
+  // "description  qty  $unit  $discount  $fed_tax  $prov_tax  $item_subtotal"
+  // The last column ($item_subtotal) INCLUDES tax on Amazon; use unitPrice × qty for
+  // the pre-tax line amount so that the line-item sum matches "Total before tax".
+  const receiptRowRe = /^(.+?)\s+(\d+(?:\.\d+)?)\s+\$?([\d,]+\.\d{2})\s+\$?[\d,]+\.\d{2}\s+\$?[\d,]+\.\d{2}\s+\$?[\d,]+\.\d{2}\s+\$?([\d,]+\.\d{2})\s*$/;
+  for (const line of sectionLines) {
+    if (/^(subtotal|total|tax|gst|hst|discount|shipping)/i.test(line)) continue;
+    const dm = line.match(receiptRowRe);
+    if (dm) {
+      const [, desc, qty, unitPrice] = dm;
+      if (isLikelyItemDescription(desc.trim())) {
+        const q = parseFloat(qty);
+        const r = parseFloat(unitPrice.replace(/,/g, ''));
+        items.push({
+          description: desc.trim(),
+          quantity: q,
+          rate: r,
+          amount: +(q * r).toFixed(2),
+        });
+      }
+    }
+  }
+  if (items.length > 0) return items;
+
+  // ── Strategy E: multi-line item description ───────────────────────────────
+  // Amazon (and some other receipts) put the description on multiple lines and
+  // the amounts (qty  $unit  $disc  $tax  $tax  $subtotal) on a SEPARATE line below.
+  // Find "amounts-only" rows, then look backward for the description.
+  const amtsOnlyRe = /^\s*(\d+(?:\.\d+)?)\s+\$?([\d,]+\.\d{2})(?:\s+\$?[\d,]+\.\d{2}){2,}\s*$/;
+  for (let si = 0; si < sectionLines.length; si++) {
+    const am = sectionLines[si].match(amtsOnlyRe);
+    if (!am) continue;
+    // Walk backward, skipping non-description lines (ASIN, blank-ish, etc.)
+    // Stop at another amounts row or a structural keyword.
+    const descCandidates = [];
+    for (let j = si - 1; j >= 0; j--) {
+      const l = sectionLines[j];
+      if (amtsOnlyRe.test(l)) break;                          // another item's amounts row
+      if (/^(subtotal|total|tax|gst|hst|discount|shipping|description|qty|quantity|items?\s|paid|sold\s+by|billing|delivery|#\s*tax|invoice\s+details)/i.test(l)) break;
+      if (isLikelyItemDescription(l)) descCandidates.unshift(l); // prepend → keeps forward order
+    }
+    if (descCandidates.length > 0) {
+      const q = parseFloat(am[1]);
+      const r = parseFloat(am[2].replace(/,/g, ''));
+      // Prefer the longest candidate — product descriptions are always longer than names/addresses
+      const bestDesc = descCandidates.reduce((best, c) => c.length > best.length ? c : best, descCandidates[0]);
+      items.push({
+        description: bestDesc, // longest line = most complete product title
+        quantity: q,
+        rate: r,
+        amount: +(q * r).toFixed(2),
+      });
+    }
+  }
 
   return items;
 }
@@ -334,19 +543,42 @@ function isLikelyItemDescription(str) {
   if (!/[a-zA-Z]/.test(str)) return false;
 
   // Known header/footer/structural words
-  if (/^(description|items?|service|product|details|qty|quantity|unit\s*price|rate|price|amount|total|subtotal|tax|gst|hst|invoice|date|due|issue|amount\s*due|bill|from|to|payment|terms|page|thank|notes?|memo|balance|discount|shipping|po\s*#|purchase|powered)/i.test(str)) return false;
+  if (/^(description|items?|service|product|details|qty|quantity|unit\s*price|rate|price|amount|total|subtotal|tax|gst|hst|tps|tvh|invoice|order|date|due|issue|amount\s*due|bill|from|to|payment|terms|page|thank|notes?|memo|balance|discount|shipping|po\s*#|purchase|powered|sold\s+by|ship|asin|federal|provincial|paid|registration|enregistrement)/i.test(str)) return false;
+
+  // Lines starting with "#" are typically labels like "# Tax Registrations / Pas de # d'enregistrement"
+  if (/^#/.test(str)) return false;
+
+  // Looks like an invoice/order reference code: no spaces, all uppercase letters+digits (e.g. CA51OI5A5QQI)
+  if (/^[A-Z0-9]{6,}$/.test(str)) return false;
+
+  // Looks like a personal name (2 title-case words, letters only, e.g. "Scott Sutherland")
+  if (/^[A-Z][a-z'-]+\s+[A-Z][a-z'-]+$/.test(str) && str.length <= 35) return false;
+
+  // All-uppercase — section headers, person names, street addresses (e.g. "SCOTT SUTHERLAND",
+  // "505-150 SUDBURY STREET, BUZZ CODE: 9475"). Real product descriptions always have lowercase.
+  if (str === str.toUpperCase() && /[A-Z]{2}/.test(str)) return false;
+
+  // Street address keywords
+  if (/\b(street|avenue|ave\.?\b|road|drive|driv\b|blvd\.?|crescent|boulevard|buzz\s+code|postal\s+code)\b/i.test(str)) return false;
 
   // Month names and date-like patterns (prevent dates parsed as descriptions)
   if (/^(january|february|march|april|may|june|july|august|september|october|november|december)/i.test(str)) return false;
+  // "29 April 2025" — digit(s) then a month name
+  if (/^\d{1,2}\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i.test(str)) return false;
+  // ISO date or numeric date "2025-04-29", "03/29/2025"
+  if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(str)) return false;
+  if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(str)) return false;
 
   // Geographic terms (common in address blocks)
   if (/^(canada|united states|usa|u\.s\.a|ontario|quebec|british columbia|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland|prince edward island|northwest territories|nunavut|yukon|bc|ab|mb|sk|ns|nb|nl|pe|nt|nu|yt)/i.test(str)) return false;
 
   // Looks like a postal code, phone number, email, or URL
   if (/^[A-Z]\d[A-Z]\s*\d[A-Z]\d$/i.test(str)) return false; // Canadian postal code
-  if (/^\+?[\d\s().-]{7,}$/.test(str)) return false;          // phone number
+  if (/^\+?[\d\s().-]{7,}$/.test(str)) return false;          // pure phone number
+  if (/\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/.test(str)) return false; // inline phone number
   if (/^[\w.+-]+@[\w-]+\.[\w.]{2,}$/.test(str)) return false; // email address
-  if (/^(https?:\/\/|www\.)/i.test(str)) return false;        // URL
+  if (/^(https?:\/\/|www\.)/i.test(str)) return false;        // URL at start
+  if (/\bwww\./i.test(str) || /https?:\/\//i.test(str)) return false; // inline URL
   if (/\.(com|ca|net|org|io)\b/i.test(str) && !/\s/.test(str)) return false; // bare domain
 
   return true;

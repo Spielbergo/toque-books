@@ -95,7 +95,11 @@ export default function Header({ onMenuClick }) {
                     className={`${styles.dropdownItem} ${c.id === activeCompany?.id ? styles.dropdownItemActive : ''}`}
                     onClick={() => handleSelectCompany(c.id)}
                   >
-                    <span className={styles.dropdownItemIcon}>🏢</span>
+                    <span className={styles.dropdownItemIcon}>
+                      {c.badgeLogo
+                        ? <img src={c.badgeLogo} alt="logo" className={styles.dropdownBadgeImg} />
+                        : '🏢'}
+                    </span>
                     <span className={styles.dropdownItemText}>{c.name}</span>
                     {c.id === activeCompany?.id && (
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

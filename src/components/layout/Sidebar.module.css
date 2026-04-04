@@ -32,6 +32,14 @@
   flex-shrink: 0;
 }
 
+.badgeLogoImg {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
 .logoText {
   display: flex;
   flex-direction: column;
