@@ -4,6 +4,106 @@
   gap: 1.5rem;
 }
 
+/* ── Tax Set-Aside Widget ─────────────────────────────────────────────────── */
+.taxBreakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.taxItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.875rem 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.taxItemIcon {
+  font-size: 1.1rem;
+  margin-bottom: 0.1rem;
+}
+
+.taxItemLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.taxItemAmount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.taxItemSub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.taxItemTotal {
+  background: var(--danger-light, #fef2f2);
+  border-color: var(--danger-border, #fecaca);
+}
+
+.taxItemTotal .taxItemAmount {
+  color: var(--danger-text, #dc2626);
+}
+
+.taxSafeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.taxSafePos {
+  background: var(--success-light, #dcfce7);
+  border: 1px solid var(--success-border, #bbf7d0);
+}
+
+.taxSafeNeg {
+  background: var(--danger-light, #fef2f2);
+  border: 1px solid var(--danger-border, #fecaca);
+}
+
+.taxSafeLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.taxSafeSub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.taxSafeAmount {
+  font-size: 1.35rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.taxSafePos .taxSafeAmount { color: var(--success-text, #166534); }
+.taxSafeNeg .taxSafeAmount { color: var(--danger-text, #dc2626); }
+
+@media (min-width: 640px) {
+  .taxBreakdown {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .pageHeader {
   display: flex;
   align-items: center;

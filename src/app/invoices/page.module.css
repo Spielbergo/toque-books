@@ -257,7 +257,79 @@
   align-items: center;
 }
 
-.liDesc { min-width: 0; }
+.liDesc {
+  min-width: 0;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+
+.liDesc:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.liDesc::placeholder {
+  color: var(--text-muted);
+}
+
+.liDescWrap {
+  position: relative;
+  min-width: 0;
+}
+
+.liDescDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.12));
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.liDescOption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.5rem 0.85rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: background var(--transition);
+}
+
+.liDescOption:hover {
+  background: var(--bg-hover);
+}
+
+.liDescOptionName {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.liDescOptionSub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .liQty  { width: 90px; }
 .liRate { width: 90px; }
 

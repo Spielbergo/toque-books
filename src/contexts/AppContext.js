@@ -112,6 +112,7 @@ function makeInitialState() {
       usesTFSA: false,
     },
     recurringExpenses: [], // [{ id, vendor, description, category, businessUsePercent, amount, hst, frequency, startDate, endDate, notes }]
+    products: [],          // [{ id, name, description, category, defaultRate, unit, notes, createdAt }]
   };
 }
 
@@ -399,6 +400,26 @@ function reducer(state, action) {
       return {
         ...state,
         recurringExpenses: (state.recurringExpenses || []).filter(r => r.id !== action.payload),
+      };
+    }
+
+    // Products & Services
+    case 'ADD_PRODUCT': {
+      const product = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, products: [...(state.products || []), product] };
+    }
+    case 'UPDATE_PRODUCT': {
+      return {
+        ...state,
+        products: (state.products || []).map(p =>
+          p.id === action.payload.id ? { ...p, ...action.payload } : p
+        ),
+      };
+    }
+    case 'DELETE_PRODUCT': {
+      return {
+        ...state,
+        products: (state.products || []).filter(p => p.id !== action.payload),
       };
     }
 

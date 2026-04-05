@@ -94,6 +94,10 @@ export default function DashboardPage() {
 
   const recentInvoices = [...invoices].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
 
+  // ── Tax set-aside widget ─────────────────────────────────────────────────
+  const totalSetAside  = corp.totalTax + hst.netRemittance + personal.totalTax;
+  const safeToSpend    = corp.netIncome - corp.totalTax - hst.netRemittance - personal.totalTax;
+
   return (
     <div className={styles.page}>
       {/* Header */}
@@ -109,6 +113,47 @@ export default function DashboardPage() {
         <StatCard label="Deductible Expenses" value={formatCurrency(totalDeductibleExp)} sub={`${expenses.length} entries`} color="info" icon="🧾" />
         <StatCard label="HST to Remit" value={formatCurrency(hst.netRemittance)} sub={`Collected ${formatCurrency(hst.hstCollected, { compact: true })} − ITC ${formatCurrency(hst.itcTotal, { compact: true })}`} color={hst.netRemittance > 0 ? 'warning' : 'default'} icon="🏦" />
         <StatCard label="Est. Tax Owing" value={formatCurrency(totalTaxOwing)} sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`} color="danger" icon="🍁" />
+      </div>
+
+      {/* Tax Set-Aside Widget */}
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>💡 How much should I set aside for taxes?</h2>
+          <Link href="/taxes"><Button variant="ghost" size="sm">Full report</Button></Link>
+        </div>
+        <div className={styles.taxBreakdown}>
+          <div className={styles.taxItem}>
+            <span className={styles.taxItemIcon}>🏢</span>
+            <span className={styles.taxItemLabel}>Corporate Tax (T2)</span>
+            <span className={styles.taxItemAmount}>{formatCurrency(corp.totalTax)}</span>
+            <span className={styles.taxItemSub}>{formatPercent(corp.effectiveRate)} effective rate</span>
+          </div>
+          <div className={styles.taxItem}>
+            <span className={styles.taxItemIcon}>🏦</span>
+            <span className={styles.taxItemLabel}>HST to Remit</span>
+            <span className={styles.taxItemAmount}>{formatCurrency(Math.max(0, hst.netRemittance))}</span>
+            <span className={styles.taxItemSub}>Collected minus ITCs</span>
+          </div>
+          <div className={styles.taxItem}>
+            <span className={styles.taxItemIcon}>🍁</span>
+            <span className={styles.taxItemLabel}>Personal Tax on Dividends</span>
+            <span className={styles.taxItemAmount}>{formatCurrency(personal.totalTax)}</span>
+            <span className={styles.taxItemSub}>Based on dividends paid to self</span>
+          </div>
+          <div className={`${styles.taxItem} ${styles.taxItemTotal}`}>
+            <span className={styles.taxItemIcon}>🏦</span>
+            <span className={styles.taxItemLabel}>Recommended Savings</span>
+            <span className={styles.taxItemAmount}>{formatCurrency(totalSetAside)}</span>
+            <span className={styles.taxItemSub}>Keep this in a separate account</span>
+          </div>
+        </div>
+        <div className={`${styles.taxSafeBar} ${safeToSpend >= 0 ? styles.taxSafePos : styles.taxSafeNeg}`}>
+          <div>
+            <span className={styles.taxSafeLabel}>Safe to spend after all tax obligations</span>
+            <span className={styles.taxSafeSub}>{safeToSpend < 0 ? 'Your expenses and taxes exceed current revenue — review your financials.' : 'This is what remains after setting aside all taxes and covering deductible expenses.'}</span>
+          </div>
+          <span className={styles.taxSafeAmount}>{safeToSpend >= 0 ? formatCurrency(safeToSpend) : `(${formatCurrency(Math.abs(safeToSpend))})`}</span>
+        </div>
       </div>
 
       {/* Row 2 — Net Income table + Quick Financials */}

@@ -99,6 +99,7 @@ export default function InvoicesPage() {
   const { state, activeFY, dispatch } = useApp();
   const { toast } = useToast();
   const hstRate = HST_RATES[state.settings.province ?? 'ON'];
+  const products = state.products || [];
 
   // Pool all invoices from every FY bucket, then filter by the active FY's date range.
   // This corrects invoices that were imported while a different FY was active.
@@ -122,6 +123,7 @@ export default function InvoicesPage() {
   const PAGE_SIZE = 25;
   const [selected, setSelected]     = useState(new Set());
   const [showModal, setShowModal]   = useState(false);
+  const [openDescIdx, setOpenDescIdx] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [editInv, setEditInv]       = useState(null);
   const [form, setForm]             = useState(makeBlankInvoice(hstRate));
@@ -850,12 +852,55 @@ export default function InvoicesPage() {
             <div className={styles.lineItems}>
               {form.lineItems.map((li, idx) => (
                 <div key={li.id} className={styles.lineItem}>
-                  <Input
-                    className={styles.liDesc}
-                    placeholder="Description"
-                    value={li.description}
-                    onChange={e => updateLineItem(idx, 'description', e.target.value)}
-                  />
+                  <div className={styles.liDescWrap}>
+                    <input
+                      className={styles.liDesc}
+                      placeholder="Description"
+                      value={li.description}
+                      autoComplete="off"
+                      onChange={e => {
+                        updateLineItem(idx, 'description', e.target.value);
+                      }}
+                      onFocus={() => setOpenDescIdx(idx)}
+                      onBlur={() => setTimeout(() => setOpenDescIdx(null), 150)}
+                    />
+                    {openDescIdx === idx && products.length > 0 && (() => {
+                      const q = li.description.toLowerCase();
+                      const suggestions = q
+                        ? products.filter(p => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q))
+                        : products;
+                      if (!suggestions.length) return null;
+                      return (
+                        <div className={styles.liDescDropdown}>
+                          {suggestions.map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className={styles.liDescOption}
+                              onMouseDown={() => {
+                                const newRate = (p.defaultRate != null && p.defaultRate !== '')
+                                  ? parseFloat(p.defaultRate) || 0
+                                  : null;
+                                const items = form.lineItems.map((li, i) => {
+                                  if (i !== idx) return li;
+                                  const updated = { ...li, description: p.name };
+                                  if (newRate !== null) {
+                                    updated.rate = newRate;
+                                    updated.amount = parseFloat(updated.quantity || 0) * newRate;
+                                  }
+                                  return updated;
+                                });
+                                recalcTotals(items);
+                                setOpenDescIdx(null);
+                              }}
+                            >
+                              <span className={styles.liDescOptionName}>{p.name}</span>
+                              {p.description && <span className={styles.liDescOptionSub}>{p.description}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}</div>
                   <Input
                     className={styles.liQty}
                     type="number" min="0" step="0.01" placeholder="Qty"
