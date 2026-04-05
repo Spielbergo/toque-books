@@ -25,20 +25,20 @@ export default function AppShell({ children }) {
 
   // Redirect to /companies if no company selected (and not already there)
   useEffect(() => {
-    if (authLoading || appLoading) return;
+    if (authLoading || appLoading || !user) return;
     if (!activeCompanyId && pathname !== '/companies') {
       router.replace('/companies');
     }
-  }, [authLoading, appLoading, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, appLoading, user, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect to /onboarding for new companies that haven't been set up yet
   useEffect(() => {
-    if (authLoading || appLoading) return;
+    if (authLoading || appLoading || !user) return;
     if (!activeCompanyId) return;
     if (!state?.onboardingCompleted && !state?.settings?.companyName && pathname !== '/onboarding') {
       router.replace('/onboarding');
     }
-  }, [authLoading, appLoading, activeCompanyId, state?.onboardingCompleted, state?.settings?.companyName, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, appLoading, user, activeCompanyId, state?.onboardingCompleted, state?.settings?.companyName, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close sidebar on resize to desktop
   useEffect(() => {
