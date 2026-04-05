@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/contexts/ToastContext';
 import { formatCurrency, formatDate, today, addDays } from '@/lib/formatters';
+import { fyLabelForDate } from '@/lib/fyUtils';
 import { HST_RATES, INVOICE_STATUSES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -44,6 +46,8 @@ function makeBlankInvoice(hstRate, invoiceNumber = '') {
     status: 'draft',
     paidDate: '',
     notes: '',
+    sentAt: null,
+    remindersSent: [],
   };
 }
 
@@ -93,6 +97,7 @@ async function downloadInvoicesZIP(invoices, settings, filename) {
 
 export default function InvoicesPage() {
   const { state, activeFY, dispatch } = useApp();
+  const { toast } = useToast();
   const hstRate = HST_RATES[state.settings.province ?? 'ON'];
 
   // Pool all invoices from every FY bucket, then filter by the active FY's date range.
@@ -129,6 +134,14 @@ export default function InvoicesPage() {
   const [zipLoading, setZipLoading] = useState(false);
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [previewLoading, setPreviewLoading] = useState(null);
+  const [showSendModal, setShowSendModal]   = useState(false);
+  const [sendInvoice, setSendInvoice]       = useState(null);
+  const [sendStep, setSendStep]             = useState('compose'); // 'preview' | 'compose'
+  const [sendForm, setSendForm]             = useState({ to: '', subject: '', message: '' });
+  const [sendLoading, setSendLoading]       = useState(false);
+  const [sendError, setSendError]           = useState('');
+  const [sendSuccess, setSendSuccess]       = useState(false);
+  const [sendIsReminder, setSendIsReminder] = useState(false);
 
   const openCreate = () => {
     setEditInv(null);
@@ -229,8 +242,19 @@ export default function InvoicesPage() {
     }
     if (editInv) {
       dispatch({ type: 'UPDATE_INVOICE', payload: { ...form, id: editInv.id } });
+      toast({ message: `Invoice #${form.invoiceNumber} updated` });
     } else {
       dispatch({ type: 'ADD_INVOICE', payload: form });
+      const dateFy = fyLabelForDate(form.issueDate, state.fiscalYears);
+      if (dateFy && state.activeFiscalYear !== 'all' && dateFy !== state.activeFiscalYear) {
+        toast({
+          message: `Invoice #${form.invoiceNumber} created`,
+          detail: `Issue date is in ${dateFy} — switch fiscal years to see it there.`,
+          type: 'info',
+        });
+      } else {
+        toast({ message: `Invoice #${form.invoiceNumber} created`, detail: form.client?.name || undefined });
+      }
     }
     if (importSaveMode) {
       const savedIdx = importIdx;
@@ -250,11 +274,13 @@ export default function InvoicesPage() {
     dispatch({ type: 'DELETE_INVOICE', payload: id });
     setSelected(s => { const n = new Set(s); n.delete(id); return n; });
     setConfirmDelete(null);
+    toast({ message: 'Invoice deleted', type: 'info' });
   };
 
   // ── Mark paid ─────────────────────────────────────
   const markPaid = inv => {
     dispatch({ type: 'UPDATE_INVOICE', payload: { ...inv, status: 'paid', paidDate: today() } });
+    toast({ message: `Invoice #${inv.invoiceNumber} marked as paid`, detail: `${formatCurrency(inv.total)} received` });
   };
 
   // ── Preview ───────────────────────────────────────
@@ -274,6 +300,95 @@ export default function InvoicesPage() {
 
   const closePreview = () => {
     setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+  };
+
+  // ── Send invoice / reminder ──────────────────────────────────────
+  const openSendModal = (inv, isReminder = false) => {
+    setSendInvoice(inv);
+    setSendIsReminder(isReminder);
+    setSendSuccess(false);
+    setSendError('');
+    setSendStep('compose');
+    const clientEmail = inv.client?.email || '';
+    const companyName = state.settings?.companyName || '';
+    const subject = isReminder
+      ? `Payment Reminder: Invoice #${inv.invoiceNumber} — ${companyName}`
+      : `Invoice #${inv.invoiceNumber} from ${companyName}`;
+    const dueDate = inv.dueDate
+      ? new Date(inv.dueDate + 'T00:00:00').toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '';
+    const clientFirst = inv.client?.name?.split(' ')[0] || 'there';
+    const message = isReminder
+      ? `Hi ${clientFirst},\n\nThis is a friendly reminder that Invoice #${inv.invoiceNumber} for ${formatCurrency(inv.total)} was due on ${dueDate} and remains outstanding.\n\nPlease find the invoice attached. If you have already sent payment, please disregard this message.\n\nThank you,\n${companyName}`
+      : `Hi ${clientFirst},\n\nPlease find your invoice attached for the amount of ${formatCurrency(inv.total)}, due on ${dueDate}.\n\nThank you for your business!\n\n${companyName}`;
+    setSendForm({ to: clientEmail, subject, message });
+    setShowSendModal(true);
+  };
+
+  const closeSendModal = () => {
+    setShowSendModal(false);
+    setSendInvoice(null);
+    setSendSuccess(false);
+    setSendError('');
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
+  };
+
+  const handleSendEmail = async () => {
+    if (!sendForm.to || !sendForm.subject) { setSendError('Recipient email and subject are required.'); return; }
+    setSendLoading(true);
+    setSendError('');
+    try {
+      const res = await fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoice: sendInvoice,
+          settings: state.settings,
+          to: sendForm.to,
+          subject: sendForm.subject,
+          message: sendForm.message,
+          isReminder: sendIsReminder,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to send');
+      // Update invoice: mark as sent (if not already paid), record sent/reminder date
+      const now = today();
+      if (sendIsReminder) {
+        const updated = {
+          ...sendInvoice,
+          remindersSent: [...(sendInvoice.remindersSent || []), now],
+        };
+        dispatch({ type: 'UPDATE_INVOICE', payload: updated });
+      } else {
+        const updated = {
+          ...sendInvoice,
+          status: sendInvoice.status === 'draft' ? 'sent' : sendInvoice.status,
+          sentAt: sendInvoice.sentAt || now,
+        };
+        dispatch({ type: 'UPDATE_INVOICE', payload: updated });
+      }
+      setSendSuccess(true);
+    } catch (err) {
+      setSendError(err.message);
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const openSendPreview = async () => {
+    if (!sendInvoice) return;
+    setSendStep('preview');
+    setPreviewLoading('send');
+    try {
+      const blob = await generateInvoicePDF(sendInvoice, state.settings);
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+    } catch (err) {
+      setSendError('Preview failed: ' + err.message);
+    } finally {
+      setPreviewLoading(null);
+    }
   };
 
   // ── PDF download ──────────────────────────────────
@@ -560,6 +675,10 @@ export default function InvoicesPage() {
                         {inv.status !== 'paid' && inv.status !== 'void' && (
                           <Button variant="ghost" size="xs" onClick={() => markPaid(inv)}>✓ Paid</Button>
                         )}
+                        <Button variant="ghost" size="xs" onClick={() => openSendModal(inv)} title="Send invoice by email">✉ Send</Button>
+                        {(inv.status === 'sent' || inv.status === 'overdue') && (
+                          <Button variant="ghost" size="xs" onClick={() => openSendModal(inv, true)} title="Send payment reminder">🔔 Remind</Button>
+                        )}
                         <Button
                           variant="ghost" size="xs"
                           onClick={() => openPreview(inv)}
@@ -605,6 +724,10 @@ export default function InvoicesPage() {
                 <div className={styles.mobileActions}>
                   {inv.status !== 'paid' && inv.status !== 'void' && (
                     <Button variant="secondary" size="xs" onClick={() => markPaid(inv)}>✓ Paid</Button>
+                  )}
+                  <Button variant="secondary" size="xs" onClick={() => openSendModal(inv)}>✉ Send</Button>
+                  {(inv.status === 'sent' || inv.status === 'overdue') && (
+                    <Button variant="secondary" size="xs" onClick={() => openSendModal(inv, true)}>🔔 Remind</Button>
                   )}
                   <Button variant="secondary" size="xs" onClick={() => openPreview(inv)} loading={previewLoading === inv.id}>
                     👁 Preview
@@ -684,6 +807,11 @@ export default function InvoicesPage() {
             <FormField label="Due Date">
               <Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
             </FormField>
+            {form.status === 'paid' && (
+              <FormField label="Paid Date">
+                <Input type="date" value={form.paidDate} onChange={e => setForm(f => ({ ...f, paidDate: e.target.value }))} />
+              </FormField>
+            )}
           </div>
 
           <div className={styles.formSection}>
@@ -783,12 +911,6 @@ export default function InvoicesPage() {
               </div>
             </div>
           </div>
-
-          {form.status === 'paid' && (
-            <FormField label="Paid Date">
-              <Input type="date" value={form.paidDate} onChange={e => setForm(f => ({ ...f, paidDate: e.target.value }))} />
-            </FormField>
-          )}
 
           <FormField label="Notes">
             <Textarea placeholder="Optional notes or references…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
@@ -893,6 +1015,82 @@ export default function InvoicesPage() {
         }
       >
         <p className={styles.confirmText}>This invoice will be permanently removed. This cannot be undone.</p>
+      </Modal>
+
+      {/* ── Send Invoice / Reminder Modal ── */}
+      <Modal
+        isOpen={showSendModal}
+        onClose={closeSendModal}
+        title={sendIsReminder ? `Send Reminder — Invoice #${sendInvoice?.invoiceNumber}` : `Send Invoice #${sendInvoice?.invoiceNumber}`}
+        size="lg"
+        footer={
+          sendSuccess ? (
+            <Button onClick={closeSendModal}>Done</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={closeSendModal}>Cancel</Button>
+              {sendStep === 'preview' ? (
+                <Button variant="secondary" onClick={() => setSendStep('compose')}>← Back to Compose</Button>
+              ) : (
+                <>
+                  <Button variant="secondary" onClick={openSendPreview} loading={previewLoading === 'send'}>
+                    👁 Preview PDF
+                  </Button>
+                  <Button variant="secondary" onClick={() => { closeSendModal(); openEdit(sendInvoice); }}>
+                    ✏ Edit Invoice
+                  </Button>
+                  <Button onClick={handleSendEmail} loading={sendLoading}>
+                    ✉ {sendIsReminder ? 'Send Reminder' : 'Send Invoice'}
+                  </Button>
+                </>
+              )}
+            </>
+          )
+        }
+      >
+        {sendSuccess ? (
+          <div className={styles.sendSuccess}>
+            <span className={styles.sendSuccessIcon}>✅</span>
+            <p>{sendIsReminder ? 'Reminder sent successfully!' : 'Invoice sent successfully!'}</p>
+            {sendIsReminder && <p className={styles.sendSuccessNote}>Reminder recorded on the invoice.</p>}
+          </div>
+        ) : sendStep === 'preview' ? (
+          <div className={styles.previewBody}>
+            {previewUrl && <iframe src={previewUrl} className={styles.previewFrame} title="Invoice Preview" />}
+          </div>
+        ) : (
+          <div className={styles.sendForm}>
+            {sendIsReminder && sendInvoice?.remindersSent?.length > 0 && (
+              <p className={styles.sendReminderNote}>
+                Previous reminders sent: {sendInvoice.remindersSent.map(d => new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })).join(', ')}
+              </p>
+            )}
+            <FormField label="To (recipient email)" required>
+              <Input
+                type="email"
+                placeholder="client@example.com"
+                value={sendForm.to}
+                onChange={e => setSendForm(f => ({ ...f, to: e.target.value }))}
+                required
+              />
+            </FormField>
+            <FormField label="Subject">
+              <Input
+                value={sendForm.subject}
+                onChange={e => setSendForm(f => ({ ...f, subject: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Message">
+              <Textarea
+                rows={8}
+                value={sendForm.message}
+                onChange={e => setSendForm(f => ({ ...f, message: e.target.value }))}
+              />
+            </FormField>
+            {sendError && <p className={styles.sendError}>{sendError}</p>}
+            <p className={styles.sendNote}>The invoice PDF will be attached automatically.</p>
+          </div>
+        )}
       </Modal>
     </div>
   );

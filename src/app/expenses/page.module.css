@@ -500,3 +500,189 @@
   .tableWrap { display: block; }
   .mobileList { display: none; }
 }
+
+/* ─── Recurring Tab ─────────────────────────────────────────── */
+
+.recurSummaryBar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.recurStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.recurStatLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.recurStatValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.recurToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.recurHint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  flex: 1;
+}
+
+.recurList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recurCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: opacity var(--transition);
+}
+
+.recurCardInactive {
+  opacity: 0.55;
+}
+
+.recurCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.recurCardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.recurActivePill {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  width: fit-content;
+}
+
+.recurActivePillOn {
+  color: var(--success-text, #166534);
+  background: var(--success-light, #dcfce7);
+}
+
+.recurActivePillOff {
+  color: var(--text-muted);
+  background: var(--bg-input);
+}
+
+.recurVendor {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.recurDesc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recurCardRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.recurAmount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.recurFreq {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.recurMonthlyEq {
+  font-size: 0.75rem;
+  color: var(--accent-text);
+}
+
+.recurCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.8rem;
+}
+
+.recurBizPct {
+  font-size: 0.75rem;
+  color: var(--warning-text, #92400e);
+  background: var(--warning-light, #fef9c3);
+  border-radius: 3px;
+  padding: 0.1rem 0.35rem;
+}
+
+.recurDates {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.recurCardActions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.6rem;
+  margin-top: 0.1rem;
+}
+
+/* Inline calc preview in recurring form */
+.recurCalcBox {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.recurCalcBox strong {
+  color: var(--text-primary);
+}

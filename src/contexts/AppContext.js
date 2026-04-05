@@ -26,10 +26,13 @@ const DEFAULT_SETTINGS = {
   city: '',
   postalCode: '',
   phone: '',
+  email: '',
   website: '',
   logo: null,           // base64 data URL — used on PDF invoices
   badgeLogo: null,      // base64 data URL — used as sidebar/app badge icon
   invoiceFooterNotes: '',
+  legalName: '',           // Legal name if different from trading name
+  businessNumber: '',      // CRA Business Number (BN9)
   // Personal account matching
   personalAccountKeywords: '',  // comma-separated nicknames/keywords e.g. "spielbergo, personal"
 };
@@ -80,6 +83,35 @@ function makeInitialState() {
       [new Date().getFullYear()]: { ...DEFAULT_PERSONAL },
     },
     clients: [],
+    onboardingCompleted: false,
+    businessType: 'ccpc', // 'ccpc' | 'sole_prop' | 'partnership' | 'pc' | 'other'
+    personalProfile: {
+      maritalStatus: '',
+      spouseName: '',
+      spouseIncomeType: '', // 'employed' | 'self_employed' | 'none'
+      spouseEstIncome: 0,
+    },
+    dependants: [], // [{ id, name, birthYear, relationship, disability }]
+    businessOps: {
+      homeOffice: false,
+      vehicleBusiness: false,
+      vehicleBusinessPct: 0,
+      hasEmployees: false,
+      numEmployees: 0,
+      paysSelf: 'dividends', // 'dividends' | 'salary' | 'mix' | 'none'
+      otherShareholders: false,
+    },
+    otherIncomeSources: {
+      hasEmployment: false,
+      employmentAmount: 0,
+      hasRental: false,
+      rentalAmount: 0,
+      hasForeign: false,
+      foreignAmount: 0,
+      rrspRoom: 0,
+      usesTFSA: false,
+    },
+    recurringExpenses: [], // [{ id, vendor, description, category, businessUsePercent, amount, hst, frequency, startDate, endDate, notes }]
   };
 }
 
@@ -306,9 +338,12 @@ function reducer(state, action) {
       });
     }
     case 'UPDATE_BANK_STATEMENT': {
-      const fy = state.activeFiscalYear;
-      const fyData = state.fiscalYears[fy];
-      return updateFY(state, fy, {
+      const targetFY = Object.entries(state.fiscalYears || {}).find(([, fyData]) =>
+        (fyData.bankStatements || []).some(s => s.id === action.payload.id)
+      )?.[0];
+      if (!targetFY) return state;
+      const fyData = state.fiscalYears[targetFY];
+      return updateFY(state, targetFY, {
         bankStatements: (fyData.bankStatements || []).map(s =>
           s.id === action.payload.id ? { ...s, ...action.payload } : s
         ),
@@ -318,6 +353,54 @@ function reducer(state, action) {
     // Full restore (import)
     case 'RESTORE':
       return action.payload;
+
+    // Onboarding completion — patches settings + all top-level profile fields
+    case 'COMPLETE_ONBOARDING': {
+      const { settings, fiscalYearPatch, ...rest } = action.payload;
+      let newState = { ...state, onboardingCompleted: true, ...rest };
+      if (settings) {
+        newState = { ...newState, settings: { ...newState.settings, ...settings } };
+      }
+      if (fiscalYearPatch) {
+        const fy = newState.activeFiscalYear;
+        if (fy && newState.fiscalYears[fy]) {
+          newState = updateFY(newState, fy, fiscalYearPatch);
+        }
+      }
+      return newState;
+    }
+
+    case 'UPDATE_PERSONAL_PROFILE':
+      return { ...state, personalProfile: { ...state.personalProfile, ...action.payload } };
+
+    case 'SET_DEPENDANTS':
+      return { ...state, dependants: action.payload };
+
+    case 'UPDATE_BUSINESS_OPS':
+      return { ...state, businessOps: { ...state.businessOps, ...action.payload } };
+
+    case 'UPDATE_OTHER_INCOME_SOURCES':
+      return { ...state, otherIncomeSources: { ...state.otherIncomeSources, ...action.payload } };
+
+    // Recurring expenses
+    case 'ADD_RECURRING': {
+      const rec = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, recurringExpenses: [...(state.recurringExpenses || []), rec] };
+    }
+    case 'UPDATE_RECURRING': {
+      return {
+        ...state,
+        recurringExpenses: (state.recurringExpenses || []).map(r =>
+          r.id === action.payload.id ? { ...r, ...action.payload } : r
+        ),
+      };
+    }
+    case 'DELETE_RECURRING': {
+      return {
+        ...state,
+        recurringExpenses: (state.recurringExpenses || []).filter(r => r.id !== action.payload),
+      };
+    }
 
     default:
       return state;

@@ -534,6 +534,57 @@
   margin-bottom: 0.75rem;
 }
 
+/* Send Invoice / Reminder modal */
+.sendForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.sendReminderNote {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.sendNote {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.sendError {
+  font-size: 0.85rem;
+  color: var(--danger, #dc2626);
+  background: var(--danger-light, #fef2f2);
+  border: 1px solid var(--danger-border, #fecaca);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+
+.sendSuccess {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.sendSuccessIcon {
+  font-size: 2.5rem;
+}
+
+.sendSuccessNote {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
 @media (min-width: 640px) {
   .summaryBar {
     grid-template-columns: repeat(4, 1fr);
@@ -554,6 +605,6 @@
   }
 
   .formGrid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/contexts/ToastContext';
 import { calculatePersonalTax } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, formatPercent, today } from '@/lib/formatters';
 import { RRSP_LIMIT_2025 } from '@/lib/constants';
@@ -39,6 +40,7 @@ function SuggestionBadge({ suggestion, current, isOverridden, onUse, onReset }) 
 
 export default function PersonalPage() {
   const { state, activeFY, activePY, dispatch } = useApp();
+  const { toast } = useToast();
   const [tab, setTab] = useState(0);
   const [pyForm, setPyForm] = useState({ ...activePY });
   const [pySaved, setPySaved] = useState(false);
@@ -188,14 +190,16 @@ export default function PersonalPage() {
 
   const saveDividend = e => {
     e.preventDefault();
+    const amount = parseFloat(divForm.amount) || 0;
     dispatch({
       type: 'ADD_DIVIDEND',
       payload: {
         ...divForm,
-        amount: parseFloat(divForm.amount) || 0,
+        amount,
         personalYear: activeYear,
       },
     });
+    toast({ message: `Dividend of ${formatCurrency(amount)} recorded`, detail: divForm.type === 'eligible' ? 'Eligible dividend' : 'Non-eligible dividend' });
     setShowDivModal(false);
     setDivForm({ date: today(), amount: '', type: 'non_eligible', notes: '' });
   };
@@ -203,6 +207,7 @@ export default function PersonalPage() {
   const deleteDiv = id => {
     dispatch({ type: 'DELETE_DIVIDEND', payload: id });
     setConfirmDeleteDiv(null);
+    toast({ message: 'Dividend removed', type: 'info' });
   };
 
   // ── Import matched bank txns as dividend records ─────────────────────────
@@ -484,6 +489,13 @@ export default function PersonalPage() {
             </div>
           )}
 
+          {/* Family profile card */}
+          <FamilyProfileCard
+            personalProfile={state.personalProfile}
+            dependants={state.dependants}
+            styles={styles}
+          />
+
           <div className={styles.explainerBox}>
             <h4>How dividends work for Ontario CCPC owners</h4>
             <ul>
@@ -715,6 +727,95 @@ export default function PersonalPage() {
       >
         <p>This dividend record will be removed and the personal tax amounts updated.</p>
       </Modal>
+    </div>
+  );
+}
+
+function FamilyProfileCard({ personalProfile, dependants, styles }) {
+  const profile = personalProfile || {};
+  const deps    = dependants    || [];
+
+  const hasSpouse    = profile.maritalStatus === 'married' || profile.maritalStatus === 'common_law';
+  const hasDeps      = deps.length > 0;
+  const hasAnything  = profile.maritalStatus || hasDeps;
+
+  if (!hasAnything) return null;
+
+  const MARITAL_LABELS = {
+    single: 'Single', married: 'Married', common_law: 'Common-law',
+    separated: 'Separated', divorced: 'Divorced', widowed: 'Widowed',
+  };
+
+  const currentYear = new Date().getFullYear();
+  const age = (birthYear) => birthYear ? currentYear - parseInt(birthYear) : null;
+
+  const RELATIONSHIP_LABELS = {
+    child: 'Child', parent: 'Parent', grandparent: 'Grandparent',
+    sibling: 'Sibling', other: 'Dependant',
+  };
+
+  return (
+    <div className={styles.familyCard}>
+      <div className={styles.familyCardHeader}>
+        <span className={styles.familyCardTitle}>👨‍👩‍👧 Family Profile</span>
+        <a href="/settings" className={styles.familyCardEdit}>Edit in Settings</a>
+      </div>
+
+      <div className={styles.familyGrid}>
+        {/* Marital status row */}
+        {profile.maritalStatus && (
+          <div className={styles.familyItem}>
+            <span className={styles.familyItemIcon}>{hasSpouse ? '💑' : '🧍'}</span>
+            <div className={styles.familyItemBody}>
+              <div className={styles.familyItemLabel}>
+                {MARITAL_LABELS[profile.maritalStatus] || profile.maritalStatus}
+              </div>
+              {hasSpouse && profile.spouseName && (
+                <div className={styles.familyItemSub}>{profile.spouseName}</div>
+              )}
+              {hasSpouse && profile.spouseIncomeType && profile.spouseIncomeType !== 'none' && (
+                <div className={styles.familyItemTag}>
+                  {profile.spouseIncomeType === 'employed' ? 'T4 employed' : 'Self-employed'}
+                  {profile.spouseEstIncome ? ` · est. $${Number(profile.spouseEstIncome).toLocaleString('en-CA', { maximumFractionDigits: 0 })}` : ''}
+                </div>
+              )}
+              {hasSpouse && profile.spouseIncomeType === 'none' && (
+                <div className={styles.familyItemTag}>Not working / retired</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Dependants */}
+        {deps.map(dep => {
+          const depAge = age(dep.birthYear);
+          return (
+            <div key={dep.id} className={styles.familyItem}>
+              <span className={styles.familyItemIcon}>
+                {dep.relationship === 'child' ? (depAge !== null && depAge <= 17 ? '🧒' : '🧑') : '👤'}
+              </span>
+              <div className={styles.familyItemBody}>
+                <div className={styles.familyItemLabel}>
+                  {dep.name || (RELATIONSHIP_LABELS[dep.relationship] || 'Dependant')}
+                </div>
+                <div className={styles.familyItemSub}>
+                  {RELATIONSHIP_LABELS[dep.relationship] || 'Dependant'}
+                  {depAge !== null ? ` · age ${depAge}` : dep.birthYear ? ` · b. ${dep.birthYear}` : ''}
+                </div>
+                {dep.disability && (
+                  <div className={styles.familyItemTagDTC}>DTC eligible</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className={styles.familyCardNote}>
+        This profile was set during onboarding. Update it anytime in{' '}
+        <a href="/settings" className={styles.familyCardNoteLink}>Settings</a>.
+        Spousal RRSP contributions and income-splitting calculations use these values.
+      </p>
     </div>
   );
 }

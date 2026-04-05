@@ -200,3 +200,191 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+@media (min-width: 900px) {
+  .threeTwo {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+/* ── Layout: 3:2 split ──────────────────────────────────────────────────── */
+.threeTwo {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.right {
+  text-align: right !important;
+}
+
+/* ── Chart legend ────────────────────────────────────────────────────────── */
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.lgDot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 0.15rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.chartEmpty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 2rem 0;
+  margin: 0;
+}
+
+/* ── Table scroll wrapper ────────────────────────────────────────────────── */
+.tblScroll {
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* ── Net Income table ────────────────────────────────────────────────────── */
+.niTbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.niTbl th {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  z-index: 1;
+}
+
+.niTbl td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.niTbl tbody tr:last-child td { border-bottom: none; }
+.niTbl tbody tr:hover td { background: var(--bg-hover); }
+
+.niMon { color: var(--text-secondary); font-size: 0.8rem; }
+.niRev { color: var(--success, #16a34a); font-weight: 500; }
+.niExp { color: var(--text-secondary); }
+.niPos { color: var(--success, #16a34a); font-weight: 600; }
+.niNeg { color: var(--danger-text, #dc2626); font-weight: 600; }
+
+.niTotalRow td {
+  border-top: 2px solid var(--border-color-strong, var(--border-color));
+  border-bottom: none !important;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg-hover);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+
+/* ── Payables table ──────────────────────────────────────────────────────── */
+.payTbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.payTbl th {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.payTbl td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.payTbl tbody tr:last-child td { border-bottom: none; }
+.payTbl tbody tr:hover td { background: var(--bg-hover); }
+
+.payNum { font-weight: 600; color: var(--accent-text, var(--accent)); font-size: 0.8rem; white-space: nowrap; }
+.payCli { color: var(--text-primary); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payDue { color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap; }
+.payAmt { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+
+.payOverdue td { background: var(--danger-light, #fef2f2) !important; }
+
+.payTotalRow td {
+  border-top: 2px solid var(--border-color-strong, var(--border-color));
+  border-bottom: none !important;
+  background: var(--bg-hover);
+  padding: 0.5rem 0.6rem;
+}
+
+/* ── Donut chart ─────────────────────────────────────────────────────────── */
+.donutWrap {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.donutLegend {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.donutRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.donutSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.donutName {
+  flex: 1;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.donutAmt {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}

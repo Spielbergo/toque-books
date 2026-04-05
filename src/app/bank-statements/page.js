@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/contexts/ToastContext';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -13,6 +14,7 @@ import styles from './page.module.css';
 
 export default function BankStatementsPage() {
   const { state, activeFY, dispatch } = useApp();
+  const { toast } = useToast();
   const isAllTime = state.activeFiscalYear === 'all';
   const allStatements = Object.values(state.fiscalYears || {}).flatMap(fy => fy.bankStatements || []);
   const { startDate, endDate } = activeFY || {};
@@ -32,6 +34,8 @@ export default function BankStatementsPage() {
   const [sortCol, setSortCol]           = useState('period');
   const [sortDir, setSortDir]           = useState('desc');
   const [search, setSearch]             = useState('');
+  const [editingTxIdx, setEditingTxIdx]  = useState(null);
+  const [editTxForm, setEditTxForm]      = useState({ date: '', description: '', type: 'debit', amount: '' });
 
   // ── Sort + Search ────────────────────────────────
   const statements = useMemo(() => {
@@ -52,6 +56,8 @@ export default function BankStatementsPage() {
         case 'opening': va = a.openingBalance ?? -Infinity;       vb = b.openingBalance ?? -Infinity;        break;
         case 'net':     va = (a.closingBalance ?? 0) - (a.openingBalance ?? 0); vb = (b.closingBalance ?? 0) - (b.openingBalance ?? 0); break;
         case 'closing': va = a.closingBalance ?? -Infinity;       vb = b.closingBalance ?? -Infinity;        break;
+        case 'debits':  va = (a.transactions||[]).filter(t=>t.type==='debit').reduce((s,t)=>s+Math.abs(t.amount||0),0);  vb = (b.transactions||[]).filter(t=>t.type==='debit').reduce((s,t)=>s+Math.abs(t.amount||0),0);  break;
+        case 'credits': va = (a.transactions||[]).filter(t=>t.type==='credit').reduce((s,t)=>s+Math.abs(t.amount||0),0); vb = (b.transactions||[]).filter(t=>t.type==='credit').reduce((s,t)=>s+Math.abs(t.amount||0),0); break;
         default:        va = ''; vb = '';
       }
       const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
@@ -117,24 +123,34 @@ export default function BankStatementsPage() {
         rawText: result.text || '',
       },
     });
+    toast({
+      message: 'Statement saved',
+      detail: `${result.parsed?.bank || result.filename}${result.parsed?.period ? ' · ' + result.parsed.period : ''}`,
+    });
     setUpload(prev => prev.filter(r => r !== result));
   };
 
-  const saveAll = () => uploadResults.filter(r => !r.error).forEach(saveStatement);
+  const saveAll = () => {
+    const valid = uploadResults.filter(r => !r.error);
+    valid.forEach(saveStatement);
+  };
 
   // ── Delete ───────────────────────────────────────
   const deleteStatement = id => {
     dispatch({ type: 'DELETE_BANK_STATEMENT', payload: id });
     setConfirm(null);
-    if (viewStmt?.id === id) setViewStmt(null);
+    if (viewStmt?.id === id) closeViewModal();
     setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+    toast({ message: 'Statement deleted', type: 'info' });
   };
 
   const handleBulkDelete = () => {
+    const count = selected.size;
     selected.forEach(id => dispatch({ type: 'DELETE_BANK_STATEMENT', payload: id }));
-    if (viewStmt && selected.has(viewStmt.id)) setViewStmt(null);
+    if (viewStmt && selected.has(viewStmt.id)) closeViewModal();
     setSelected(new Set());
     setConfirm(null);
+    toast({ message: `${count} statement${count !== 1 ? 's' : ''} deleted`, type: 'info' });
   };
 
   // ── Export CSV ───────────────────────────────────
@@ -178,6 +194,37 @@ export default function BankStatementsPage() {
   };
 
   const txTypeColor = type => type === 'credit' ? 'success' : type === 'debit' ? 'danger' : 'muted';
+
+  const closeViewModal = () => { setViewStmt(null); setEditingTxIdx(null); };
+
+  const openEditTx = (tx, idx) => {
+    setEditingTxIdx(idx);
+    setEditTxForm({
+      date: tx.date || '',
+      description: tx.description || '',
+      type: tx.type || 'debit',
+      amount: tx.amount != null ? String(Math.abs(tx.amount)) : '',
+    });
+  };
+
+  const cancelEditTx = () => setEditingTxIdx(null);
+
+  const handleSaveTxEdit = () => {
+    const amt = parseFloat(editTxForm.amount) || 0;
+    const newTx = {
+      ...viewStmt.transactions[editingTxIdx],
+      date: editTxForm.date,
+      description: editTxForm.description,
+      type: editTxForm.type,
+      amount: amt,
+    };
+    const newTransactions = viewStmt.transactions.map((tx, i) => i === editingTxIdx ? newTx : tx);
+    const updatedStmt = { ...viewStmt, transactions: newTransactions };
+    dispatch({ type: 'UPDATE_BANK_STATEMENT', payload: updatedStmt });
+    setViewStmt(updatedStmt);
+    setEditingTxIdx(null);
+    toast({ message: 'Transaction updated', type: 'success' });
+  };
 
   // ── Summary totals ────────────────────────────────
   const totalDeposits = statements.reduce((s, stmt) =>
@@ -310,6 +357,12 @@ export default function BankStatementsPage() {
                 <th className={`${styles.center} ${styles.sortable}`} onClick={() => handleSort('txns')}>
                   Transactions{sortIcon('txns')}
                 </th>
+                <th className={`${styles.right} ${styles.sortable}`} onClick={() => handleSort('debits')}>
+                  Debits{sortIcon('debits')}
+                </th>
+                <th className={`${styles.right} ${styles.sortable}`} onClick={() => handleSort('credits')}>
+                  Credits{sortIcon('credits')}
+                </th>
                 <th className={`${styles.right} ${styles.sortable}`} onClick={() => handleSort('opening')}>
                   Opening{sortIcon('opening')}
                 </th>
@@ -324,7 +377,7 @@ export default function BankStatementsPage() {
             </thead>
             <tbody>
               {statements.length === 0 ? (
-                <tr><td colSpan={7} className={styles.noResults}>No statements match your search.</td></tr>
+                <tr><td colSpan={9} className={styles.noResults}>No statements match your search.</td></tr>
               ) : statements.map(stmt => {
                 const net = (stmt.closingBalance != null && stmt.openingBalance != null)
                   ? stmt.closingBalance - stmt.openingBalance
@@ -344,6 +397,12 @@ export default function BankStatementsPage() {
                       <button className={styles.txCountBtn} onClick={() => setViewStmt(stmt)} title="View transactions">
                         {stmt.transactions?.length || 0}
                       </button>
+                    </td>
+                    <td className={styles.right}>
+                      {(() => { const d = (stmt.transactions||[]).filter(t=>t.type==='debit').reduce((s,t)=>s+Math.abs(t.amount||0),0); return d > 0 ? <span className={styles.txDebit}>{formatCurrency(d)}</span> : '—'; })()}
+                    </td>
+                    <td className={styles.right}>
+                      {(() => { const c = (stmt.transactions||[]).filter(t=>t.type==='credit').reduce((s,t)=>s+Math.abs(t.amount||0),0); return c > 0 ? <span className={styles.txCredit}>{formatCurrency(c)}</span> : '—'; })()}
                     </td>
                     <td className={styles.right}>
                       {stmt.openingBalance != null ? formatCurrency(stmt.openingBalance) : '—'}
@@ -369,10 +428,10 @@ export default function BankStatementsPage() {
       {/* ── View Statement Modal ── */}
       <Modal
         isOpen={!!viewStmt}
-        onClose={() => setViewStmt(null)}
+        onClose={closeViewModal}
         title={viewStmt ? `${viewStmt.bank} — ${viewStmt.period || viewStmt.filename}` : ''}
         size="xl"
-        footer={<Button onClick={() => setViewStmt(null)}>Close</Button>}
+        footer={<Button onClick={closeViewModal}>Close</Button>}
       >
         {viewStmt && (
           <div className={styles.txModal}>
@@ -387,38 +446,92 @@ export default function BankStatementsPage() {
                 )}
               </div>
             ) : (
-              <div className={styles.txTableWrap}>
-                <table className={styles.txTable}>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Description</th>
-                      <th>Type</th>
-                      <th className={styles.right}>Amount</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewStmt.transactions.map((tx, i) => (
-                      <tr key={tx.id || i} className={styles.txRow}>
-                        <td className={styles.txDate}>{tx.date || '—'}</td>
-                        <td className={styles.txDesc}>{tx.description || '—'}</td>
-                        <td><Badge color={txTypeColor(tx.type)}>{tx.type || '—'}</Badge></td>
-                        <td className={`${styles.right} ${tx.type === 'credit' ? styles.txCredit : styles.txDebit}`}>
-                          {formatCurrency(Math.abs(tx.amount))}
-                        </td>
-                        <td>
-                          {tx.type === 'debit' && (
-                            <Button variant="ghost" size="xs" onClick={() => setAddExpModal(tx)} title="Add as expense">
-                              + Expense
-                            </Button>
-                          )}
-                        </td>
+              <>
+                <div className={styles.txModalSummary}>
+                  <div className={styles.txModalStat}>
+                    <span className={styles.txModalStatLabel}>Credits</span>
+                    <span className={`${styles.txModalStatValue} ${styles.txCredit}`}>
+                      {formatCurrency(viewStmt.transactions.filter(t => t.type === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))}
+                    </span>
+                  </div>
+                  <div className={styles.txModalStat}>
+                    <span className={styles.txModalStatLabel}>Debits</span>
+                    <span className={`${styles.txModalStatValue} ${styles.txDebit}`}>
+                      {formatCurrency(viewStmt.transactions.filter(t => t.type === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))}
+                    </span>
+                  </div>
+                  <div className={styles.txModalStat}>
+                    <span className={styles.txModalStatLabel}>Transactions</span>
+                    <span className={styles.txModalStatValue}>{viewStmt.transactions.length}</span>
+                  </div>
+                  {viewStmt.transactions.filter(t => !t.type || t.type === 'unknown').length > 0 && (
+                    <div className={styles.txModalStat}>
+                      <span className={`${styles.txModalStatLabel} ${styles.txModalStatWarn}`}>Unknown type</span>
+                      <span className={`${styles.txModalStatValue} ${styles.txModalStatWarn}`}>
+                        {viewStmt.transactions.filter(t => !t.type || t.type === 'unknown').length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className={styles.txTableWrap}>
+                  <table className={styles.txTable}>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th className={styles.right}>Amount</th>
+                        <th></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {viewStmt.transactions.map((tx, i) => (
+                        editingTxIdx === i ? (
+                          <tr key={tx.id || i} className={`${styles.txRow} ${styles.txRowEditing}`}>
+                            <td>
+                              <input className={styles.txEditInput} value={editTxForm.date} onChange={e => setEditTxForm(f => ({ ...f, date: e.target.value }))} placeholder="YYYY-MM-DD" />
+                            </td>
+                            <td>
+                              <input className={`${styles.txEditInput} ${styles.txEditDesc}`} value={editTxForm.description} onChange={e => setEditTxForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" />
+                            </td>
+                            <td>
+                              <select className={styles.txEditSelect} value={editTxForm.type} onChange={e => setEditTxForm(f => ({ ...f, type: e.target.value }))}>
+                                <option value="debit">debit</option>
+                                <option value="credit">credit</option>
+                                <option value="unknown">unknown</option>
+                              </select>
+                            </td>
+                            <td className={styles.right}>
+                              <input className={`${styles.txEditInput} ${styles.txEditAmount}`} value={editTxForm.amount} onChange={e => setEditTxForm(f => ({ ...f, amount: e.target.value }))} inputMode="decimal" placeholder="0.00" />
+                            </td>
+                            <td className={styles.txEditActions}>
+                              <Button size="xs" onClick={handleSaveTxEdit}>Save</Button>
+                              <Button size="xs" variant="ghost" onClick={cancelEditTx}>✕</Button>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={tx.id || i} className={styles.txRow}>
+                            <td className={styles.txDate}>{tx.date || '—'}</td>
+                            <td className={styles.txDesc}>{tx.description || '—'}</td>
+                            <td><Badge color={txTypeColor(tx.type)}>{tx.type || '—'}</Badge></td>
+                            <td className={`${styles.right} ${tx.type === 'credit' ? styles.txCredit : styles.txDebit}`}>
+                              {formatCurrency(Math.abs(tx.amount))}
+                            </td>
+                            <td className={styles.txActions}>
+                              <Button variant="ghost" size="xs" onClick={() => openEditTx(tx, i)} title="Edit transaction">✏</Button>
+                              {tx.type === 'debit' && (
+                                <Button variant="ghost" size="xs" onClick={() => setAddExpModal(tx)} title="Add as expense">
+                                  + Expense
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}

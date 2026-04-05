@@ -427,3 +427,100 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+/* Transaction modal summary bar */
+.txModalSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.txModalStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.txModalStatLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.txModalStatValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.txModalStatWarn {
+  color: var(--warning-text, #92400e);
+}
+
+/* Transaction actions cell */
+.txActions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* Inline edit row */
+.txRowEditing td {
+  background: var(--accent-light, rgba(37,99,235,0.05)) !important;
+  padding: 0.4rem 0.5rem !important;
+}
+
+.txEditInput {
+  width: 90px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.txEditInput:focus {
+  border-color: var(--accent);
+}
+
+.txEditDesc {
+  width: 100%;
+  min-width: 160px;
+}
+
+.txEditAmount {
+  width: 90px;
+  text-align: right;
+}
+
+.txEditSelect {
+  padding: 0.3rem 0.4rem;
+  font-size: 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  width: 90px;
+}
+
+.txEditSelect:focus {
+  border-color: var(--accent);
+}
+
+.txEditActions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}

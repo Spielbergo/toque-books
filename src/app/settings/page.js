@@ -295,6 +295,9 @@ export default function SettingsPage() {
               <FormField label="Phone">
                 <Input value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="(416) 555-0123" />
               </FormField>
+              <FormField label="Email">
+                <Input value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="billing@example.com" />
+              </FormField>
               <FormField label="Website" className={styles.colSpan2}>
                 <Input value={form.website || ''} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} placeholder="https://example.com" />
               </FormField>

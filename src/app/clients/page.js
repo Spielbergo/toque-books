@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/contexts/ToastContext';
 import { formatDate } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -19,6 +20,7 @@ function makeBlankClient() {
 
 export default function ClientsPage() {
   const { state, dispatch } = useApp();
+  const { toast } = useToast();
   const clients = state.clients || [];
 
   const [search, setSearch] = useState('');
@@ -43,15 +45,19 @@ export default function ClientsPage() {
     e.preventDefault();
     if (editClient) {
       dispatch({ type: 'UPDATE_CLIENT', payload: { ...form, id: editClient.id } });
+      toast({ message: `${form.name} updated` });
     } else {
       dispatch({ type: 'ADD_CLIENT', payload: form });
+      toast({ message: `${form.name} added as a client` });
     }
     setShowModal(false);
   };
 
   const handleDelete = id => {
+    const client = clients.find(c => c.id === id);
     dispatch({ type: 'DELETE_CLIENT', payload: id });
     setConfirmDelete(null);
+    toast({ message: `${client?.name || 'Client'} removed`, type: 'info' });
   };
 
   const filtered = clients.filter(c => {

@@ -12,6 +12,7 @@ import {
 import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters';
 import { CORPORATE_RATES_2025 } from '@/lib/constants';
 import styles from './page.module.css';
+import { expandRecurringForFY } from '@/lib/recurringUtils';
 
 export default function TaxesPage() {
   const { state, activeFY, activePY } = useApp();
@@ -30,8 +31,12 @@ export default function TaxesPage() {
   const allFYData = Object.values(state.fiscalYears || {});
   const { startDate, endDate } = activeFY;
   const inRange = date => !date || ((!startDate || date >= startDate) && (!endDate || date <= endDate));
-  const invoices = allFYData.flatMap(fy => fy.invoices || []).filter(inv => inRange(inv.issueDate));
-  const expenses = allFYData.flatMap(fy => fy.expenses || []).filter(exp => inRange(exp.date));
+  const invoices      = allFYData.flatMap(fy => fy.invoices || []).filter(inv => inRange(inv.issueDate));
+  const baseExpenses   = allFYData.flatMap(fy => fy.expenses || []).filter(exp => inRange(exp.date));
+  const recurringForFY = startDate && endDate
+    ? expandRecurringForFY(state.recurringExpenses || [], startDate, endDate)
+    : [];
+  const expenses       = [...baseExpenses, ...recurringForFY];
   const homeOffice = activeFY.homeOffice ?? {};
   const dividendsPaid = activeFY.dividendsPaid ?? [];
 

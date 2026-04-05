@@ -5,12 +5,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
+import ToqueLogo from '@/components/ToqueLogo';
 import Header from './Header';
 import styles from './AppShell.module.css';
 
 export default function AppShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { appLoading, activeCompanyId } = useApp();
+  const { appLoading, activeCompanyId, state } = useApp();
   const { user, authLoading } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
@@ -30,6 +31,15 @@ export default function AppShell({ children }) {
     }
   }, [authLoading, appLoading, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Redirect to /onboarding for new companies that haven't been set up yet
+  useEffect(() => {
+    if (authLoading || appLoading) return;
+    if (!activeCompanyId) return;
+    if (!state?.onboardingCompleted && !state?.settings?.companyName && pathname !== '/onboarding') {
+      router.replace('/onboarding');
+    }
+  }, [authLoading, appLoading, activeCompanyId, state?.onboardingCompleted, state?.settings?.companyName, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Close sidebar on resize to desktop
   useEffect(() => {
     const onResize = () => {
@@ -43,7 +53,7 @@ export default function AppShell({ children }) {
   if (appLoading) {
     return (
       <div className={styles.loadingScreen}>
-        <span className={styles.loadingEmoji}>🧀</span>
+        <ToqueLogo size={64} />
         <p className={styles.loadingText}>Loading…</p>
       </div>
     );

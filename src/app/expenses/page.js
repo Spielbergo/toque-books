@@ -2,8 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/contexts/ToastContext';
 import { calculateHomeOfficeDeduction, getDeductibleAmount } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, today } from '@/lib/formatters';
+import { fyLabelForDate } from '@/lib/fyUtils';
 import { EXPENSE_CATEGORIES, PARTIAL_DEDUCTION_CATEGORIES, HST_RATES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -12,8 +14,43 @@ import EmptyState from '@/components/ui/EmptyState';
 import FileDropzone from '@/components/ui/FileDropzone';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import styles from './page.module.css';
+import { expandRecurringForFY } from '@/lib/recurringUtils';
 
-const TABS = ['Expenses', 'Home Office'];
+const TABS = ['Expenses', 'Recurring', 'Home Office'];
+
+const FREQUENCIES = [
+  { value: 'monthly',   label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'annual',    label: 'Annual' },
+];
+
+function makeBlankRecurring() {
+  return {
+    vendor: '',
+    description: '',
+    category: 'software_subscriptions',
+    businessUsePercent: 100,
+    amount: '',
+    hst: '',
+    frequency: 'monthly',
+    startDate: today(),
+    endDate: '',
+    notes: '',
+  };
+}
+
+function recurringMonthlyAmount(rec) {
+  const amt = parseFloat(rec.amount) || 0;
+  if (rec.frequency === 'quarterly') return amt / 3;
+  if (rec.frequency === 'annual')    return amt / 12;
+  return amt;
+}
+
+function isRecurringActive(rec, asOf) {
+  if (!rec.startDate || rec.startDate > asOf) return false;
+  if (rec.endDate && rec.endDate < asOf) return false;
+  return true;
+}
 
 function makeBlankExpense() {
   return {
@@ -55,6 +92,11 @@ export default function ExpensesPage() {
         (!endDate   || (exp.date ?? '') <= endDate)
       );
   const homeOffice = activeFY?.homeOffice ?? {};
+  const { toast } = useToast();
+  const recurringExpenses = state.recurringExpenses || [];
+  const todayStr = today();
+  const activeRecurring = recurringExpenses.filter(r => isRecurringActive(r, todayStr));
+  const monthlyRecurringTotal = activeRecurring.reduce((s, r) => s + recurringMonthlyAmount(r), 0);
 
   const [tab, setTab] = useState(0);
   const [search, setSearch] = useState('');
@@ -68,6 +110,50 @@ export default function ExpensesPage() {
   const [importIdx, setImportIdx] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [importSaveMode, setImportSaveMode] = useState(false);
+
+  // Recurring modal state
+  const [showRecurModal, setShowRecurModal] = useState(false);
+  const [editRecur, setEditRecur] = useState(null);
+  const [recurForm, setRecurForm] = useState(makeBlankRecurring());
+  const [confirmDeleteRecur, setConfirmDeleteRecur] = useState(null);
+
+  const openCreateRecur = () => { setEditRecur(null); setRecurForm(makeBlankRecurring()); setShowRecurModal(true); };
+  const openEditRecur = r => { setEditRecur(r); setRecurForm({ ...r }); setShowRecurModal(true); };
+  const closeRecurModal = () => { setShowRecurModal(false); setEditRecur(null); };
+
+  const handleSaveRecur = e => {
+    e.preventDefault();
+    const payload = {
+      ...recurForm,
+      amount: parseFloat(recurForm.amount) || 0,
+      hst: parseFloat(recurForm.hst) || 0,
+      businessUsePercent: parseFloat(recurForm.businessUsePercent) || 100,
+    };
+    if (editRecur) {
+      dispatch({ type: 'UPDATE_RECURRING', payload: { ...payload, id: editRecur.id } });
+      toast({ message: `${payload.vendor || 'Recurring expense'} updated` });
+    } else {
+      dispatch({ type: 'ADD_RECURRING', payload });
+      const freqLabel = FREQUENCIES.find(f => f.value === payload.frequency)?.label ?? payload.frequency;
+      toast({
+        message: `${payload.vendor || 'Recurring expense'} added`,
+        detail: `${formatCurrency(payload.amount)} / ${freqLabel.toLowerCase()} starting ${payload.startDate}`,
+      });
+    }
+    closeRecurModal();
+  };
+
+  const handleDeleteRecur = id => {
+    dispatch({ type: 'DELETE_RECURRING', payload: id });
+    setConfirmDeleteRecur(null);
+    toast({ message: 'Recurring expense removed', type: 'info' });
+  };
+
+  const handleRecurAmountChange = val => {
+    const amt = parseFloat(val) || 0;
+    const hst = state.settings.hstRegistered ? (amt * hstRate).toFixed(2) : '';
+    setRecurForm(f => ({ ...f, amount: val, hst: hst }));
+  };
 
   // Home office form state
   const [hoForm, setHoForm] = useState(homeOffice);
@@ -87,8 +173,20 @@ export default function ExpensesPage() {
     };
     if (editExp) {
       dispatch({ type: 'UPDATE_EXPENSE', payload: { ...payload, id: editExp.id } });
+      toast({ message: 'Expense updated' });
     } else {
       dispatch({ type: 'ADD_EXPENSE', payload });
+      const activeFyLabel = state.activeFiscalYear;
+      const dateFy = fyLabelForDate(payload.date, state.fiscalYears);
+      if (dateFy && activeFyLabel !== 'all' && dateFy !== activeFyLabel) {
+        toast({
+          message: 'Expense saved',
+          detail: `The date (${payload.date}) falls in ${dateFy}. Switch fiscal years to see it there.`,
+          type: 'info',
+        });
+      } else {
+        toast({ message: 'Expense added', detail: `${payload.vendor || payload.description || 'New expense'} · ${formatCurrency(payload.amount)}` });
+      }
     }
     // If we're stepping through an import queue, mark saved and advance
     if (importSaveMode) {
@@ -131,13 +229,14 @@ export default function ExpensesPage() {
   const handleDelete = id => {
     dispatch({ type: 'DELETE_EXPENSE', payload: id });
     setConfirmDelete(null);
+    toast({ message: 'Expense deleted', type: 'info' });
   };
 
   // Auto-calc HST when amount changes
   const handleAmountChange = val => {
     const amt = parseFloat(val) || 0;
-    const hst = state.settings.hstRegistered ? +(amt * hstRate).toFixed(2) : 0;
-    setForm(f => ({ ...f, amount: val, hst: String(hst) }));
+    const hst = state.settings.hstRegistered ? (amt * hstRate).toFixed(2) : '';
+    setForm(f => ({ ...f, amount: val, hst: hst }));
   };
 
   // PDF import — multi-file
@@ -216,9 +315,13 @@ export default function ExpensesPage() {
     return matchCat && matchSearch;
   });
 
-  const totalDeductible = expenses.reduce((s, e) =>
+  const recurringOccurrences = !isAllTime && startDate && endDate
+    ? expandRecurringForFY(state.recurringExpenses || [], startDate, endDate)
+    : [];
+  const expensesForTotals = [...expenses, ...recurringOccurrences];
+  const totalDeductible = expensesForTotals.reduce((s, e) =>
     s + getDeductibleAmount(expTotal(e), e.category, e.businessUsePercent), 0);
-  const totalHST = expenses.reduce((s, e) => s + expHSTTotal(e), 0);
+  const totalHST = expensesForTotals.reduce((s, e) => s + expHSTTotal(e), 0);
 
   const catLabel = v => EXPENSE_CATEGORIES.find(c => c.value === v)?.label || v;
 
@@ -276,7 +379,7 @@ export default function ExpensesPage() {
                       const isPartial = PARTIAL_DEDUCTION_CATEGORIES[exp.category];
                       return (
                         <tr key={exp.id} className={styles.tableRow}>
-                          <td>{formatDate(exp.date, { style: 'short' })}</td>
+                          <td>{formatDate(exp.date)}</td>
                           <td>{exp.vendor || '—'}</td>
                           <td>
                             <Badge color="default">{catLabel(exp.category)}</Badge>
@@ -314,7 +417,7 @@ export default function ExpensesPage() {
                     <div key={exp.id} className={styles.mobileCard}>
                       <div className={styles.mobileTop}>
                         <Badge color="default">{catLabel(exp.category)}</Badge>
-                        <span className={styles.mobileDate}>{formatDate(exp.date, { style: 'short' })}</span>
+                        <span className={styles.mobileDate}>{formatDate(exp.date)}</span>
                       </div>
                       <div className={styles.mobileVendor}>
                         {exp.vendor || exp.description || 'Expense'}
@@ -340,8 +443,88 @@ export default function ExpensesPage() {
         </>
       )}
 
-      {/* ═══ HOME OFFICE TAB ═══ */}
+      {/* ═══ RECURRING TAB ═══ */}
       {tab === 1 && (
+        <>
+          <div className={styles.recurSummaryBar}>
+            <div className={styles.recurStat}>
+              <span className={styles.recurStatLabel}>Active Subscriptions</span>
+              <span className={styles.recurStatValue}>{activeRecurring.length}</span>
+            </div>
+            <div className={styles.recurStat}>
+              <span className={styles.recurStatLabel}>Monthly Total</span>
+              <span className={styles.recurStatValue}>{formatCurrency(monthlyRecurringTotal)}</span>
+            </div>
+            <div className={styles.recurStat}>
+              <span className={styles.recurStatLabel}>Annual Total</span>
+              <span className={styles.recurStatValue}>{formatCurrency(monthlyRecurringTotal * 12)}</span>
+            </div>
+          </div>
+
+          <div className={styles.recurToolbar}>
+            <p className={styles.recurHint}>
+              Track your subscriptions and fixed recurring costs here. Active items are automatically counted in your monthly overhead.
+            </p>
+            <Button size="sm" onClick={openCreateRecur}>+ Add Recurring</Button>
+          </div>
+
+          {recurringExpenses.length === 0 ? (
+            <EmptyState
+              icon="🔁"
+              title="No recurring expenses"
+              description="Add subscriptions, bank fees, software plans, and other fixed monthly costs."
+              action={<Button onClick={openCreateRecur}>+ Add Recurring</Button>}
+            />
+          ) : (
+            <div className={styles.recurList}>
+              {recurringExpenses.map(rec => {
+                const active = isRecurringActive(rec, todayStr);
+                const monthly = recurringMonthlyAmount(rec);
+                const freqLabel = FREQUENCIES.find(f => f.value === rec.frequency)?.label ?? rec.frequency;
+                return (
+                  <div key={rec.id} className={`${styles.recurCard} ${active ? '' : styles.recurCardInactive}`}>
+                    <div className={styles.recurCardTop}>
+                      <div className={styles.recurCardLeft}>
+                        <span className={`${styles.recurActivePill} ${active ? styles.recurActivePillOn : styles.recurActivePillOff}`}>
+                          {active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className={styles.recurVendor}>{rec.vendor || rec.description || 'Recurring expense'}</span>
+                        {rec.description && rec.vendor && (
+                          <span className={styles.recurDesc}>{rec.description}</span>
+                        )}
+                      </div>
+                      <div className={styles.recurCardRight}>
+                        <span className={styles.recurAmount}>{formatCurrency(rec.amount)}</span>
+                        <span className={styles.recurFreq}>/ {freqLabel.toLowerCase()}</span>
+                        {rec.frequency !== 'monthly' && (
+                          <span className={styles.recurMonthlyEq}>≈ {formatCurrency(monthly)}/mo</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.recurCardMeta}>
+                      <Badge color="default">{catLabel(rec.category)}</Badge>
+                      {rec.businessUsePercent < 100 && (
+                        <span className={styles.recurBizPct}>{rec.businessUsePercent}% business</span>
+                      )}
+                      <span className={styles.recurDates}>
+                        Started {rec.startDate ? formatDate(rec.startDate) : '—'}
+                        {rec.endDate ? ` → ${formatDate(rec.endDate)}` : ' (ongoing)'}
+                      </span>
+                    </div>
+                    <div className={styles.recurCardActions}>
+                      <Button variant="ghost" size="xs" onClick={() => openEditRecur(rec)}>Edit</Button>
+                      <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteRecur(rec.id)}>🗑</Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══ HOME OFFICE TAB ═══ */}
+      {tab === 2 && (
         <div className={styles.homeOfficePane}>
           <div className={styles.hoInfo}>
             <h3>Home Office Deduction</h3>
@@ -605,7 +788,7 @@ export default function ExpensesPage() {
         );
       })()}
 
-      {/* ── Confirm Delete ── */}
+      {/* ── Confirm Delete Expense ── */}
       <Modal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete Expense?" size="sm"
         footer={
           <>
@@ -615,6 +798,118 @@ export default function ExpensesPage() {
         }
       >
         <p className={styles.confirmText}>This expense will be permanently deleted.</p>
+      </Modal>
+
+      {/* ── Recurring Expense Modal ── */}
+      <Modal
+        isOpen={showRecurModal}
+        onClose={closeRecurModal}
+        title={editRecur ? 'Edit Recurring Expense' : 'Add Recurring Expense'}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeRecurModal}>Cancel</Button>
+            <Button type="submit" form="recur-form">Save</Button>
+          </>
+        }
+      >
+        <form id="recur-form" onSubmit={handleSaveRecur}>
+          <div className={styles.expFormGrid}>
+            <FormField label="Vendor / Merchant" className={styles.colSpan2}>
+              <Input
+                placeholder="Rogers, AWS, Notion, etc."
+                value={recurForm.vendor}
+                onChange={e => setRecurForm(f => ({ ...f, vendor: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Description">
+              <Input
+                placeholder="Monthly bank fee, hosting plan…"
+                value={recurForm.description}
+                onChange={e => setRecurForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Category">
+              <Select value={recurForm.category} onChange={e => setRecurForm(f => ({ ...f, category: e.target.value }))}>
+                {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Frequency" required>
+              <Select value={recurForm.frequency} onChange={e => setRecurForm(f => ({ ...f, frequency: e.target.value }))}>
+                {FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Business Use %">
+              <Input
+                type="number" min="0" max="100" step="1" suffix="%"
+                value={recurForm.businessUsePercent}
+                onChange={e => setRecurForm(f => ({ ...f, businessUsePercent: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Amount (before HST)" required>
+              <Input
+                type="number" min="0" step="0.01" prefix="$"
+                placeholder={`per ${recurForm.frequency === 'monthly' ? 'month' : recurForm.frequency === 'quarterly' ? 'quarter' : 'year'}`}
+                value={recurForm.amount}
+                onChange={e => handleRecurAmountChange(e.target.value)}
+                required
+              />
+            </FormField>
+            <FormField label="HST per period">
+              <Input
+                type="number" min="0" step="0.01" prefix="$"
+                value={recurForm.hst}
+                onChange={e => setRecurForm(f => ({ ...f, hst: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Start Date" required hint="When this charge began">
+              <Input
+                type="date"
+                value={recurForm.startDate}
+                onChange={e => setRecurForm(f => ({ ...f, startDate: e.target.value }))}
+                required
+              />
+            </FormField>
+            <FormField label="End Date" hint="Leave blank if still active">
+              <Input
+                type="date"
+                value={recurForm.endDate}
+                onChange={e => setRecurForm(f => ({ ...f, endDate: e.target.value }))}
+              />
+            </FormField>
+            {(parseFloat(recurForm.amount) > 0) && (
+              <div className={`${styles.colSpan2} ${styles.recurCalcBox}`}>
+                <span>
+                  {formatCurrency(parseFloat(recurForm.amount) || 0)} /{recurForm.frequency === 'monthly' ? 'mo' : recurForm.frequency === 'quarterly' ? 'qtr' : 'yr'}
+                  {recurForm.frequency !== 'monthly' && (
+                    <> &nbsp;≈&nbsp;<strong>{formatCurrency(recurringMonthlyAmount(recurForm))}/mo</strong></>
+                  )}
+                  &nbsp;·&nbsp;<strong>{formatCurrency((recurringMonthlyAmount(recurForm)) * 12)}/yr</strong>
+                </span>
+              </div>
+            )}
+            <FormField label="Notes" className={styles.colSpan2}>
+              <Textarea
+                value={recurForm.notes}
+                onChange={e => setRecurForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Contract number, plan details…"
+                rows={2}
+              />
+            </FormField>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Confirm Delete Recurring ── */}
+      <Modal isOpen={!!confirmDeleteRecur} onClose={() => setConfirmDeleteRecur(null)} title="Remove Recurring Expense?" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmDeleteRecur(null)}>Cancel</Button>
+            <Button variant="danger" onClick={() => handleDeleteRecur(confirmDeleteRecur)}>Remove</Button>
+          </>
+        }
+      >
+        <p className={styles.confirmText}>This recurring expense will be removed from your registry.</p>
       </Modal>
     </div>
   );

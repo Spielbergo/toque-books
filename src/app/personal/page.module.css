@@ -34,7 +34,6 @@
 }
 
 /* Section */
-.section {}
 .sectionHeader { margin-bottom: 1.5rem; }
 .sectionHeader h3 {
   font-size: 1rem;
@@ -573,4 +572,115 @@
 .refTxTable tr:last-child td { border-bottom: none; }
 .refTxStmt { color: var(--text-muted); font-size: 0.75rem; }
 .refTxAmount { font-weight: 600; color: var(--text-primary); }
+
+/* ── Family Profile Card ─────────────────────────────────────── */
+.familyCard {
+  margin-top: 1.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+}
+
+.familyCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.familyCardTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.familyCardEdit {
+  font-size: 0.75rem;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.familyCardEdit:hover { text-decoration: underline; }
+
+.familyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.familyItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+}
+
+.familyItemIcon {
+  font-size: 1.375rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.familyItemBody {
+  min-width: 0;
+}
+
+.familyItemLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.familyItemSub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.familyItemTag {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.familyItemTagDTC {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--info-text);
+  background: var(--info-light);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  border-radius: 20px;
+  padding: 0.1rem 0.5rem;
+}
+
+.familyCardNote {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.familyCardNoteLink {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.familyCardNoteLink:hover { text-decoration: underline; }
 .right { text-align: right; }
