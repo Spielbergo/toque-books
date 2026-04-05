@@ -342,6 +342,14 @@
 .taxTotalRow span { opacity: 0.85; }
 .taxTotalRow strong { font-size: 1.1rem; }
 
+.taxTotalBalance {
+  border-top: 1px solid rgba(255,255,255,0.3);
+  padding-top: 0.65rem;
+  margin-top: 0.15rem;
+}
+
+.taxTotalBalance strong { font-size: 1.25rem; }
+
 .t1Disclaimer {
   /* background: var(--warning-bg, #fef3cd); */
   border: 1px solid var(--warning-border, #ffc107);

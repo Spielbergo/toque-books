@@ -252,10 +252,15 @@ export default function PersonalPage() {
 
   // Tax calc uses saved activePY (not live form, to match what was last saved)
   const taxResult = calculatePersonalTax({
-    nonEligibleDivs: activePY.nonEligibleDivs || 0,
-    eligibleDivs:    activePY.eligibleDivs    || 0,
-    otherIncome:     activePY.otherIncome     || 0,
-    rrspDeduction:   activePY.rrspDeduction   || 0,
+    nonEligibleDivs:  activePY.nonEligibleDivs  || 0,
+    eligibleDivs:     activePY.eligibleDivs     || 0,
+    employmentIncome: activePY.employmentIncome || 0,
+    otherIncome:      activePY.otherIncome      || 0,
+    rrspDeduction:    activePY.rrspDeduction    || 0,
+    taxWithheld:      activePY.taxWithheld      || 0,
+    cppContributions: activePY.cppContributions || 0,
+    eiPremiums:       activePY.eiPremiums       || 0,
+    spouseNetIncome:  activePY.spouseNetIncome  ?? null,
   });
 
   const hasSyncable = Object.keys(suggestions).some(k => (suggestions[k] || 0) > 0);
@@ -376,7 +381,16 @@ export default function PersonalPage() {
                 />
               </FormField>
 
-              <FormField label="Other Employment / Business Income" hint="T4 salary, self-employment from other sources, rental income, etc.">
+              <FormField label="Employment Income (T4)" hint="T4 Box 14 — salary or wages from your corporation or any employer">
+                <Input
+                  type="number" min="0" step="0.01" prefix="$"
+                  value={pyForm.employmentIncome || ''}
+                  onChange={e => handleField('employmentIncome', e.target.value)}
+                  placeholder="0.00"
+                />
+              </FormField>
+
+              <FormField label="Other Income" hint="Rental income, pension, EI benefits, self-employment outside your corp, etc.">
                 <Input
                   type="number" min="0" step="0.01" prefix="$"
                   value={pyForm.otherIncome || ''}
@@ -385,11 +399,29 @@ export default function PersonalPage() {
                 />
               </FormField>
 
-              <FormField label="Tax Withheld at Source" hint="Box 22 on T4 slips — income tax already deducted by an employer">
+              <FormField label="Income Tax Withheld (T4 Box 22)" hint="Tax already deducted by your employer — reduces your balance owing">
                 <Input
                   type="number" min="0" step="0.01" prefix="$"
                   value={pyForm.taxWithheld || ''}
                   onChange={e => handleField('taxWithheld', e.target.value)}
+                  placeholder="0.00"
+                />
+              </FormField>
+
+              <FormField label="CPP Contributions (T4 Box 16)" hint="Employee CPP contributions — generates a 15% federal + 5.05% Ontario non-refundable credit">
+                <Input
+                  type="number" min="0" step="0.01" prefix="$"
+                  value={pyForm.cppContributions || ''}
+                  onChange={e => handleField('cppContributions', e.target.value)}
+                  placeholder="0.00"
+                />
+              </FormField>
+
+              <FormField label="EI Premiums (T4 Box 18)" hint="Employee EI premiums — generates a 15% federal + 5.05% Ontario non-refundable credit">
+                <Input
+                  type="number" min="0" step="0.01" prefix="$"
+                  value={pyForm.eiPremiums || ''}
+                  onChange={e => handleField('eiPremiums', e.target.value)}
                   placeholder="0.00"
                 />
               </FormField>
@@ -409,6 +441,21 @@ export default function PersonalPage() {
                   value={pyForm.rrspRoom || ''}
                   onChange={e => handleField('rrspRoom', e.target.value)}
                   placeholder="0.00"
+                />
+              </FormField>
+
+              <FormField
+                label="Spouse / Partner Net Income"
+                hint="Used to calculate the spousal amount credit (line 30300). Enter 0 if no income; leave blank if no spouse."
+              >
+                <Input
+                  type="number" min="0" step="0.01" prefix="$"
+                  value={pyForm.spouseNetIncome ?? ''}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    handleField('spouseNetIncome', raw === '' ? null : parseFloat(raw) || 0);
+                  }}
+                  placeholder="Leave blank if no spouse"
                 />
               </FormField>
             </div>
@@ -636,30 +683,69 @@ export default function PersonalPage() {
 
           <div className={styles.taxBreakdown}>
             <TaxSection title="Income">
+              {taxResult.employmentIncome > 0 && (
+                <TaxRow label="Employment income (T4 Box 14)" value={formatCurrency(taxResult.employmentIncome)} />
+              )}
+              {taxResult.otherIncome > 0 && (
+                <TaxRow label="Other income (rental, pension, etc.)" value={formatCurrency(taxResult.otherIncome)} />
+              )}
               <TaxRow label="Non-eligible dividends (actual)" value={formatCurrency(taxResult.nonEligibleDivs)} />
               <TaxRow label="Non-eligible dividend gross-up (15%)" value={`+ ${formatCurrency(taxResult.neGrossedUp - taxResult.nonEligibleDivs)}`} />
               <TaxRow label="Eligible dividends (actual)" value={formatCurrency(taxResult.eligibleDivs)} />
               <TaxRow label="Eligible dividend gross-up (38%)" value={`+ ${formatCurrency(taxResult.elGrossedUp - taxResult.eligibleDivs)}`} />
-              <TaxRow label="Other income" value={formatCurrency(taxResult.otherIncome)} />
               <TaxRow label="RRSP deduction" value={`− ${formatCurrency(taxResult.rrspDeduction)}`} />
               <TaxRow label="Net income (line 23600)" value={formatCurrency(taxResult.netIncome)} bold />
             </TaxSection>
 
             <TaxSection title="Federal Tax">
               <TaxRow label="Gross federal tax" value={formatCurrency(taxResult.fedGrossIncomeTax)} />
-              <TaxRow label="Basic personal amount credit" value={`− ${formatCurrency(taxResult.fedBPA_credit)}`} />
-              <TaxRow label="Non-eligible dividend tax credit" value={`− ${formatCurrency(taxResult.fedNeDTC)}`} />
-              <TaxRow label="Eligible dividend tax credit" value={`− ${formatCurrency(taxResult.fedElDTC)}`} />
+              <TaxRow label="Basic personal amount (line 30000)" value={`− ${formatCurrency(taxResult.fedBPA_credit)}`} />
+              {taxResult.fedSpousal_credit > 0 && (
+                <TaxRow label="Spousal / partner amount (line 30300)" value={`− ${formatCurrency(taxResult.fedSpousal_credit)}`} />
+              )}
+              {taxResult.fedCEA_credit > 0 && (
+                <TaxRow label="Canada Employment Amount (line 31260)" value={`− ${formatCurrency(taxResult.fedCEA_credit)}`} />
+              )}
+              {taxResult.fedCPP_credit > 0 && (
+                <TaxRow label="CPP contributions credit (line 30800)" value={`− ${formatCurrency(taxResult.fedCPP_credit)}`} />
+              )}
+              {taxResult.fedEI_credit > 0 && (
+                <TaxRow label="EI premiums credit (line 31200)" value={`− ${formatCurrency(taxResult.fedEI_credit)}`} />
+              )}
+              {taxResult.fedNeDTC > 0 && (
+                <TaxRow label="Non-eligible dividend tax credit" value={`− ${formatCurrency(taxResult.fedNeDTC)}`} />
+              )}
+              {taxResult.fedElDTC > 0 && (
+                <TaxRow label="Eligible dividend tax credit" value={`− ${formatCurrency(taxResult.fedElDTC)}`} />
+              )}
               <TaxRow label="Federal tax" value={formatCurrency(taxResult.fedTax)} bold />
             </TaxSection>
 
             <TaxSection title="Ontario Tax">
               <TaxRow label="Gross Ontario tax" value={formatCurrency(taxResult.onGrossIncomeTax)} />
               <TaxRow label="Basic personal amount credit" value={`− ${formatCurrency(taxResult.onBPA_credit)}`} />
-              <TaxRow label="Non-eligible dividend tax credit" value={`− ${formatCurrency(taxResult.onNeDTC)}`} />
-              <TaxRow label="Eligible dividend tax credit" value={`− ${formatCurrency(taxResult.onElDTC)}`} />
+              {taxResult.onSpousal_credit > 0 && (
+                <TaxRow label="Spousal / partner amount credit" value={`− ${formatCurrency(taxResult.onSpousal_credit)}`} />
+              )}
+              {taxResult.onCEA_credit > 0 && (
+                <TaxRow label="Canada Employment Amount credit" value={`− ${formatCurrency(taxResult.onCEA_credit)}`} />
+              )}
+              {taxResult.onCPP_credit > 0 && (
+                <TaxRow label="CPP contributions credit" value={`− ${formatCurrency(taxResult.onCPP_credit)}`} />
+              )}
+              {taxResult.onEI_credit > 0 && (
+                <TaxRow label="EI premiums credit" value={`− ${formatCurrency(taxResult.onEI_credit)}`} />
+              )}
+              {taxResult.onNeDTC > 0 && (
+                <TaxRow label="Non-eligible dividend tax credit" value={`− ${formatCurrency(taxResult.onNeDTC)}`} />
+              )}
+              {taxResult.onElDTC > 0 && (
+                <TaxRow label="Eligible dividend tax credit" value={`− ${formatCurrency(taxResult.onElDTC)}`} />
+              )}
               <TaxRow label="Ontario basic tax" value={formatCurrency(taxResult.onBasicTax)} />
-              <TaxRow label="Ontario surtax" value={formatCurrency(taxResult.onSurtax)} />
+              {taxResult.onSurtax > 0 && (
+                <TaxRow label="Ontario surtax" value={formatCurrency(taxResult.onSurtax)} />
+              )}
               <TaxRow label="Ontario Health Premium" value={formatCurrency(taxResult.ohp)} />
               <TaxRow label="Ontario tax total" value={formatCurrency(taxResult.onTax)} bold />
             </TaxSection>
@@ -668,6 +754,18 @@ export default function PersonalPage() {
               <div className={styles.taxTotalRow}>
                 <span>Total estimated tax</span>
                 <strong>{formatCurrency(taxResult.totalTax)}</strong>
+              </div>
+              {taxResult.taxWithheld > 0 && (
+                <div className={styles.taxTotalRow}>
+                  <span>Income tax withheld at source (T4 Box 22)</span>
+                  <strong style={{ color: 'var(--success)' }}>− {formatCurrency(taxResult.taxWithheld)}</strong>
+                </div>
+              )}
+              <div className={`${styles.taxTotalRow} ${styles.taxTotalBalance}`}>
+                <span>{taxResult.balanceOwing >= 0 ? 'Balance owing (est.)' : 'Estimated refund'}</span>
+                <strong style={{ color: taxResult.balanceOwing < 0 ? 'var(--success)' : 'var(--danger)' }}>
+                  {taxResult.balanceOwing < 0 ? formatCurrency(-taxResult.balanceOwing) : formatCurrency(taxResult.balanceOwing)}
+                </strong>
               </div>
               <div className={styles.taxTotalRow}>
                 <span>Effective rate on grossed-up income</span>

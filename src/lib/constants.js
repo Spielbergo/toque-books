@@ -135,3 +135,8 @@ export function getFiscalYearKey(fiscalEndMonth, fiscalEndDay, calendarYear) {
 export const CURRENT_TAX_YEAR = 2025;
 export const DEFAULT_FISCAL_END_MONTH = 11; // November (1-indexed)
 export const DEFAULT_FISCAL_END_DAY = 30;
+
+// 2025 CPP / EI constants
+export const CPP_MAX_EMPLOYEE_CONTRIBUTION_2025 = 3867.50; // T4 Box 16 — employee contribution cap
+export const EI_MAX_PREMIUM_2025               = 1049.12; // T4 Box 18 — employee premium cap
+export const CANADA_EMPLOYMENT_AMOUNT_2025     = 1433;    // Line 31260 claim cap

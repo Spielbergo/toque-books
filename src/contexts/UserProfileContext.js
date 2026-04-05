@@ -8,11 +8,16 @@ import { db } from '@/lib/firebase/client';
 // ─── DEFAULT STATE ───────────────────────────────────────────────────────────
 
 const DEFAULT_PERSONAL = {
-  nonEligibleDivs: 0,
-  eligibleDivs: 0,
-  otherIncome: 0,
-  rrspDeduction: 0,
-  rrspRoom: 0,
+  nonEligibleDivs:  0,
+  eligibleDivs:     0,
+  employmentIncome: 0,   // T4 Box 14 — employment income from any source
+  otherIncome:      0,   // rental, pension, EI, etc.
+  rrspDeduction:    0,
+  rrspRoom:         0,
+  taxWithheld:      0,   // T4 Box 22 — income tax withheld at source
+  cppContributions: 0,   // T4 Box 16 — CPP employee contributions
+  eiPremiums:       0,   // T4 Box 18 — EI employee premiums
+  spouseNetIncome:  null, // null = no spouse; number = spouse/partner net income
 };
 
 export function makeDefaultUserProfile() {

@@ -13,6 +13,9 @@ import {
   CORPORATE_RATES_2025,
   DIVIDEND_RATES_2025,
   PARTIAL_DEDUCTION_CATEGORIES,
+  CPP_MAX_EMPLOYEE_CONTRIBUTION_2025,
+  EI_MAX_PREMIUM_2025,
+  CANADA_EMPLOYMENT_AMOUNT_2025,
 } from './constants.js';
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -165,16 +168,26 @@ export function calculateHSTSummary(invoices, expenses) {
 /**
  * Calculate Ontario personal income tax including dividend tax credits.
  * @param {object} params
- *   rrspDeduction      - RRSP contributions deducted
- *   nonEligibleDivs    - Non-eligible dividends received (actual amount)
- *   eligibleDivs       - Eligible dividends received (actual amount)
- *   otherIncome        - Other employment/self-employment income
+ *   nonEligibleDivs    - Non-eligible dividends received (actual amount, T5 Box 10)
+ *   eligibleDivs       - Eligible dividends received (actual amount, T5 Box 24)
+ *   employmentIncome   - T4 Box 14 employment income (any source, including own Corp salary)
+ *   otherIncome        - Other income: rental, pension, EI benefits, etc.
+ *   rrspDeduction      - RRSP contributions deducted (line 20800)
+ *   taxWithheld        - T4 Box 22 income tax already withheld at source
+ *   cppContributions   - T4 Box 16 CPP employee contributions
+ *   eiPremiums         - T4 Box 18 EI employee premiums
+ *   spouseNetIncome    - Spouse/partner's net income (null = no spouse; 0 = no income)
  */
 export function calculatePersonalTax({
-  nonEligibleDivs = 0,
-  eligibleDivs = 0,
-  otherIncome = 0,
-  rrspDeduction = 0,
+  nonEligibleDivs  = 0,
+  eligibleDivs     = 0,
+  employmentIncome = 0,
+  otherIncome      = 0,
+  rrspDeduction    = 0,
+  taxWithheld      = 0,
+  cppContributions = 0,
+  eiPremiums       = 0,
+  spouseNetIncome  = null,
 }) {
   const neRates = DIVIDEND_RATES_2025.non_eligible;
   const elRates = DIVIDEND_RATES_2025.eligible;
@@ -185,33 +198,64 @@ export function calculatePersonalTax({
   const grossedUpDivTotal = neGrossedUp + elGrossedUp;
 
   // Total income before deductions
-  const totalIncome = otherIncome + grossedUpDivTotal;
+  const totalIncome = employmentIncome + otherIncome + grossedUpDivTotal;
 
   // Net income (after RRSP)
   const rrspActual = Math.min(rrspDeduction, totalIncome);
   const netIncome = Math.max(0, totalIncome - rrspActual);
 
-  // Federal tax
-  const fedBPA_credit = BPA_FEDERAL_2025 * 0.15; // 15% credit
+  // ── Federal tax ──────────────────────────────────────────────────────────
   const fedGrossIncomeTax = calcBracketedTax(netIncome, FEDERAL_BRACKETS_2025);
 
-  // Federal dividend tax credits
+  // Basic personal amount credit (15%)
+  const fedBPA_credit = BPA_FEDERAL_2025 * 0.15;
+
+  // Dividend tax credits
   const fedNeDTC = neGrossedUp * neRates.fed_dtc_rate;
   const fedElDTC = elGrossedUp * elRates.fed_dtc_rate;
-  const fedDTC = fedNeDTC + fedElDTC;
+  const fedDTC   = fedNeDTC + fedElDTC;
 
-  let fedTax = Math.max(0, fedGrossIncomeTax - fedBPA_credit - fedDTC);
+  // Canada Employment Amount credit (15% of min(employment income, $1,433))
+  const fedCEA_credit = Math.min(employmentIncome, CANADA_EMPLOYMENT_AMOUNT_2025) * 0.15;
 
-  // Ontario tax
-  const onBPA_credit = BPA_ONTARIO_2025 * 0.0505; // 5.05% credit
+  // CPP employee contributions credit (15%)
+  const cppCapped     = Math.min(cppContributions, CPP_MAX_EMPLOYEE_CONTRIBUTION_2025);
+  const fedCPP_credit = cppCapped * 0.15;
+
+  // EI premiums credit (15%)
+  const eiCapped     = Math.min(eiPremiums, EI_MAX_PREMIUM_2025);
+  const fedEI_credit = eiCapped * 0.15;
+
+  // Spousal / partner amount credit (15% of unused BPA — line 30300)
+  const fedSpousal_credit = spouseNetIncome !== null
+    ? Math.max(0, BPA_FEDERAL_2025 - spouseNetIncome) * 0.15
+    : 0;
+
+  const fedTax = Math.max(
+    0,
+    fedGrossIncomeTax - fedBPA_credit - fedDTC - fedCEA_credit - fedCPP_credit - fedEI_credit - fedSpousal_credit,
+  );
+
+  // ── Ontario tax ──────────────────────────────────────────────────────────
   const onGrossIncomeTax = calcBracketedTax(netIncome, ONTARIO_BRACKETS_2025);
 
-  // Ontario dividend tax credits
+  const onBPA_credit = BPA_ONTARIO_2025 * 0.0505;
+
   const onNeDTC = neGrossedUp * neRates.on_dtc_rate;
   const onElDTC = elGrossedUp * elRates.on_dtc_rate;
-  const onDTC = onNeDTC + onElDTC;
+  const onDTC   = onNeDTC + onElDTC;
 
-  let onBasicTax = Math.max(0, onGrossIncomeTax - onBPA_credit - onDTC);
+  const onCEA_credit     = Math.min(employmentIncome, CANADA_EMPLOYMENT_AMOUNT_2025) * 0.0505;
+  const onCPP_credit     = cppCapped * 0.0505;
+  const onEI_credit      = eiCapped  * 0.0505;
+  const onSpousal_credit = spouseNetIncome !== null
+    ? Math.max(0, BPA_ONTARIO_2025 - spouseNetIncome) * 0.0505
+    : 0;
+
+  let onBasicTax = Math.max(
+    0,
+    onGrossIncomeTax - onBPA_credit - onDTC - onCEA_credit - onCPP_credit - onEI_credit - onSpousal_credit,
+  );
 
   // Ontario Surtax
   let onSurtax = 0;
@@ -226,15 +270,24 @@ export function calculatePersonalTax({
   const ohp = calcOntarioHealthPremium(netIncome);
 
   const onTax = onBasicTax + onSurtax + ohp;
-  const totalTax = fedTax + onTax;
+
+  const totalTax    = fedTax + onTax;
   const effectiveRate = totalIncome > 0 ? totalTax / totalIncome : 0;
   const afterTaxIncome = netIncome - totalTax;
+
+  // Balance owing (positive = owe CRA; negative = refund)
+  const balanceOwing = totalTax - taxWithheld;
 
   return {
     nonEligibleDivs,
     eligibleDivs,
+    employmentIncome,
     otherIncome,
-    rrspDeduction: rrspActual,
+    rrspDeduction:   rrspActual,
+    taxWithheld,
+    cppContributions: cppCapped,
+    eiPremiums:       eiCapped,
+    spouseNetIncome,
     neGrossedUp,
     elGrossedUp,
     grossedUpDivTotal,
@@ -245,12 +298,20 @@ export function calculatePersonalTax({
     fedNeDTC,
     fedElDTC,
     fedDTC,
+    fedCEA_credit,
+    fedCPP_credit,
+    fedEI_credit,
+    fedSpousal_credit,
     fedTax,
     onGrossIncomeTax,
     onBPA_credit,
     onNeDTC,
     onElDTC,
     onDTC,
+    onCEA_credit,
+    onCPP_credit,
+    onEI_credit,
+    onSpousal_credit,
     onBasicTax,
     onSurtax,
     ohp,
@@ -258,6 +319,7 @@ export function calculatePersonalTax({
     totalTax,
     effectiveRate,
     afterTaxIncome,
+    balanceOwing,
   };
 }
 
