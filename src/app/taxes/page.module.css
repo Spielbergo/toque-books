@@ -269,3 +269,221 @@
 @media (max-width: 420px) {
   .summaryRow { grid-template-columns: 1fr; }
 }
+
+/* ── Retained earnings editable row ─────────────────────────────────── */
+.reEditWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.reInput {
+  width: 110px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  text-align: right;
+  outline: none;
+}
+.reEditBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition);
+  line-height: 1;
+}
+.reEditBtn:hover { color: var(--accent); }
+.carryRow {
+  padding: 0.4rem 0.875rem;
+  display: flex;
+  justify-content: flex-end;
+}
+.carryBtn {
+  font-size: 0.72rem;
+  background: none;
+  border: 1px dashed var(--accent);
+  color: var(--accent-text, var(--accent));
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.carryBtn:hover { background: var(--accent-light); }
+
+/* ── Shareholder Loans ───────────────────────────────────────────────── */
+.slBody { display: flex; flex-direction: column; gap: 0.75rem; }
+.slBalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.slTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.slTable th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.slTable td {
+  padding: 0.5rem 0.5rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.slPill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+}
+.slPillW { background: var(--danger-light, #fef2f2); color: var(--danger-text, #dc2626); }
+.slPillR { background: var(--success-light, #dcfce7); color: var(--success-text, #166534); }
+.slAmt { text-align: right; font-weight: 600; white-space: nowrap; }
+.slDel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+.slDel:hover { background: var(--danger-light, #fef2f2); color: var(--danger-text, #dc2626); }
+.slEmpty { font-size: 0.8rem; color: var(--text-muted); padding: 0.75rem 0; margin: 0; }
+.slFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding-top: 0.25rem;
+}
+.slAddBtn {
+  font-size: 0.8rem;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent-text, var(--accent));
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.slAddBtn:hover { background: var(--accent-light); }
+.slWarning {
+  font-size: 0.78rem;
+  color: var(--warning-text, #856404);
+  background: var(--warning-bg, #fef3cd);
+  border: 1px solid var(--warning-border, #ffc107);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+
+/* ── CCA Schedule 8 ──────────────────────────────────────────────────── */
+.ccaEmpty { font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem 0; margin: 0; }
+.ccaScroll { overflow-x: auto; }
+.ccaTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 700px;
+}
+.ccaTable th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ccaTable td {
+  padding: 0.55rem 0.6rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.ccaMaxNote { font-size: 0.7rem; color: var(--text-muted); }
+.ccaRowActions { display: flex; gap: 0.25rem; justify-content: flex-end; }
+.ccaEditBtn {
+  font-size: 0.75rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: border-color var(--transition), color var(--transition);
+}
+.ccaEditBtn:hover { border-color: var(--accent); color: var(--accent-text, var(--accent)); }
+.ccaDelBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.ccaDelBtn:hover { background: var(--danger-light, #fef2f2); color: var(--danger-text, #dc2626); }
+.ccaFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.ccaAddBtn {
+  font-size: 0.8rem;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent-text, var(--accent));
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.ccaAddBtn:hover { background: var(--accent-light); }
+.ccaTotalRow {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.ccaTotalRow strong { color: var(--text-primary); }
+.ccaTotalNote { font-size: 0.78rem; color: var(--text-muted); }
+.ccaClassChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+.ccaChip {
+  font-size: 0.72rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--transition), border-color var(--transition);
+}
+.ccaChip:hover { background: var(--accent-light); border-color: var(--accent); }

@@ -39,7 +39,7 @@ function SuggestionBadge({ suggestion, current, isOverridden, onUse, onReset }) 
 }
 
 export default function PersonalPage() {
-  const { state, activeFY, activePY, dispatch } = useApp();
+  const { state, activeFY, activePY, dispatch, userProfile, activePersonalYear } = useApp();
   const { toast } = useToast();
   const [tab, setTab] = useState(0);
   const [pyForm, setPyForm] = useState({ ...activePY });
@@ -48,10 +48,10 @@ export default function PersonalPage() {
 
   // Sync form when year changes
   useEffect(() => {
-    const py = state.personalYears?.[state.activePersonalYear] ?? {};
+    const py = userProfile.personalYears?.[activePersonalYear] ?? {};
     setPyForm({ ...py });
     setOverrides(new Set());
-  }, [state.activePersonalYear]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activePersonalYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dividend form
   const [showDivModal, setShowDivModal] = useState(false);
@@ -62,13 +62,13 @@ export default function PersonalPage() {
   // ── Year navigation ──────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear();
   const yearOptions = useMemo(() => {
-    const saved = Object.keys(state.personalYears || {}).map(Number);
+    const saved = Object.keys(userProfile.personalYears || {}).map(Number);
     const range = [currentYear - 1, currentYear];
     return [...new Set([...saved, ...range])].sort((a, b) => b - a);
-  }, [state.personalYears, currentYear]);
+  }, [userProfile.personalYears, currentYear]);
 
   const setYear = y => dispatch({ type: 'SET_ACTIVE_PERSONAL_YEAR', payload: y });
-  const activeYear = state.activePersonalYear;
+  const activeYear = activePersonalYear;
   const yearIdx = yearOptions.indexOf(activeYear);
 
   // ── Compute suggestions from app data for the selected tax year ──────────
@@ -491,8 +491,8 @@ export default function PersonalPage() {
 
           {/* Family profile card */}
           <FamilyProfileCard
-            personalProfile={state.personalProfile}
-            dependants={state.dependants}
+            personalProfile={userProfile.personalProfile}
+            dependants={userProfile.dependants}
             styles={styles}
           />
 

@@ -24,7 +24,7 @@ function getStatusColor(status) {
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { state, activeFY, activePY } = useApp();
+  const { state, activeFY, activePY, userProfile, activePersonalYear } = useApp();
   const isAllTime = state.activeFiscalYear === 'all';
 
   // Pool ALL FY data — items may have landed in the wrong bucket on import
@@ -59,10 +59,10 @@ export default function DashboardPage() {
     ? new Date(activeFY.endDate + 'T00:00:00').getFullYear()
     : activeFY?.startDate
       ? new Date(activeFY.startDate + 'T00:00:00').getFullYear()
-      : state.activePersonalYear;
+      : activePersonalYear;
   const fyPY = isAllTime
     ? activePY
-    : (state.personalYears?.[fyPersonalYear] ?? { nonEligibleDivs: 0, eligibleDivs: 0, otherIncome: 0, rrspDeduction: 0 });
+    : (userProfile.personalYears?.[fyPersonalYear] ?? { nonEligibleDivs: 0, eligibleDivs: 0, otherIncome: 0, rrspDeduction: 0 });
   const personal = calculatePersonalTax({
     nonEligibleDivs: fyPY.nonEligibleDivs || 0,
     eligibleDivs:    fyPY.eligibleDivs    || 0,

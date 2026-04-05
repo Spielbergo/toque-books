@@ -8,6 +8,7 @@ import { today, addDays } from '@/lib/formatters';
 import { HST_RATES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase/client';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 
 // ─── DEFAULT STATE ───────────────────────────────────────────────────────────
 
@@ -65,7 +66,6 @@ function makeInitialState() {
   return {
     settings: { ...DEFAULT_SETTINGS },
     activeFiscalYear: getCurrentFiscalYearLabel(),
-    activePersonalYear: new Date().getFullYear(),
     fiscalYears: {
       [getCurrentFiscalYearLabel()]: {
         label: getCurrentFiscalYearLabel(),
@@ -77,21 +77,14 @@ function makeInitialState() {
         dividendsPaid: [],
         bankStatements: [],
         notes: '',
+        openingRetainedEarnings: 0,
+        shareholderLoan: { openingBalance: 0, transactions: [] },
+        ccaClasses: [],
       },
-    },
-    personalYears: {
-      [new Date().getFullYear()]: { ...DEFAULT_PERSONAL },
     },
     clients: [],
     onboardingCompleted: false,
     businessType: 'ccpc', // 'ccpc' | 'sole_prop' | 'partnership' | 'pc' | 'other'
-    personalProfile: {
-      maritalStatus: '',
-      spouseName: '',
-      spouseIncomeType: '', // 'employed' | 'self_employed' | 'none'
-      spouseEstIncome: 0,
-    },
-    dependants: [], // [{ id, name, birthYear, relationship, disability }]
     businessOps: {
       homeOffice: false,
       vehicleBusiness: false,
@@ -100,16 +93,6 @@ function makeInitialState() {
       numEmployees: 0,
       paysSelf: 'dividends', // 'dividends' | 'salary' | 'mix' | 'none'
       otherShareholders: false,
-    },
-    otherIncomeSources: {
-      hasEmployment: false,
-      employmentAmount: 0,
-      hasRental: false,
-      rentalAmount: 0,
-      hasForeign: false,
-      foreignAmount: 0,
-      rrspRoom: 0,
-      usesTFSA: false,
     },
     recurringExpenses: [], // [{ id, vendor, description, category, businessUsePercent, amount, hst, frequency, startDate, endDate, notes }]
     products: [],          // [{ id, name, description, category, defaultRate, unit, notes, createdAt }]
@@ -156,6 +139,22 @@ function reducer(state, action) {
       return { ...state, activeFiscalYear: action.payload };
     case 'ADD_FISCAL_YEAR': {
       const { key, label, startDate, endDate } = action.payload;
+      // Carry-forward values from the most recent previous FY
+      const prevFYKeys = Object.keys(state.fiscalYears || {}).filter(k => k !== 'all').sort();
+      const prevFY = prevFYKeys.length > 0 ? state.fiscalYears[prevFYKeys[prevFYKeys.length - 1]] : null;
+      // CCA: carry closing UCC as new opening UCC, reset current-year add/disp/claimed
+      const carriedCCA = (prevFY?.ccaClasses || []).map(c => ({
+        ...c,
+        openingUCC: Math.max(0, (c.openingUCC || 0) + (c.additions || 0) - (c.disposals || 0) - (c.claimedAmount || 0)),
+        additions: 0,
+        disposals: 0,
+        claimedAmount: 0,
+      }));
+      // Shareholder loan: carry closing balance as new opening balance
+      const prevSL = prevFY?.shareholderLoan ?? { openingBalance: 0, transactions: [] };
+      const prevSLClosing = (prevSL.openingBalance || 0) +
+        (prevSL.transactions || []).reduce((sum, t) =>
+          t.type === 'withdrawal' ? sum + (t.amount || 0) : sum - (t.amount || 0), 0);
       return {
         ...state,
         fiscalYears: {
@@ -170,6 +169,9 @@ function reducer(state, action) {
             dividendsPaid: [],
             bankStatements: [],
             notes: '',
+            openingRetainedEarnings: 0,
+            shareholderLoan: { openingBalance: prevSLClosing, transactions: [] },
+            ccaClasses: carriedCCA,
           },
         },
         activeFiscalYear: key,
@@ -177,28 +179,6 @@ function reducer(state, action) {
     }
 
     // Personal year management
-    case 'SET_ACTIVE_PERSONAL_YEAR': {
-      const year = action.payload;
-      const existing = state.personalYears[year];
-      return {
-        ...state,
-        activePersonalYear: year,
-        personalYears: existing
-          ? state.personalYears
-          : { ...state.personalYears, [year]: { ...DEFAULT_PERSONAL } },
-      };
-    }
-    case 'UPDATE_PERSONAL': {
-      const year = state.activePersonalYear;
-      return {
-        ...state,
-        personalYears: {
-          ...state.personalYears,
-          [year]: { ...(state.personalYears[year] || DEFAULT_PERSONAL), ...action.payload },
-        },
-      };
-    }
-
     // Invoices
     case 'ADD_INVOICE': {
       const fy = resolveMutableFY(state);
@@ -270,33 +250,15 @@ function reducer(state, action) {
       if (!fy) return state;
       const fyData = state.fiscalYears[fy];
       const div = { id: uuidv4(), ...action.payload };
-      const total = [...fyData.dividendsPaid, div].reduce((s, d) => s + (d.amount || 0), 0);
-      // Update personal year too
-      const py = action.payload.personalYear || state.activePersonalYear;
-      const pyData = state.personalYears[py] || { ...DEFAULT_PERSONAL };
-      return {
-        ...updateFY(state, fy, { dividendsPaid: [...fyData.dividendsPaid, div] }),
-        personalYears: {
-          ...state.personalYears,
-          [py]: { ...pyData, nonEligibleDivs: total },
-        },
-      };
+      return updateFY(state, fy, { dividendsPaid: [...fyData.dividendsPaid, div] });
     }
     case 'DELETE_DIVIDEND': {
       const fy = findItemFY(state, 'dividendsPaid', action.payload) || resolveMutableFY(state);
       if (!fy) return state;
       const fyData = state.fiscalYears[fy];
-      const remaining = fyData.dividendsPaid.filter(d => d.id !== action.payload);
-      const total = remaining.reduce((s, d) => s + (d.amount || 0), 0);
-      const py = state.activePersonalYear;
-      const pyData = state.personalYears[py] || { ...DEFAULT_PERSONAL };
-      return {
-        ...updateFY(state, fy, { dividendsPaid: remaining }),
-        personalYears: {
-          ...state.personalYears,
-          [py]: { ...pyData, nonEligibleDivs: total },
-        },
-      };
+      return updateFY(state, fy, {
+        dividendsPaid: fyData.dividendsPaid.filter(d => d.id !== action.payload),
+      });
     }
 
     // Clients
@@ -371,17 +333,8 @@ function reducer(state, action) {
       return newState;
     }
 
-    case 'UPDATE_PERSONAL_PROFILE':
-      return { ...state, personalProfile: { ...state.personalProfile, ...action.payload } };
-
-    case 'SET_DEPENDANTS':
-      return { ...state, dependants: action.payload };
-
     case 'UPDATE_BUSINESS_OPS':
       return { ...state, businessOps: { ...state.businessOps, ...action.payload } };
-
-    case 'UPDATE_OTHER_INCOME_SOURCES':
-      return { ...state, otherIncomeSources: { ...state.otherIncomeSources, ...action.payload } };
 
     // Recurring expenses
     case 'ADD_RECURRING': {
@@ -421,6 +374,60 @@ function reducer(state, action) {
         ...state,
         products: (state.products || []).filter(p => p.id !== action.payload),
       };
+    }
+
+    // Retained earnings carry-forward
+    case 'SET_FY_OPENING_RE': {
+      const { fyKey, amount } = action.payload;
+      if (!state.fiscalYears[fyKey]) return state;
+      return updateFY(state, fyKey, { openingRetainedEarnings: amount });
+    }
+
+    // Shareholder loan transactions
+    case 'ADD_SHAREHOLDER_TX': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      const sl = state.fiscalYears[fy].shareholderLoan ?? { openingBalance: 0, transactions: [] };
+      return updateFY(state, fy, { shareholderLoan: { ...sl, transactions: [...(sl.transactions || []), { id: uuidv4(), ...action.payload }] } });
+    }
+    case 'UPDATE_SHAREHOLDER_TX': {
+      const fy = (Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.shareholderLoan?.transactions || []).some(t => t.id === action.payload.id))?.[0]) || resolveMutableFY(state);
+      if (!fy) return state;
+      const sl = state.fiscalYears[fy].shareholderLoan ?? { openingBalance: 0, transactions: [] };
+      return updateFY(state, fy, { shareholderLoan: { ...sl, transactions: (sl.transactions || []).map(t => t.id === action.payload.id ? { ...t, ...action.payload } : t) } });
+    }
+    case 'DELETE_SHAREHOLDER_TX': {
+      const fy = (Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.shareholderLoan?.transactions || []).some(t => t.id === action.payload))?.[0]) || resolveMutableFY(state);
+      if (!fy) return state;
+      const sl = state.fiscalYears[fy].shareholderLoan ?? { openingBalance: 0, transactions: [] };
+      return updateFY(state, fy, { shareholderLoan: { ...sl, transactions: (sl.transactions || []).filter(t => t.id !== action.payload) } });
+    }
+    case 'SET_SHAREHOLDER_OPENING': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      const sl = state.fiscalYears[fy].shareholderLoan ?? { openingBalance: 0, transactions: [] };
+      return updateFY(state, fy, { shareholderLoan: { ...sl, openingBalance: action.payload } });
+    }
+
+    // CCA asset classes
+    case 'ADD_CCA_CLASS': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, { ccaClasses: [...(state.fiscalYears[fy].ccaClasses || []), { id: uuidv4(), ...action.payload }] });
+    }
+    case 'UPDATE_CCA_CLASS': {
+      const fy = (Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.ccaClasses || []).some(c => c.id === action.payload.id))?.[0]) || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, { ccaClasses: (state.fiscalYears[fy].ccaClasses || []).map(c => c.id === action.payload.id ? { ...c, ...action.payload } : c) });
+    }
+    case 'DELETE_CCA_CLASS': {
+      const fy = (Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.ccaClasses || []).some(c => c.id === action.payload))?.[0]) || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, { ccaClasses: (state.fiscalYears[fy].ccaClasses || []).filter(c => c.id !== action.payload) });
     }
 
     default:
@@ -504,15 +511,44 @@ export function AppProvider({ children }) {
 
   activeIdRef.current = activeCompanyId;
 
+  // ── User-level personal profile (lives at users/{uid}, not per-company) ──
+  const { activePY, activePersonalYear, userProfile, userDispatch, migrateFromCompany } = useUserProfile();
+
+  const wrappedDispatch = useCallback((action) => {
+    const userActions = ['UPDATE_PERSONAL_PROFILE', 'SET_DEPENDANTS', 'UPDATE_PERSONAL',
+      'SET_ACTIVE_PERSONAL_YEAR', 'UPDATE_OTHER_INCOME_SOURCES'];
+    if (userActions.includes(action.type)) {
+      userDispatch(action);
+      return;
+    }
+    if (action.type === 'COMPLETE_ONBOARDING') {
+      const { personalProfile, dependants, otherIncomeSources, ...companyPayload } = action.payload;
+      if (personalProfile) userDispatch({ type: 'UPDATE_PERSONAL_PROFILE', payload: personalProfile });
+      if (dependants) userDispatch({ type: 'SET_DEPENDANTS', payload: dependants });
+      if (otherIncomeSources) userDispatch({ type: 'UPDATE_OTHER_INCOME_SOURCES', payload: otherIncomeSources });
+      dispatch({ type: 'COMPLETE_ONBOARDING', payload: companyPayload });
+      return;
+    }
+    dispatch(action);
+  }, [dispatch, userDispatch]);
+
   // ── Load company data by ID ────────────────────────────────────────────
   const loadCompanyData = useCallback(async (companyId) => {
     setAppLoading(true);
     const snap = await getDoc(doc(db, 'companies', companyId));
 
     if (snap.exists() && snap.data().data && Object.keys(snap.data().data).length > 0) {
-      const data = snap.data().data;
-      lastLoaded.current = data;
-      dispatch({ type: 'RESTORE', payload: data });
+      const rawData = snap.data().data;
+      // Extract personal fields for migration (legacy — will be absent on new saves)
+      const { personalProfile, dependants, personalYears, activePersonalYear: aPY,
+              otherIncomeSources, ...companyOnlyData } = rawData;
+      const hasPersonalData = personalProfile || dependants?.length || personalYears;
+      if (hasPersonalData) {
+        migrateFromCompany({ personalProfile, dependants, personalYears,
+          activePersonalYear: aPY, otherIncomeSources });
+      }
+      lastLoaded.current = companyOnlyData;
+      dispatch({ type: 'RESTORE', payload: companyOnlyData });
     } else {
       const init = makeInitialState();
       lastLoaded.current = init;
@@ -523,7 +559,7 @@ export function AppProvider({ children }) {
     activeIdRef.current = companyId;
     try { localStorage.setItem('toque_active_company', companyId); } catch { /* private browsing */ }
     setAppLoading(false);
-  }, []);
+  }, [migrateFromCompany]);
 
   // ── Initial load when user authenticates ──────────────────────────────
   useEffect(() => {
@@ -646,12 +682,12 @@ export function AppProvider({ children }) {
 
   // ── Derived values ─────────────────────────────────────────────────────
   const activeFY      = state.fiscalYears?.[state.activeFiscalYear];
-  const activePY      = state.personalYears?.[state.activePersonalYear] ?? { ...DEFAULT_PERSONAL };
   const activeCompany = companies.find(c => c.id === activeCompanyId) ?? null;
 
   return (
     <AppContext.Provider value={{
-      state, dispatch, activeFY, activePY,
+      state, dispatch: wrappedDispatch, activeFY,
+      activePY, activePersonalYear, userProfile,
       companies, activeCompany, activeCompanyId, appLoading,
       createCompany, selectCompany, updateCompanyName, deleteCompany,
     }}>

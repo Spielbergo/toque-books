@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { AppProvider } from '@/contexts/AppContext';
+import { UserProfileProvider } from '@/contexts/UserProfileContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import AppShell from '@/components/layout/AppShell';
 
@@ -22,16 +23,20 @@ export default function ConditionalShell({ children }) {
     // Onboarding pages need data context but no sidebar/header
     return (
       <ToastProvider>
-        <AppProvider>{children}</AppProvider>
+        <UserProfileProvider>
+          <AppProvider>{children}</AppProvider>
+        </UserProfileProvider>
       </ToastProvider>
     );
   }
 
   return (
     <ToastProvider>
-      <AppProvider>
-        <AppShell>{children}</AppShell>
-      </AppProvider>
+      <UserProfileProvider>
+        <AppProvider>
+          <AppShell>{children}</AppShell>
+        </AppProvider>
+      </UserProfileProvider>
     </ToastProvider>
   );
 }
