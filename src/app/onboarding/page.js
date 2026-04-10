@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
@@ -140,7 +140,7 @@ export default function OnboardingPage() {
     businessType: 'ccpc',
 
     // Step 2 — Company Info
-    companyName: '',
+    companyName: state?.settings?.companyName || '',
     legalName: '',
     province: 'ON',
     hstRegistered: true,
@@ -203,6 +203,16 @@ export default function OnboardingPage() {
 
   const set = (field, value) => setWiz(w => ({ ...w, [field]: value }));
   const toggle = (field) => setWiz(w => ({ ...w, [field]: !w[field] }));
+
+  // Sync company name from state once it becomes available (handles async load timing)
+  const syncedCompanyName = useRef(false);
+  useEffect(() => {
+    console.log('[Onboarding Sync] syncedCompanyName.current:', syncedCompanyName.current, 'state.settings.companyName:', state?.settings?.companyName, 'wiz.companyName:', wiz.companyName);
+    if (!syncedCompanyName.current && state?.settings?.companyName) {
+      syncedCompanyName.current = true;
+      setWiz(w => w.companyName ? w : { ...w, companyName: state.settings.companyName });
+    }
+  }, [state?.settings?.companyName]);
 
   // ── Validation ─────────────────────────────────────────────────────────────
   function validateStep(s) {
@@ -1232,6 +1242,14 @@ export default function OnboardingPage() {
           <div className={styles.brand}>
             <CanBooksLogo size={28} />
             <span className={styles.brandName}>CanBooks</span>
+            <button
+              type="button"
+              className={styles.exitLink}
+              onClick={() => router.replace('/companies')}
+              title="Discard and switch company"
+            >
+              ← Switch Company
+            </button>
           </div>
         )}
 

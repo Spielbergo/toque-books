@@ -35,7 +35,7 @@ export default function AppShell({ children }) {
   useEffect(() => {
     if (authLoading || appLoading || !user) return;
     if (!activeCompanyId) return;
-    if (!state?.onboardingCompleted && !state?.settings?.companyName && pathname !== '/onboarding') {
+    if (!state?.onboardingCompleted && pathname !== '/onboarding' && pathname !== '/companies') {
       router.replace('/onboarding');
     }
   }, [authLoading, appLoading, user, activeCompanyId, state?.onboardingCompleted, state?.settings?.companyName, pathname]); // eslint-disable-line react-hooks/exhaustive-deps

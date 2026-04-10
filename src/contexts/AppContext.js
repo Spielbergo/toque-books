@@ -713,7 +713,7 @@ export function AppProvider({ children }) {
   const createCompany = useCallback(async (name) => {
     const migrateData = companies.length === 0 ? loadData() : null;
     const initialData = migrateData ?? makeInitialState();
-    if (migrateData && name) {
+    if (name) {
       initialData.settings = { ...initialData.settings, companyName: name };
     }
 
