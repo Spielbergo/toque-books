@@ -1,9 +1,24 @@
 // localStorage persistence layer
 
-const STORAGE_KEY = 'toque_books_v1';
+const STORAGE_KEY = 'canbooks_v1';
+const LEGACY_KEY  = 'toque_books_v1';
+
+/** Silently migrate data from the old key on first access */
+function migrate() {
+  try {
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      const legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        localStorage.setItem(STORAGE_KEY, legacy);
+        localStorage.removeItem(LEGACY_KEY);
+      }
+    }
+  } catch { /* private browsing or quota */ }
+}
 
 export function loadData() {
   if (typeof window === 'undefined') return null;
+  migrate();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -31,7 +46,7 @@ export function exportDataAsJSON(data) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `toque-books-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `canbooks-backup-${new Date().toISOString().split('T')[0]}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

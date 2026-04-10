@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import ToqueLogo from '@/components/ToqueLogo';
+import CanBooksLogo from '@/components/CanBooksLogo';
 import Button from '@/components/ui/Button';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import styles from './page.module.css';
@@ -379,8 +379,8 @@ export default function OnboardingPage() {
       case 0:
         return (
           <div className={styles.welcomeCard}>
-            <ToqueLogo size={72} />
-            <h1 className={styles.welcomeTitle}>Welcome to Toque Books</h1>
+            <CanBooksLogo size={72} />
+            <h1 className={styles.welcomeTitle}>Welcome to CanBooks</h1>
             <p className={styles.welcomeSubtitle}>
               Let&apos;s set up your profile in a few quick steps. This helps us
               tailor your tax calculations, invoices, and reports to your exact situation.
@@ -1230,8 +1230,8 @@ export default function OnboardingPage() {
         {/* Brand */}
         {step < TOTAL_STEPS && (
           <div className={styles.brand}>
-            <ToqueLogo size={28} />
-            <span className={styles.brandName}>Toque Books</span>
+            <CanBooksLogo size={28} />
+            <span className={styles.brandName}>CanBooks</span>
           </div>
         )}
 

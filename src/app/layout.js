@@ -4,7 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import ConditionalShell from '@/components/ConditionalShell';
 
 export const metadata = {
-  title: 'Toque Books — Canadian Tax & Bookkeeping',
+  title: 'CanBooks — Canadian Tax & Bookkeeping',
   description: 'Track invoices, expenses, and calculate Canadian corporate and personal taxes for Ontario CCPCs.',
 };
 

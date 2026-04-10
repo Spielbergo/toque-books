@@ -308,7 +308,7 @@ export default function ExportPage() {
 
       // README
       zip.file('README.txt', [
-        `Toque Books — Accountant Package`,
+        `CanBooks — Accountant Package`,
         `Fiscal Year: ${fyLabel}`,
         `Generated: ${new Date().toLocaleString('en-CA')}`,
         ``,

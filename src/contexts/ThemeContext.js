@@ -9,7 +9,7 @@ export function ThemeProvider({ children }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('toque-theme');
+    const stored = localStorage.getItem('canbooks-theme');
     if (stored === 'light' || stored === 'dark') {
       setTheme(stored);
     }
@@ -19,7 +19,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     if (!mounted) return;
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('toque-theme', theme);
+    localStorage.setItem('canbooks-theme', theme);
   }, [theme, mounted]);
 
   const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));

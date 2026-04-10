@@ -10,7 +10,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
-import ToqueLogo from '@/components/ToqueLogo';
+import CanBooksLogo from '@/components/CanBooksLogo';
 import styles from './page.module.css';
 
 export default function LoginPage() {
@@ -67,9 +67,9 @@ export default function LoginPage() {
       <div className={styles.card}>
         {/* Logo */}
         <div className={styles.logoRow}>
-          <ToqueLogo size={48} />
+          <CanBooksLogo size={48} />
           <div>
-            <h1 className={styles.appName}>Toque Books</h1>
+            <h1 className={styles.appName}>CanBooks</h1>
             <p className={styles.appTagline}>Canadian corporate &amp; personal tax tracker</p>
           </div>
         </div>

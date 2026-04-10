@@ -115,6 +115,7 @@ export default function ExpensesPage() {
   const [importIdx, setImportIdx] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [importSaveMode, setImportSaveMode] = useState(false);
+  const [rateLoading, setRateLoading] = useState(false);
 
   // Recurring modal state
   const [showRecurModal, setShowRecurModal] = useState(false);
@@ -652,25 +653,41 @@ export default function ExpensesPage() {
             <FormField label="Amount (before HST)" required>
               <Input type="number" min="0" step="0.01" prefix="$" value={form.amount} onChange={e => handleAmountChange(e.target.value)} required />
             </FormField>
-            <FormField label="Currency">
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <Select value={form.currency || 'CAD'} onChange={e => setForm(f => ({ ...f, currency: e.target.value, exchangeRateToCAD: e.target.value === 'CAD' ? 1 : f.exchangeRateToCAD }))}>
-                  {['CAD','USD','EUR','GBP','AUD','MXN','JPY','CHF','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
-                </Select>
-                {(form.currency && form.currency !== 'CAD') && (
-                  <>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
-                    <Input
-                      type="number" min="0" step="any"
-                      value={form.exchangeRateToCAD || ''}
-                      onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
-                      placeholder="Rate to CAD"
-                    />
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
-                  </>
-                )}
-              </div>
-            </FormField>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', padding: '0 0 0.5rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.25rem' }}>Currency</label>
+              <Select
+                value={form.currency || 'CAD'}
+                style={{ width: '6rem' }}
+                onChange={async e => {
+                  const cur = e.target.value;
+                  setForm(f => ({ ...f, currency: cur, exchangeRateToCAD: cur === 'CAD' ? 1 : f.exchangeRateToCAD }));
+                  if (cur !== 'CAD') {
+                    setRateLoading(true);
+                    try {
+                      const res = await fetch(`https://api.frankfurter.dev/v1/latest?from=${cur}&to=CAD`);
+                      const data = await res.json();
+                      if (data.rates?.CAD) setForm(f => ({ ...f, exchangeRateToCAD: data.rates.CAD }));
+                    } catch { /* silent — user can edit manually */ }
+                    finally { setRateLoading(false); }
+                  }
+                }}
+              >
+                {['CAD','USD','EUR','GBP','AUD','MXN','JPY','CHF','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              {(form.currency && form.currency !== 'CAD') && (
+                <>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
+                  <Input
+                    type="number" min="0" step="any"
+                    value={form.exchangeRateToCAD || ''}
+                    onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
+                    placeholder={rateLoading ? 'Fetching…' : 'Rate'}
+                    style={{ width: '6rem' }}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
+                </>
+              )}
+            </div>
             <FormField label="HST Paid">
               <Input type="number" min="0" step="0.01" prefix="$" value={form.hst} onChange={e => setForm(f => ({ ...f, hst: e.target.value }))} />
             </FormField>

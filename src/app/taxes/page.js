@@ -49,7 +49,7 @@ export default function TaxesPage() {
           label: json.companyName || file.name,
         });
       } catch {
-        setPrevYearError('Could not parse file. Please upload a Toque Books backup JSON.');
+        setPrevYearError('Could not parse file. Please upload a CanBooks backup JSON.');
       }
     };
     reader.readAsText(file);
@@ -448,7 +448,7 @@ export default function TaxesPage() {
       {/* ── Previous Year Upload ── */}
       <Section title="Import Previous Year Data">
         <div className={styles.prevYearBox}>
-          <p className={styles.prevYearNote}>Upload a prior-year Toque Books backup JSON to pre-fill opening retained earnings, shareholder loan balance, and CCA class UCCs into the current fiscal year. <strong>Nothing is uploaded to any server — all processing happens in your browser.</strong></p>
+          <p className={styles.prevYearNote}>Upload a prior-year CanBooks backup JSON to pre-fill opening retained earnings, shareholder loan balance, and CCA class UCCs into the current fiscal year. <strong>Nothing is uploaded to any server — all processing happens in your browser.</strong></p>
           <label className={styles.prevYearLabel}>
             <span>Select backup file (.json)</span>
             <input type="file" accept=".json,application/json" onChange={handlePrevYearFile} className={styles.prevYearFileInput} />

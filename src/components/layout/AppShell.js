@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
-import ToqueLogo from '@/components/ToqueLogo';
+import CanBooksLogo from '@/components/CanBooksLogo';
 import Header from './Header';
 import styles from './AppShell.module.css';
 
@@ -53,7 +53,7 @@ export default function AppShell({ children }) {
   if (appLoading) {
     return (
       <div className={styles.loadingScreen}>
-        <ToqueLogo size={64} />
+        <CanBooksLogo size={64} />
         <p className={styles.loadingText}>Loading…</p>
       </div>
     );

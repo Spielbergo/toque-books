@@ -638,7 +638,7 @@ export function AppProvider({ children }) {
 
     setActiveId(companyId);
     activeIdRef.current = companyId;
-    try { localStorage.setItem('toque_active_company', companyId); } catch { /* private browsing */ }
+    try { localStorage.setItem('canbooks_active_company', companyId); } catch { /* private browsing */ }
     setAppLoading(false);
   }, [migrateFromCompany]);
 
@@ -672,7 +672,7 @@ export function AppProvider({ children }) {
         if (list.length === 0) { setAppLoading(false); return; }
 
         let preferred = null;
-        try { preferred = localStorage.getItem('toque_active_company'); } catch { /* */ }
+        try { preferred = localStorage.getItem('canbooks_active_company'); } catch { /* */ }
         const pick = list.find(c => c.id === preferred) ?? list[0];
         await loadCompanyData(pick.id);
       } catch (err) {

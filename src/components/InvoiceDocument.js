@@ -10,11 +10,17 @@ const TABLE_HEAD_BG = '#111827';
 const TABLE_HEAD_FG = '#FFFFFF';
 const AMT_DUE_BG    = '#F3F4F6';
 
-function fmtCurrency(amount) {
-  if (amount == null || isNaN(amount)) return '$0.00';
+const CURRENCY_SYMBOLS = {
+  CAD: 'CA$', USD: 'US$', EUR: '€', GBP: '£', AUD: 'A$',
+  MXN: 'MX$', JPY: '¥', CHF: 'CHF ', CNY: 'CN¥',
+};
+
+function fmtAmt(amount, currency) {
+  if (amount == null || isNaN(amount)) return (CURRENCY_SYMBOLS[currency] || (currency + ' ')) + '0.00';
+  const sym = CURRENCY_SYMBOLS[currency] || (currency + ' ');
   const abs = Math.abs(Number(amount));
   const formatted = abs.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return (amount < 0 ? '-$' : '$') + formatted;
+  return (amount < 0 ? '-' : '') + sym + formatted;
 }
 
 function fmtPhone(raw) {
@@ -306,6 +312,11 @@ export default function InvoiceDocument({ invoice, settings }) {
   const inv = invoice || {};
   const cfg = settings || {};
   const lineItems = inv.lineItems || [];
+  const currency = inv.currency || 'CAD';
+  const isForeign = currency !== 'CAD';
+  const rate = inv.exchangeRateToCAD || 1;
+  // Shorthand: format in invoice currency
+  const fmt = amount => fmtAmt(amount, currency);
 
   const taxRate  = inv.hstRate ?? 0.13;
   const taxPct   = (taxRate * 100).toFixed(3).replace(/\.?0+$/, '');
@@ -402,8 +413,8 @@ export default function InvoiceDocument({ invoice, settings }) {
               <Text style={s.metaValue}>{fmtDate(inv.dueDate)}</Text>
             </View>
             <View style={s.metaRowHighlight}>
-              <Text style={s.metaAmtLabel}>Amount Due (CAD):</Text>
-              <Text style={s.metaAmtValue}>{fmtCurrency(inv.total)}</Text>
+              <Text style={s.metaAmtLabel}>Amount Due ({currency}):</Text>
+              <Text style={s.metaAmtValue}>{fmt(inv.total)}</Text>
             </View>
           </View>
         </View>
@@ -419,8 +430,8 @@ export default function InvoiceDocument({ invoice, settings }) {
           <View key={li.id || idx} style={s.tableRow}>
             <Text style={[s.colDesc,  s.colCell]}>{li.description || '—'}</Text>
             <Text style={[s.colQty,   s.colCell]}>{li.quantity ?? 1}</Text>
-            <Text style={[s.colPrice, s.colCell]}>{fmtCurrency(li.rate)}</Text>
-            <Text style={[s.colAmt,   s.colCell]}>{fmtCurrency(li.amount)}</Text>
+            <Text style={[s.colPrice, s.colCell]}>{fmt(li.rate)}</Text>
+            <Text style={[s.colAmt,   s.colCell]}>{fmt(li.amount)}</Text>
           </View>
         ))}
 
@@ -429,23 +440,29 @@ export default function InvoiceDocument({ invoice, settings }) {
           <View style={s.totalsBox}>
             <View style={s.totalRow}>
               <Text style={s.totalLabel}>Subtotal:</Text>
-              <Text style={s.totalValue}>{fmtCurrency(inv.subtotal)}</Text>
+              <Text style={s.totalValue}>{fmt(inv.subtotal)}</Text>
             </View>
             {inv.hstAmount > 0 && taxLabel && (
               <View style={s.totalRow}>
                 <Text style={s.totalLabel}>{taxLabel}:</Text>
-                <Text style={s.totalValue}>{fmtCurrency(inv.hstAmount)}</Text>
+                <Text style={s.totalValue}>{fmt(inv.hstAmount)}</Text>
               </View>
             )}
             <View style={s.totalsDivider} />
             <View style={s.grandTotalRow}>
               <Text style={s.grandTotalLabel}>Total:</Text>
-              <Text style={s.grandTotalValue}>{fmtCurrency(inv.total)}</Text>
+              <Text style={s.grandTotalValue}>{fmt(inv.total)}</Text>
             </View>
             <View style={s.amtDueRow}>
-              <Text style={s.amtDueLabel}>Amount Due (CAD):</Text>
-              <Text style={s.amtDueValue}>{fmtCurrency(inv.total)}</Text>
+              <Text style={s.amtDueLabel}>Amount Due ({currency}):</Text>
+              <Text style={s.amtDueValue}>{fmt(inv.total)}</Text>
             </View>
+            {isForeign && (
+              <View style={s.totalRow}>
+                <Text style={s.totalLabel}>≈ CAD equivalent:</Text>
+                <Text style={s.totalValue}>{fmtAmt(inv.total * rate, 'CAD')}</Text>
+              </View>
+            )}
           </View>
         </View>
 

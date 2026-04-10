@@ -152,6 +152,7 @@ export default function InvoicesPage() {
   const [showAging, setShowAging] = useState(false);
   const [tab, setTab] = useState('invoices'); // 'invoices' | 'recurring'
   const [dismissedRecurPrompt, setDismissedRecurPrompt] = useState(false);
+  const [rateLoading, setRateLoading] = useState(false);
 
   // ── Recurring invoice state ───────────────────────
   const [showRecurModal, setShowRecurModal] = useState(false);
@@ -620,11 +621,12 @@ export default function InvoicesPage() {
     return matchStatus && matchSearch && matchYear && matchMonth;
   });
 
-  // ── Totals ────────────────────────────────────────
+  // ── Totals (converted to CAD using exchangeRateToCAD) ─────────────────
+  const toCAD = (amount, inv) => (amount || 0) * (inv.exchangeRateToCAD || 1);
   const totals = {
-    revenue: invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.subtotal, 0),
-    outstanding: invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.total, 0),
-    hst: invoices.filter(i => ['sent', 'paid'].includes(i.status)).reduce((s, i) => s + i.hstAmount, 0),
+    revenue: invoices.filter(i => i.status === 'paid').reduce((s, i) => s + toCAD(i.subtotal, i), 0),
+    outstanding: invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + toCAD(i.total, i), 0),
+    hst: invoices.filter(i => ['sent', 'paid'].includes(i.status)).reduce((s, i) => s + toCAD(i.hstAmount, i), 0),
   };
 
   const currentImport = importResults[importIdx];
@@ -914,7 +916,7 @@ export default function InvoicesPage() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.checkCell} style={{ position: 'relative', left: 5 }}>
+                  <th className={styles.checkCell}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                   </th>
                   <th>Invoice #</th><th>Client</th><th>Date</th><th>Due</th>
@@ -1226,26 +1228,41 @@ export default function InvoicesPage() {
             </div>
           </div>
 
-          <FormField label="Currency">
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Select value={form.currency || 'CAD'} onChange={e => setForm(f => ({ ...f, currency: e.target.value, exchangeRateToCAD: e.target.value === 'CAD' ? 1 : f.exchangeRateToCAD }))}>
-                {['CAD','USD','EUR','GBP','AUD','MXN','JPY','CHF','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
-              </Select>
-              {(form.currency && form.currency !== 'CAD') && (
-                <>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
-                  <Input
-                    type="number" min="0" step="any"
-                    value={form.exchangeRateToCAD || ''}
-                    onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
-                    placeholder="Rate to CAD"
-                    style={{ width: '9rem' }}
-                  />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
-                </>
-              )}
-            </div>
-          </FormField>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', margin: '0 0 0.75rem' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.25rem' }}>Currency</label>
+            <Select
+              value={form.currency || 'CAD'}
+              style={{ width: '6rem' }}
+              onChange={async e => {
+                const cur = e.target.value;
+                setForm(f => ({ ...f, currency: cur, exchangeRateToCAD: cur === 'CAD' ? 1 : f.exchangeRateToCAD }));
+                if (cur !== 'CAD') {
+                  setRateLoading(true);
+                  try {
+                    const res = await fetch(`https://api.frankfurter.dev/v1/latest?from=${cur}&to=CAD`);
+                    const data = await res.json();
+                    if (data.rates?.CAD) setForm(f => ({ ...f, exchangeRateToCAD: data.rates.CAD }));
+                  } catch { /* silent — user can edit manually */ }
+                  finally { setRateLoading(false); }
+                }
+              }}
+            >
+              {['CAD','USD','EUR','GBP','AUD','MXN','JPY','CHF','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+            </Select>
+            {(form.currency && form.currency !== 'CAD') && (
+              <>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
+                <Input
+                  type="number" min="0" step="any"
+                  value={form.exchangeRateToCAD || ''}
+                  onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
+                  placeholder={rateLoading ? 'Fetching…' : 'Rate'}
+                  style={{ width: '6rem' }}
+                />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
+              </>
+            )}
+          </div>
 
           <FormField label="Notes">
             <Textarea placeholder="Optional notes or references…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
