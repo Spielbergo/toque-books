@@ -18,6 +18,10 @@ import {
   exportWealthsimpleCSV,
   exportSage50CSV,
   exportTaxSummaryCSV,
+  exportT5PDF,
+  exportT4PDF,
+  exportTaxWorksheetPDF,
+  exportGIFI,
 } from '@/lib/exportHelpers';
 import styles from './page.module.css';
 
@@ -62,6 +66,14 @@ const EXPORT_GROUPS = [
         fn: (state, fyKey) => exportT2XML(state, fyKey),
       },
       {
+        id: 'gifi',
+        label: 'GIFI Financial Statements',
+        sub: 'GFI — Schedule 100 & 125 for UFile T2, TaxPrep, Cantax, ProFile',
+        badge: null,
+        scope: 'fy',
+        fn: (state, fyKey) => exportGIFI(state, fyKey),
+      },
+      {
         id: 't1_xml',
         label: 'T1 Personal Return',
         sub: 'XML — income, dividends, RRSP, tax credits',
@@ -100,6 +112,30 @@ const EXPORT_GROUPS = [
         badge: null,
         scope: 'fy',
         fn: (state, fyKey) => exportGST34CSV(state, fyKey),
+      },
+      {
+        id: 't5_pdf',
+        label: 'T5 Slip PDF',
+        sub: 'PDF — CRA-styled T5 Statement of Investment Income (2 copies)',
+        badge: 'PDF',
+        scope: 'both',
+        fn: (state, fyKey, userProfile) => exportT5PDF(state, fyKey, userProfile),
+      },
+      {
+        id: 't4_pdf',
+        label: 'T4 Slip PDF',
+        sub: 'PDF — CRA-styled T4 Statement of Remuneration Paid (requires employment income)',
+        badge: 'PDF',
+        scope: 'both',
+        fn: (state, fyKey, userProfile) => exportT4PDF(state, fyKey, userProfile),
+      },
+      {
+        id: 'worksheet_pdf',
+        label: 'T1/T2 Tax Worksheet PDF',
+        sub: 'PDF — Combined corporate + personal worksheet with CRA line numbers, for your accountant',
+        badge: 'PDF',
+        scope: 'both',
+        fn: (state, fyKey, userProfile) => exportTaxWorksheetPDF(state, fyKey, userProfile),
       },
     ],
   },

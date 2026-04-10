@@ -644,3 +644,277 @@ export function exportTaxSummaryCSV(state, fyKey, userProfile) {
 
   download(`Tax-Summary-${fyKey}.csv`, rows.join('\n'), 'text/csv');
 }
+
+// ─── PDF helpers ──────────────────────────────────────────────────────────────
+
+async function createPdfBlob(DocumentComponent, props) {
+  const { pdf } = await import('@react-pdf/renderer');
+  const { createElement } = await import('react');
+  return pdf(createElement(DocumentComponent, props)).toBlob();
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── T5 Slip PDF ─────────────────────────────────────────────────────────────
+
+export async function exportT5PDF(state, fyKey, userProfile) {
+  const { default: T5Document } = await import('@/components/T5Document');
+  const s = state.settings;
+  const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+  const py = userProfile?.personalYears?.[year] ?? {};
+  const profile = userProfile?.personalProfile ?? {};
+  const recipientName = [profile.firstName, profile.lastName].filter(Boolean).join(' ')
+    || s?.ownerName || 'Shareholder';
+
+  const blob = await createPdfBlob(T5Document, {
+    settings: s,
+    recipientName,
+    recipientSIN: null,
+    year: String(year),
+    py,
+  });
+  downloadBlob(blob, `T5-${year}-${(recipientName).replace(/\s+/g, '_')}.pdf`);
+}
+
+// ─── T4 Slip PDF ─────────────────────────────────────────────────────────────
+
+export async function exportT4PDF(state, fyKey, userProfile) {
+  const { default: T4Document } = await import('@/components/T4Document');
+  const s = state.settings;
+  const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+  const py = userProfile?.personalYears?.[year] ?? {};
+  const profile = userProfile?.personalProfile ?? {};
+  const employeeName = [profile.firstName, profile.lastName].filter(Boolean).join(' ')
+    || s?.ownerName || 'Employee';
+
+  if (!py.employmentIncome || Number(py.employmentIncome) === 0) {
+    alert('No employment income recorded for this year. Enter T4 Box 14 on the Personal Tax page first.');
+    return;
+  }
+
+  const blob = await createPdfBlob(T4Document, {
+    settings: s,
+    employeeName,
+    year: String(year),
+    py,
+  });
+  downloadBlob(blob, `T4-${year}-${(employeeName).replace(/\s+/g, '_')}.pdf`);
+}
+
+// ─── T1/T2 Tax Worksheet PDF ─────────────────────────────────────────────────
+
+export async function exportTaxWorksheetPDF(state, fyKey, userProfile) {
+  const { default: TaxWorksheetDocument } = await import('@/components/TaxWorksheetDocument');
+  const data = resolveFYData(state, fyKey);
+  if (!data) return;
+  const { fy, invoices, expenses } = data;
+  const s = state.settings;
+
+  const grossRevenue = invoices
+    .filter(i => i.status === 'paid' || i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+  const totalDeductible = expenses.reduce((sum, e) =>
+    sum + getDeductibleAmount(e.amount, e.category, e.businessUsePercent ?? 100), 0);
+  const hoResult = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
+  const totalCCA = (fy.ccaClasses ?? []).reduce((acc, c) => acc + (c.claimedAmount || 0), 0);
+  const totalDeductions = totalDeductible + (hoResult?.deductible ?? 0) + totalCCA;
+  const corp = calculateCorporateTax(grossRevenue, totalDeductions);
+  const hst = calculateHSTSummary(invoices, expenses);
+
+  const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+  const py = userProfile?.personalYears?.[year] ?? {};
+  const personal = calculatePersonalTax({
+    nonEligibleDivs:  py.nonEligibleDivs  ?? 0,
+    eligibleDivs:     py.eligibleDivs     ?? 0,
+    employmentIncome: py.employmentIncome ?? 0,
+    otherIncome:      py.otherIncome      ?? 0,
+    rrspDeduction:    py.rrspDeduction    ?? 0,
+    taxWithheld:      py.taxWithheld      ?? 0,
+    cppContributions: py.cppContributions ?? 0,
+    eiPremiums:       py.eiPremiums       ?? 0,
+    spouseNetIncome:  py.spouseNetIncome  ?? null,
+  });
+
+  const blob = await createPdfBlob(TaxWorksheetDocument, {
+    settings: s,
+    fyKey: String(year),
+    corp,
+    hst,
+    personal,
+    py,
+  });
+  downloadBlob(blob, `Tax-Worksheet-${year}-${(s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+}
+
+// ─── GIFI Financial Statements ───────────────────────────────────────────────
+// CRA RC4088 — General Index of Financial Information
+// Produces a tab-delimited CODE\tAMOUNT file for import into UFile T2,
+// TaxPrep, Cantax, ProFile and other CRA-certified T2 software.
+
+// Expense category → Schedule 125 GIFI operating expense code
+const EXPENSE_CATEGORY_GIFI = {
+  advertising:            8521,  // Advertising
+  bank_fees:              8715,  // Bank charges
+  business_meals:         8523,  // Meals and entertainment
+  education:              9200,  // Travel expenses (incl. seminars/training)
+  equipment:              8810,  // Office expenses (directly-expensed equipment)
+  home_office:            8911,  // Real estate rental (home office portion)
+  insurance:              8690,  // Insurance
+  legal_professional:     8860,  // Professional fees
+  office_supplies:        8811,  // Office stationery and supplies
+  software_subscriptions: 9150,  // Computer-related expenses
+  telephone_internet:     9225,  // Telephone and telecommunications
+  travel:                 9200,  // Travel expenses
+  vehicle:                9281,  // Vehicle expenses
+  wages_salaries:         9060,  // Salaries and wages
+  other:                  9270,  // Other expenses
+};
+
+export function exportGIFI(state, fyKey) {
+  const data = resolveFYData(state, fyKey);
+  if (!data) return;
+  const { fy, invoices, expenses } = data;
+  const s = state.settings;
+
+  // ── Schedule 125 — Income Statement ──────────────────────────────────────
+
+  // Revenue: paid and sent invoices
+  const grossRevenue = invoices
+    .filter(i => i.status === 'paid' || i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
+  // Accumulate deductible expense amounts by GIFI code
+  const gifiExpenses = {};
+  for (const e of expenses) {
+    const code = EXPENSE_CATEGORY_GIFI[e.category] ?? 9270;
+    const deductible = getDeductibleAmount(e.amount, e.category, e.businessUsePercent ?? 100);
+    if (deductible > 0) {
+      gifiExpenses[code] = (gifiExpenses[code] ?? 0) + deductible;
+    }
+  }
+
+  // Home office deduction → 8911 (Real estate rental blend)
+  const hoResult = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
+  const homeOfficeDeduction = hoResult?.deductible ?? 0;
+  if (homeOfficeDeduction > 0) {
+    gifiExpenses[8911] = (gifiExpenses[8911] ?? 0) + homeOfficeDeduction;
+  }
+
+  // CCA → 8670 (Amortization of tangible assets)
+  const totalCCA = (fy.ccaClasses ?? []).reduce((sum, c) => sum + (c.claimedAmount || 0), 0);
+  if (totalCCA > 0) {
+    gifiExpenses[8670] = (gifiExpenses[8670] ?? 0) + totalCCA;
+  }
+
+  const totalDeductions = Object.values(gifiExpenses).reduce((sum, v) => sum + v, 0);
+
+  // Net income = revenue minus expenses (pre-tax; UFile calculates corporate tax on Schedule 1)
+  const netIncome = grossRevenue - totalDeductions;
+
+  // ── Schedule 100 — Balance Sheet ─────────────────────────────────────────
+
+  const openingRE    = fy.openingRetainedEarnings ?? 0;
+  const totalDivsPaid = (fy.dividendsPaid ?? []).reduce((sum, d) => sum + (d.amount || 0), 0);
+  const reClosing    = openingRE + netIncome - totalDivsPaid;
+  const commonShares = s.commonSharesIssued ?? 1;
+  const totalEquity  = commonShares + reClosing;
+
+  // Shareholder loan closing balance
+  const sl = fy.shareholderLoan ?? { openingBalance: 0, transactions: [] };
+  const slClosing = (sl.openingBalance || 0) + (sl.transactions || []).reduce(
+    (sum, t) => t.type === 'withdrawal' ? sum + (t.amount || 0) : sum - (t.amount || 0), 0
+  );
+  const slLiability = Math.max(0, slClosing);   // owed TO shareholder → current liability
+  const slAsset     = Math.max(0, -slClosing);  // owed BY shareholder → current asset
+
+  // Capital assets – closing UCC
+  const equipUCC = (fy.ccaClasses ?? []).reduce((sum, c) =>
+    sum + Math.max(0, (c.openingUCC || 0) + (c.additions || 0) - (c.disposals || 0) - (c.claimedAmount || 0)), 0);
+
+  // Outstanding AR (sent but not yet paid)
+  const arOutstanding = invoices
+    .filter(i => i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
+  // Total assets must equal total liabilities + equity (CRA validity check)
+  const totalLiabilities = slLiability;
+  const totalAssets      = totalLiabilities + totalEquity;
+
+  // Derive cash as the plug so assets always balance
+  const cashAmount = Math.max(0, totalAssets - arOutstanding - equipUCC - slAsset);
+
+  // ── Build output ──────────────────────────────────────────────────────────
+
+  const r = n => Math.round(n);   // CRA requires whole dollars; no cents
+  const lines = [];
+
+  const add = (code, amount, force = false) => {
+    const rounded = r(amount);
+    if (force || rounded !== 0) lines.push(`${code}|${Math.abs(rounded)}`);
+  };
+
+  // — Schedule 100: Assets (must come before Schedule 125) —
+  if (cashAmount > 0)      add(1001, cashAmount);      // Cash
+  if (arOutstanding > 0)   add(1060, arOutstanding);   // Accounts receivable
+  if (slAsset > 0)         add(1301, slAsset);          // Due from shareholder
+  add(1599, totalAssets - equipUCC, true);              // Total current assets (REQUIRED)
+  if (equipUCC > 0)        add(2008, equipUCC);         // Total tangible capital assets
+  add(2599, totalAssets, true);                         // Total assets (REQUIRED)
+
+  // — Schedule 100: Liabilities —
+  if (slLiability > 0)     add(2781, slLiability);     // Due to individual shareholder
+  add(3499, totalLiabilities, true);                   // Total liabilities (REQUIRED)
+
+  // — Schedule 100: Equity total only (sub-items omitted — sign-dependent cross-checks break with abs()) —
+  add(3620, totalEquity, true);                        // Total shareholder equity (REQUIRED)
+
+  // — Schedule 125: Revenue —
+  add(8000, grossRevenue);         // Trade sales of goods and services
+  add(8299, grossRevenue, true);   // Total revenue (REQUIRED)
+
+  // — Schedule 125: Operating Expenses (sorted by code) —
+  for (const code of Object.keys(gifiExpenses).map(Number).sort((a, b) => a - b)) {
+    add(code, gifiExpenses[code]);
+  }
+  add(9368, totalDeductions, true); // Total expenses (REQUIRED)
+  add(9999, netIncome, true);       // Net income/loss (REQUIRED)
+
+  // ── Header line ─────────────────────────────────────────────────────────────
+  const bn = (s?.businessNumber ?? '').replace(/\D/g, '').slice(0, 9);
+  const corpName = (s?.companyName ?? '').replace(/"/g, '');
+  const address  = (s?.address ?? '').replace(/"/g, '');
+  const city     = (s?.city ?? '').replace(/"/g, '');
+  const prov     = s?.province ?? 'ON';
+  const postal   = (s?.postalCode ?? '').replace(/"/g, '');
+
+  // Fiscal year-end → YYYYMMDD (no time component)
+  const fiscalEnd = fy.endDate
+    ? fy.endDate.replace(/-/g, '').slice(0, 8)
+    : `${fyKey}1130`;
+
+  // Export date → YYYYMMDD
+  const now = new Date();
+  const p2  = n => String(n).padStart(2, '0');
+  const exportDate = `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}`;
+
+  const header = `"GIFI01","${bn}","ASCII","-","L","${corpName}","","${address}","${city}","${prov}","${postal.replace(/\s/g, '')}","","${fiscalEnd}","${exportDate}"`;
+
+  const companySlug = (s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_');
+  // Use ASCII encoding explicitly — no UTF-8 BOM
+  const content = [header, ...lines].join('\r\n');
+  const bytes = new Uint8Array(content.split('').map(c => c.charCodeAt(0) & 0xFF));
+  const blob = new Blob([bytes], { type: 'text/plain;charset=us-ascii' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `GIFI-${fyKey}-${companySlug}.gfi`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}

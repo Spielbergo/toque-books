@@ -1,20 +1,5 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
-
-// Build SMTP transporter from environment variables.
-// Configure these in .env.local — see the comments there.
-function createTransporter() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in .env.local');
-  }
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: parseInt(SMTP_PORT || '465', 10),
-    secure: SMTP_SECURE !== 'false', // true unless explicitly set to 'false'
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-}
+import { Resend } from 'resend';
 
 export async function POST(request) {
   try {
@@ -30,17 +15,21 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid recipient email address' }, { status: 400 });
     }
 
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not set in .env.local');
+    }
+
     // Generate PDF attachment server-side using @react-pdf/renderer
     const pdfBuffer = await generatePDFBuffer(invoice, settings);
 
-    const fromName  = process.env.SMTP_FROM_NAME || settings?.companyName || 'Invoice';
-    const fromEmail = process.env.SMTP_USER;
+    const fromName  = process.env.RESEND_FROM_NAME  || settings?.companyName || 'Invoice';
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'invoices@resend.dev';
     const filename  = buildFilename(invoice, settings);
 
-    const transporter = createTransporter();
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${fromEmail}>`,
       to,
       subject,
       text: message || '',
@@ -49,10 +38,11 @@ export async function POST(request) {
         {
           filename,
           content: pdfBuffer,
-          contentType: 'application/pdf',
         },
       ],
     });
+
+    if (error) throw new Error(error.message);
 
     return NextResponse.json({ success: true });
   } catch (err) {

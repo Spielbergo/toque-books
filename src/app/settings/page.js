@@ -171,6 +171,10 @@ export default function SettingsPage() {
                 <Input value={form.ownerName} onChange={e => setForm(f => ({ ...f, ownerName: e.target.value }))} placeholder="Jane Smith" />
               </FormField>
 
+              <FormField label="Business Number (BN)" hint="9-digit CRA number, e.g. 123456789">
+                <Input value={form.businessNumber || ''} onChange={e => setForm(f => ({ ...f, businessNumber: e.target.value }))} placeholder="123456789" maxLength={9} />
+              </FormField>
+
               <FormField label="HST Registration Number" hint="Format: 123456789 RT0001">
                 <Input value={form.hstNumber} onChange={e => setForm(f => ({ ...f, hstNumber: e.target.value }))} placeholder="123456789 RT0001" />
               </FormField>
