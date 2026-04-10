@@ -1,8 +1,30 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { verifyIdToken } from '@/lib/firebase/admin';
+import { createRateLimiter } from '@/lib/rateLimit';
+
+const limiter = createRateLimiter({ windowMs: 60_000, max: 10 }); // 10 emails/min per IP
 
 export async function POST(request) {
   try {
+    // ── Auth ──────────────────────────────────────────────────────────
+    const authHeader = request.headers.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    try {
+      await verifyIdToken(token);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ── Rate limit ────────────────────────────────────────────────────
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    if (!limiter.check(ip)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const body = await request.json();
     const { invoice, settings, to, subject, message, isReminder } = body;
 
@@ -22,14 +44,16 @@ export async function POST(request) {
     // Generate PDF attachment server-side using @react-pdf/renderer
     const pdfBuffer = await generatePDFBuffer(invoice, settings);
 
-    const fromName  = process.env.RESEND_FROM_NAME  || settings?.companyName || 'Invoice';
+    const fromName  = settings?.companyName || 'Invoice';
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'invoices@resend.dev';
+    const replyTo   = settings?.email || undefined;
     const filename  = buildFilename(invoice, settings);
 
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const { error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
+      reply_to: replyTo,
       to,
       subject,
       text: message || '',

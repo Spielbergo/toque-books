@@ -2,11 +2,13 @@
 
 import { useState, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { calculateHomeOfficeDeduction, getDeductibleAmount } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, today } from '@/lib/formatters';
 import { fyLabelForDate } from '@/lib/fyUtils';
 import { EXPENSE_CATEGORIES, PARTIAL_DEDUCTION_CATEGORIES, HST_RATES } from '@/lib/constants';
+import { exportExpensesCSV } from '@/lib/exportHelpers';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -65,6 +67,8 @@ function makeBlankExpense() {
     notes: '',
     isRecurring: false,
     months: 12,
+    currency: 'CAD',
+    exchangeRateToCAD: 1,
   };
 }
 
@@ -81,6 +85,7 @@ function expHSTTotal(exp) {
 
 export default function ExpensesPage() {
   const { state, activeFY, dispatch } = useApp();
+  const { user } = useAuth();
   const hstRate = HST_RATES[state.settings.province ?? 'ON'];
   const isAllTime = state.activeFiscalYear === 'all';
   const allExpenses = Object.values(state.fiscalYears || {}).flatMap(fy => fy.expenses || []);
@@ -247,7 +252,8 @@ export default function ExpensesPage() {
     const fd = new FormData();
     for (const f of files) fd.append('file', f);
     try {
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd });
+      const token = await user.getIdToken();
+      const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd, headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       const results = (data.results || []).map(r => {
@@ -353,6 +359,9 @@ export default function ExpensesPage() {
               {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
             <div className={styles.toolbarActions}>
+              <Button variant="secondary" size="sm" onClick={() => exportExpensesCSV(state, state.activeFiscalYear !== 'all' ? state.activeFiscalYear : Object.keys(state.fiscalYears).sort().pop())}>
+                ⬇ CSV
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => { setImportResults([]); setImportIdx(0); setShowImport(true); }}>📎 Import Receipts</Button>
               <Button size="sm" onClick={openCreate}>+ Add Expense</Button>
             </div>
@@ -392,6 +401,9 @@ export default function ExpensesPage() {
                               ? <span title={`${formatCurrency(exp.amount)}/mo`}>{formatCurrency(total)}</span>
                               : formatCurrency(exp.amount)
                             }
+                            {exp.currency && exp.currency !== 'CAD' && (
+                              <span className={styles.currencyBadge}>{exp.currency}</span>
+                            )}
                           </td>
                           <td className={styles.right}>{expHSTTotal(exp) ? formatCurrency(expHSTTotal(exp)) : '—'}</td>
                           <td className={styles.right}>{formatCurrency(deductible)}</td>
@@ -639,6 +651,25 @@ export default function ExpensesPage() {
             </FormField>
             <FormField label="Amount (before HST)" required>
               <Input type="number" min="0" step="0.01" prefix="$" value={form.amount} onChange={e => handleAmountChange(e.target.value)} required />
+            </FormField>
+            <FormField label="Currency">
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <Select value={form.currency || 'CAD'} onChange={e => setForm(f => ({ ...f, currency: e.target.value, exchangeRateToCAD: e.target.value === 'CAD' ? 1 : f.exchangeRateToCAD }))}>
+                  {['CAD','USD','EUR','GBP','AUD','MXN','JPY','CHF','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+                </Select>
+                {(form.currency && form.currency !== 'CAD') && (
+                  <>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
+                    <Input
+                      type="number" min="0" step="any"
+                      value={form.exchangeRateToCAD || ''}
+                      onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
+                      placeholder="Rate to CAD"
+                    />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
+                  </>
+                )}
+              </div>
             </FormField>
             <FormField label="HST Paid">
               <Input type="number" min="0" step="0.01" prefix="$" value={form.hst} onChange={e => setForm(f => ({ ...f, hst: e.target.value }))} />

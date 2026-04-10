@@ -28,6 +28,47 @@ export default function TaxesPage() {
   const [slEditId,     setSLEditId]     = useState(null);
   const [slForm,       setSLForm]       = useState({ date: '', description: '', amount: '', type: 'withdrawal' });
 
+  // ── Previous year upload ──────────────────────────
+  const [prevYearData, setPrevYearData] = useState(null);
+  const [prevYearError, setPrevYearError] = useState('');
+  const handlePrevYearFile = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPrevYearError('');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const json = JSON.parse(ev.target.result);
+        // Accept either a full backup or a FY object
+        const fyData = json.fiscalYears ? Object.values(json.fiscalYears)[0] : json;
+        if (!fyData) throw new Error('Unrecognised format');
+        setPrevYearData({
+          openingRE: fyData.openingRetainedEarnings ?? fyData.retainedEarnings ?? null,
+          shareholderLoan: fyData.shareholderLoan?.openingBalance ?? null,
+          ccaClasses: fyData.ccaClasses ?? [],
+          label: json.companyName || file.name,
+        });
+      } catch {
+        setPrevYearError('Could not parse file. Please upload a Toque Books backup JSON.');
+      }
+    };
+    reader.readAsText(file);
+  };
+  const applyPrevYear = () => {
+    if (!prevYearData) return;
+    if (prevYearData.openingRE !== null) {
+      dispatch({ type: 'UPDATE_FISCAL_YEAR', payload: { id: state.activeFiscalYear, openingRetainedEarnings: prevYearData.openingRE } });
+    }
+    if (prevYearData.shareholderLoan !== null) {
+      const existing = activeFY.shareholderLoan ?? { transactions: [] };
+      dispatch({ type: 'UPDATE_FISCAL_YEAR', payload: { id: state.activeFiscalYear, shareholderLoan: { ...existing, openingBalance: prevYearData.shareholderLoan } } });
+    }
+    if (prevYearData.ccaClasses?.length) {
+      dispatch({ type: 'UPDATE_FISCAL_YEAR', payload: { id: state.activeFiscalYear, ccaClasses: prevYearData.ccaClasses.map(c => ({ ...c, additions: '0', disposals: '0', claimedAmount: '0' })) } });
+    }
+    setPrevYearData(null);
+  };
+
   if (state.activeFiscalYear === 'all') {
     return (
       <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -104,7 +145,21 @@ export default function TaxesPage() {
   const t1Deadline = `${activePersonalYear + 1}-04-30`;
   const hstDeadline = 'Quarterly (Mar/Jun/Sep/Dec) or as per your filing frequency';
 
-  const settings = state.settings;
+  // ── Filing Checklist ───────────────────────────────────────────────────────
+  const allInvoicesHaveStatus = invoices.every(inv => inv.status && inv.status !== 'draft');
+  const hasOpeningRE = state.activeFiscalYear !== Object.keys(state.fiscalYears || {}).sort()[0];
+  const checklist = [
+    { id: 'bn', label: 'Business Number (BN9) filled in Settings', done: !!(state.settings?.businessNumber), link: '/settings' },
+    { id: 'address', label: 'Company address filled in Settings', done: !!(state.settings?.address && state.settings?.city && state.settings?.postalCode), link: '/settings' },
+    { id: 'invoices', label: 'All invoices reviewed — no drafts outstanding', done: allInvoicesHaveStatus },
+    { id: 'openingRE', label: 'Opening retained earnings set for this fiscal year', done: openingRE !== 0 || hasOpeningRE },
+    { id: 'expenses', label: 'All expenses categorized', done: expenses.every(e => e.category) },
+    { id: 'hst', label: 'HST collected and ITC amounts reviewed', done: hst.hstCollected > 0 || invoices.length === 0 },
+    { id: 'cca', label: 'CCA classes reviewed and claimed amounts set', done: ccaClasses.every(c => c.claimedAmount >= 0) },
+    { id: 'divs', label: 'Dividends paid recorded (or $0 if none)', done: true },
+    { id: 'sl', label: 'Shareholder loan balance reconciled', done: slClosingBalance <= 0 || slTransactions.length > 0 },
+  ];
+  const checklistDone = checklist.filter(c => c.done).length;
 
   return (
     <div className={styles.page}>
@@ -341,7 +396,7 @@ export default function TaxesPage() {
           <strong>Quarterly</strong>
           <span>— check your CRA account for exact due dates</span>
         </div>
-        {!settings.hstRegistered && (
+        {!state.settings?.hstRegistered && (
           <div className={styles.alertBox}>⚠️ You are marked as not HST registered. Update in Settings if your revenue exceeds $30,000.</div>
         )}
       </Section>
@@ -366,6 +421,54 @@ export default function TaxesPage() {
               : `⚠️ The corporate route costs ${formatCurrency(integration.taxDifference)} more in combined tax. This may be due to timing of dividend payments or income level. Consider consulting a tax professional.`}
           </div>
         )}
+      </Section>
+
+      {/* ── T2 Filing Checklist ── */}
+      <Section title="T2 Filing Checklist" badge={`${checklistDone}/${checklist.length} complete`}>
+        <div className={styles.checklistGrid}>
+          {checklist.map(item => (
+            <div key={item.id} className={`${styles.checklistItem} ${item.done ? styles.checklistDone : styles.checklistPending}`}>
+              <span className={styles.checklistIcon}>{item.done ? '✅' : '⬜'}</span>
+              <span className={styles.checklistLabel}>
+                {item.label}
+                {item.link && !item.done && (
+                  <a href={item.link} className={styles.checklistLink}> → Fix in Settings</a>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+        {checklistDone === checklist.length && (
+          <div className={styles.checklistComplete}>
+            ✅ All checklist items complete — you're ready to file!
+          </div>
+        )}
+      </Section>
+
+      {/* ── Previous Year Upload ── */}
+      <Section title="Import Previous Year Data">
+        <div className={styles.prevYearBox}>
+          <p className={styles.prevYearNote}>Upload a prior-year Toque Books backup JSON to pre-fill opening retained earnings, shareholder loan balance, and CCA class UCCs into the current fiscal year. <strong>Nothing is uploaded to any server — all processing happens in your browser.</strong></p>
+          <label className={styles.prevYearLabel}>
+            <span>Select backup file (.json)</span>
+            <input type="file" accept=".json,application/json" onChange={handlePrevYearFile} className={styles.prevYearFileInput} />
+          </label>
+          {prevYearError && <p className={styles.prevYearError}>{prevYearError}</p>}
+          {prevYearData && (
+            <div className={styles.prevYearPreview}>
+              <div className={styles.prevYearPreviewTitle}>Found in {prevYearData.label}:</div>
+              <ul className={styles.prevYearList}>
+                {prevYearData.openingRE !== null && <li>Opening Retained Earnings: <strong>{formatCurrency(prevYearData.openingRE)}</strong></li>}
+                {prevYearData.shareholderLoan !== null && <li>Shareholder Loan Opening Balance: <strong>{formatCurrency(prevYearData.shareholderLoan)}</strong></li>}
+                {prevYearData.ccaClasses?.length > 0 && <li>{prevYearData.ccaClasses.length} CCA class{prevYearData.ccaClasses.length !== 1 ? 'es' : ''} (additions/disposals will be reset to 0)</li>}
+              </ul>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <Button onClick={applyPrevYear}>Apply to Current Year</Button>
+                <Button variant="secondary" onClick={() => setPrevYearData(null)}>Discard</Button>
+              </div>
+            </div>
+          )}
+        </div>
       </Section>
 
       {/* ── Disclaimer ── */}

@@ -3,10 +3,12 @@
 import { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { formatCurrency, formatDate, today, addDays } from '@/lib/formatters';
 import { fyLabelForDate } from '@/lib/fyUtils';
 import { HST_RATES, INVOICE_STATUSES } from '@/lib/constants';
+import { exportInvoicesCSV } from '@/lib/exportHelpers';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -48,6 +50,8 @@ function makeBlankInvoice(hstRate, invoiceNumber = '') {
     notes: '',
     sentAt: null,
     remindersSent: [],
+    currency: 'CAD',
+    exchangeRateToCAD: 1,
   };
 }
 
@@ -97,6 +101,7 @@ async function downloadInvoicesZIP(invoices, settings, filename) {
 
 export default function InvoicesPage() {
   const { state, activeFY, dispatch } = useApp();
+  const { user } = useAuth();
   const { toast } = useToast();
   const hstRate = HST_RATES[state.settings.province ?? 'ON'];
   const products = state.products || [];
@@ -144,6 +149,84 @@ export default function InvoicesPage() {
   const [sendError, setSendError]           = useState('');
   const [sendSuccess, setSendSuccess]       = useState(false);
   const [sendIsReminder, setSendIsReminder] = useState(false);
+  const [showAging, setShowAging] = useState(false);
+  const [tab, setTab] = useState('invoices'); // 'invoices' | 'recurring'
+  const [dismissedRecurPrompt, setDismissedRecurPrompt] = useState(false);
+
+  // ── Recurring invoice state ───────────────────────
+  const [showRecurModal, setShowRecurModal] = useState(false);
+  const [recurEditId, setRecurEditId] = useState(null);
+  const [recurForm, setRecurForm] = useState({ clientId: '', subject: '', frequency: 'monthly', nextDate: '', notes: '', active: true });
+  const recurringInvoices = state.recurringInvoices || [];
+
+  // ── Recurring due-prompt ─────────────────────────
+  function advanceNextDate(dateStr, frequency) {
+    if (!dateStr) return dateStr;
+    const d = new Date(dateStr + 'T00:00:00');
+    switch (frequency) {
+      case 'weekly':    d.setDate(d.getDate() + 7); break;
+      case 'biweekly':  d.setDate(d.getDate() + 14); break;
+      case 'monthly':   d.setMonth(d.getMonth() + 1); break;
+      case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+      case 'annual':    d.setFullYear(d.getFullYear() + 1); break;
+      default:          d.setMonth(d.getMonth() + 1);
+    }
+    return d.toISOString().split('T')[0];
+  }
+
+  const promptEnabled = state.settings?.recurringPromptEnabled !== false; // default on
+  const dueTemplates = promptEnabled
+    ? recurringInvoices.filter(r => r.active !== false && r.nextDate && r.nextDate <= today())
+    : [];
+
+  function createFromTemplate(template) {
+    const client = (state.clients || []).find(c => c.id === template.clientId);
+    const newInvoice = {
+      ...makeBlankInvoice(hstRate, nextInvoiceNumber(allInvoices)),
+      issueDate: today(),
+      dueDate: addDays(today(), state.settings.defaultPaymentTerms ?? 30),
+      notes: template.notes || '',
+      ...(client ? {
+        client: {
+          name: client.name || '',
+          email: client.email || '',
+          address: client.address || '',
+          city: client.city || '',
+          province: client.province || '',
+          postalCode: client.postalCode || '',
+          phone: client.phone || '',
+          hstNumber: client.hstNumber || '',
+        },
+      } : {}),
+    };
+    // Advance nextDate on the template
+    dispatch({
+      type: 'UPDATE_RECURRING_INVOICE',
+      payload: { ...template, nextDate: advanceNextDate(template.nextDate, template.frequency) },
+    });
+    // Open the invoice form pre-filled
+    setEditInv(null);
+    setForm(newInvoice);
+    setShowModal(true);
+    toast({ message: `Creating invoice from "${template.subject || 'recurring template'}"`, detail: 'Template advanced to next cycle.' });
+  }
+
+  // ── Aging computation ────────────────────────────
+  const agingBuckets = (() => {
+    const todayStr = today();
+    const unpaid = invoices.filter(inv => ['sent', 'overdue'].includes(inv.status) && inv.dueDate);
+    const buckets = { current: [], '1_30': [], '31_60': [], '61_90': [], '90plus': [] };
+    for (const inv of unpaid) {
+      const days = Math.floor((new Date(todayStr) - new Date(inv.dueDate)) / 86400000);
+      if (days < 0)       buckets.current.push(inv);
+      else if (days <= 30) buckets['1_30'].push(inv);
+      else if (days <= 60) buckets['31_60'].push(inv);
+      else if (days <= 90) buckets['61_90'].push(inv);
+      else                 buckets['90plus'].push(inv);
+    }
+    return buckets;
+  })();
+  const agingTotal = inv => inv.reduce((s, i) => s + (i.total || 0), 0);
 
   const openCreate = () => {
     setEditInv(null);
@@ -340,9 +423,10 @@ export default function InvoicesPage() {
     setSendLoading(true);
     setSendError('');
     try {
+      const token = await user.getIdToken();
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           invoice: sendInvoice,
           settings: state.settings,
@@ -445,7 +529,8 @@ export default function InvoicesPage() {
     const fd = new FormData();
     for (const f of files) fd.append('file', f);
     try {
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd });
+      const token = await user.getIdToken();
+      const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd, headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
@@ -574,6 +659,179 @@ export default function InvoicesPage() {
         </div>
       </div>
 
+      {/* Recurring due-prompt banner */}
+      {dueTemplates.length > 0 && !dismissedRecurPrompt && (
+        <div className={styles.recurPrompt}>
+          <div className={styles.recurPromptHeader}>
+            <span className={styles.recurPromptIcon}>🔁</span>
+            <strong>{dueTemplates.length} recurring invoice{dueTemplates.length !== 1 ? 's' : ''} due</strong>
+            <button className={styles.recurPromptDismiss} onClick={() => setDismissedRecurPrompt(true)} title="Dismiss">✕</button>
+          </div>
+          <div className={styles.recurPromptList}>
+            {dueTemplates.map(r => {
+              const client = (state.clients || []).find(c => c.id === r.clientId);
+              return (
+                <div key={r.id} className={styles.recurPromptItem}>
+                  <span className={styles.recurPromptLabel}>
+                    <span className={styles.recurPromptSubject}>{r.subject || 'Untitled'}</span>
+                    {client && <span className={styles.recurPromptClient}> · {client.name}</span>}
+                    <span className={styles.recurPromptDate}> (due {formatDate(r.nextDate)})</span>
+                  </span>
+                  <Button size="sm" onClick={() => createFromTemplate(r)}>+ Create Invoice</Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className={styles.tabs}>
+        <button className={tab === 'invoices' ? styles.tabActive : styles.tab} onClick={() => setTab('invoices')}>Invoices</button>
+        <button className={tab === 'recurring' ? styles.tabActive : styles.tab} onClick={() => setTab('recurring')}>Recurring <span className={styles.tabBadge}>{recurringInvoices.length}</span></button>
+      </div>
+
+      {tab === 'recurring' && (
+        <div className={styles.recurringPanel}>
+          <div className={styles.toolbar}>
+            <div className={styles.filterRow}>
+              <span className={styles.recurringTitle}>Recurring Invoice Templates</span>
+              <div className={styles.toolbarActions}>
+                <Button size="sm" onClick={() => { setRecurEditId(null); setRecurForm({ clientId: '', subject: '', frequency: 'monthly', nextDate: '', notes: '', active: true }); setShowRecurModal(true); }}>+ New Template</Button>
+              </div>
+            </div>
+          </div>
+          {recurringInvoices.length === 0 ? (
+            <EmptyState icon="🔁" title="No recurring templates" description="Set up recurring invoice templates to stay on schedule." action={<Button onClick={() => { setRecurEditId(null); setRecurForm({ clientId: '', subject: '', frequency: 'monthly', nextDate: '', notes: '', active: true }); setShowRecurModal(true); }}>+ New Template</Button>} />
+          ) : (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Subject</th>
+                    <th>Frequency</th>
+                    <th>Next Date</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recurringInvoices.map(r => {
+                    const client = (state.clients || []).find(c => c.id === r.clientId);
+                    return (
+                      <tr key={r.id}>
+                        <td>{client?.name || r.clientId || '—'}</td>
+                        <td>{r.subject || '—'}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{r.frequency}</td>
+                        <td>{formatDate(r.nextDate)}</td>
+                        <td><span className={r.active ? styles.statusPaid : styles.statusDraft}>{r.active ? 'Active' : 'Paused'}</span></td>
+                        <td className={styles.right}>
+                          <Button variant="ghost" size="sm" onClick={() => { setRecurEditId(r.id); setRecurForm({ clientId: r.clientId || '', subject: r.subject || '', frequency: r.frequency || 'monthly', nextDate: r.nextDate || '', notes: r.notes || '', active: r.active !== false }); setShowRecurModal(true); }}>Edit</Button>
+                          <Button variant="ghost" size="sm" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm('Delete this recurring template?')) dispatch({ type: 'DELETE_RECURRING_INVOICE', payload: r.id }); }}>Delete</Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recurring Invoice Modal */}
+      {showRecurModal && (
+        <Modal title={recurEditId ? 'Edit Recurring Template' : 'New Recurring Template'} onClose={() => setShowRecurModal(false)}>
+          <form onSubmit={e => {
+            e.preventDefault();
+            if (recurEditId) {
+              dispatch({ type: 'UPDATE_RECURRING_INVOICE', payload: { id: recurEditId, ...recurForm } });
+            } else {
+              dispatch({ type: 'ADD_RECURRING_INVOICE', payload: { id: crypto.randomUUID(), ...recurForm } });
+            }
+            setShowRecurModal(false);
+          }}>
+            <div className={styles.formGrid}>
+              <label className={styles.formLabel}>Client</label>
+              <Select value={recurForm.clientId} onChange={e => setRecurForm(f => ({ ...f, clientId: e.target.value }))} required>
+                <option value="">Select client…</option>
+                {(state.clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+              <label className={styles.formLabel}>Subject / Description</label>
+              <input className={styles.input} value={recurForm.subject} onChange={e => setRecurForm(f => ({ ...f, subject: e.target.value }))} placeholder="Monthly retainer" required />
+              <label className={styles.formLabel}>Frequency</label>
+              <Select value={recurForm.frequency} onChange={e => setRecurForm(f => ({ ...f, frequency: e.target.value }))}>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Bi-weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+              </Select>
+              <label className={styles.formLabel}>Next Invoice Date</label>
+              <input type="date" className={styles.input} value={recurForm.nextDate} onChange={e => setRecurForm(f => ({ ...f, nextDate: e.target.value }))} required />
+              <label className={styles.formLabel}>Notes</label>
+              <input className={styles.input} value={recurForm.notes} onChange={e => setRecurForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes" />
+              <label className={styles.formLabel}>Active</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={recurForm.active} onChange={e => setRecurForm(f => ({ ...f, active: e.target.checked }))} />
+                Send reminders for this template
+              </label>
+            </div>
+            <div className={styles.formActions}>
+              <Button type="button" variant="secondary" onClick={() => setShowRecurModal(false)}>Cancel</Button>
+              <Button type="submit">{recurEditId ? 'Save Changes' : 'Create Template'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {tab === 'invoices' && (
+      <>
+
+      {/* Aging Report */}
+      {showAging && (
+        <div className={styles.agingPanel}>
+          <div className={styles.agingTitle}>Accounts Receivable Aging</div>
+          <div className={styles.agingGrid}>
+            {[
+              { label: 'Current', key: 'current', color: 'var(--success)' },
+              { label: '1–30 days', key: '1_30', color: 'var(--warning, #f59e0b)' },
+              { label: '31–60 days', key: '31_60', color: 'var(--warning, #f59e0b)' },
+              { label: '61–90 days', key: '61_90', color: 'var(--danger)' },
+              { label: '90+ days', key: '90plus', color: 'var(--danger)' },
+            ].map(({ label, key, color }) => (
+              <div key={key} className={styles.agingBucket}>
+                <div className={styles.agingBucketLabel}>{label}</div>
+                <div className={styles.agingBucketCount}>{agingBuckets[key].length} invoice{agingBuckets[key].length !== 1 ? 's' : ''}</div>
+                <div className={styles.agingBucketTotal} style={{ color }}>{formatCurrency(agingTotal(agingBuckets[key]))}</div>
+              </div>
+            ))}
+          </div>
+          {agingBuckets['1_30'].concat(agingBuckets['31_60'], agingBuckets['61_90'], agingBuckets['90plus']).length > 0 && (
+            <table className={styles.agingTable}>
+              <thead><tr><th>Invoice #</th><th>Client</th><th>Due</th><th>Days Overdue</th><th className={styles.right}>Total</th></tr></thead>
+              <tbody>
+                {agingBuckets['1_30'].concat(agingBuckets['31_60'], agingBuckets['61_90'], agingBuckets['90plus'])
+                  .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1))
+                  .map(inv => {
+                    const days = Math.floor((new Date(today()) - new Date(inv.dueDate)) / 86400000);
+                    return (
+                      <tr key={inv.id}>
+                        <td>#{inv.invoiceNumber}</td>
+                        <td>{inv.client?.name || '—'}</td>
+                        <td>{formatDate(inv.dueDate)}</td>
+                        <td style={{ color: days > 60 ? 'var(--danger)' : 'var(--warning, #f59e0b)', fontWeight: 600 }}>{days}d</td>
+                        <td className={styles.right}>{formatCurrency(inv.total)}</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className={styles.toolbar}>
         {/* Main row: search + filters + action buttons all on one line */}
@@ -612,6 +870,12 @@ export default function InvoicesPage() {
                 ⬇ {selected.size > 0 ? `ZIP (${selected.size})` : `ZIP (${filtered.length})`}
               </Button>
             )}
+            <Button variant="secondary" size="sm" onClick={() => exportInvoicesCSV(state, state.activeFiscalYear !== 'all' ? state.activeFiscalYear : Object.keys(state.fiscalYears).sort().pop())}>
+              ⬇ CSV
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowAging(v => !v)}>
+              {showAging ? '✕ Aging' : '📅 Aging'}
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => { setImportResults([]); setImportIdx(0); setShowImport(true); }}>
               📎 Import PDFs
             </Button>
@@ -670,7 +934,12 @@ export default function InvoicesPage() {
                     <td>{formatDate(inv.dueDate)}</td>
                     <td className={styles.right}>{formatCurrency(inv.subtotal)}</td>
                     <td className={styles.right}>{formatCurrency(inv.hstAmount)}</td>
-                    <td className={`${styles.right} ${styles.totalCell}`}>{formatCurrency(inv.total)}</td>
+                    <td className={`${styles.right} ${styles.totalCell}`}>
+                      {formatCurrency(inv.total)}
+                      {inv.currency && inv.currency !== 'CAD' && (
+                        <span className={styles.currencyBadge}>{inv.currency}</span>
+                      )}
+                    </td>
                     <td><Badge color={STATUS_COLORS[inv.status]}>{inv.status}</Badge></td>
                     <td>
                       <div className={styles.rowActions}>
@@ -957,6 +1226,27 @@ export default function InvoicesPage() {
             </div>
           </div>
 
+          <FormField label="Currency">
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Select value={form.currency || 'CAD'} onChange={e => setForm(f => ({ ...f, currency: e.target.value, exchangeRateToCAD: e.target.value === 'CAD' ? 1 : f.exchangeRateToCAD }))}>
+                {['CAD','USD','EUR','GBP','AUD','MXN','JPY','CHF','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              {(form.currency && form.currency !== 'CAD') && (
+                <>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
+                  <Input
+                    type="number" min="0" step="any"
+                    value={form.exchangeRateToCAD || ''}
+                    onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
+                    placeholder="Rate to CAD"
+                    style={{ width: '9rem' }}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
+                </>
+              )}
+            </div>
+          </FormField>
+
           <FormField label="Notes">
             <Textarea placeholder="Optional notes or references…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           </FormField>
@@ -1137,6 +1427,8 @@ export default function InvoicesPage() {
           </div>
         )}
       </Modal>
+      </>
+      )}
     </div>
   );
 }

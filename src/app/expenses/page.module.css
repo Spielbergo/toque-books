@@ -136,6 +136,18 @@
 .tableRow:hover td { background: var(--bg-hover); }
 
 .right { text-align: right !important; }
+.currencyBadge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  vertical-align: middle;
+  letter-spacing: 0.03em;
+}
 
 .descCell {
   max-width: 200px;

@@ -80,6 +80,8 @@ function makeInitialState() {
         openingRetainedEarnings: 0,
         shareholderLoan: { openingBalance: 0, transactions: [] },
         ccaClasses: [],
+        hstRemittances: [],   // [{ id, period, amtCollected, itc, netRemittance, remittedDate, confirmationNo, notes }]
+        mileageLogs: [],      // [{ id, date, startOdo, endOdo, km, purpose, client, notes }]
       },
     },
     clients: [],
@@ -95,6 +97,7 @@ function makeInitialState() {
       otherShareholders: false,
     },
     recurringExpenses: [], // [{ id, vendor, description, category, businessUsePercent, amount, hst, frequency, startDate, endDate, notes }]
+    recurringInvoices: [], // [{ id, clientId, subject, lineItems, notes, frequency, nextDate, hstRate, active }]
     products: [],          // [{ id, name, description, category, defaultRate, unit, notes, createdAt }]
   };
 }
@@ -172,6 +175,8 @@ function reducer(state, action) {
             openingRetainedEarnings: 0,
             shareholderLoan: { openingBalance: prevSLClosing, transactions: [] },
             ccaClasses: carriedCCA,
+            hstRemittances: [],
+            mileageLogs: [],
           },
         },
         activeFiscalYear: key,
@@ -354,6 +359,82 @@ function reducer(state, action) {
         ...state,
         recurringExpenses: (state.recurringExpenses || []).filter(r => r.id !== action.payload),
       };
+    }
+
+    // Recurring invoices
+    case 'ADD_RECURRING_INVOICE': {
+      const rec = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, recurringInvoices: [...(state.recurringInvoices || []), rec] };
+    }
+    case 'UPDATE_RECURRING_INVOICE': {
+      return {
+        ...state,
+        recurringInvoices: (state.recurringInvoices || []).map(r =>
+          r.id === action.payload.id ? { ...r, ...action.payload } : r
+        ),
+      };
+    }
+    case 'DELETE_RECURRING_INVOICE': {
+      return {
+        ...state,
+        recurringInvoices: (state.recurringInvoices || []).filter(r => r.id !== action.payload),
+      };
+    }
+
+    // HST remittances
+    case 'ADD_HST_REMITTANCE': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      const rem = { id: uuidv4(), ...action.payload };
+      return updateFY(state, fy, { hstRemittances: [...(state.fiscalYears[fy].hstRemittances || []), rem] });
+    }
+    case 'UPDATE_HST_REMITTANCE': {
+      const fy = Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.hstRemittances || []).some(r => r.id === action.payload.id)
+      )?.[0] || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, {
+        hstRemittances: (state.fiscalYears[fy].hstRemittances || []).map(r =>
+          r.id === action.payload.id ? { ...r, ...action.payload } : r
+        ),
+      });
+    }
+    case 'DELETE_HST_REMITTANCE': {
+      const fy = Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.hstRemittances || []).some(r => r.id === action.payload)
+      )?.[0] || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, {
+        hstRemittances: (state.fiscalYears[fy].hstRemittances || []).filter(r => r.id !== action.payload),
+      });
+    }
+
+    // Mileage logs
+    case 'ADD_MILEAGE': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      const entry = { id: uuidv4(), ...action.payload };
+      return updateFY(state, fy, { mileageLogs: [...(state.fiscalYears[fy].mileageLogs || []), entry] });
+    }
+    case 'UPDATE_MILEAGE': {
+      const fy = Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.mileageLogs || []).some(m => m.id === action.payload.id)
+      )?.[0] || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, {
+        mileageLogs: (state.fiscalYears[fy].mileageLogs || []).map(m =>
+          m.id === action.payload.id ? { ...m, ...action.payload } : m
+        ),
+      });
+    }
+    case 'DELETE_MILEAGE': {
+      const fy = Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.mileageLogs || []).some(m => m.id === action.payload)
+      )?.[0] || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, {
+        mileageLogs: (state.fiscalYears[fy].mileageLogs || []).filter(m => m.id !== action.payload),
+      });
     }
 
     // Products & Services

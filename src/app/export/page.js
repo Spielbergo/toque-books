@@ -255,6 +255,86 @@ export default function ExportPage() {
   const { state } = useApp();
   const { userProfile } = useUserProfile();
   const [done, setDone] = useState({});
+  const [zipLoading, setZipLoading] = useState(false);
+
+  async function handleAccountantZip() {
+    setZipLoading(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      // Helper to capture CSV text instead of immediately downloading
+      function captureCSV(label, fn, ...args) {
+        try {
+          // exportHelpers normally trigger a download; we capture the blob via a DataTransfer trick.
+          // Instead, call the function but intercept the anchor click.
+          let blobUrl = null;
+          const origCreate = URL.createObjectURL.bind(URL);
+          const origRevoke = URL.revokeObjectURL.bind(URL);
+          const blobs = [];
+          URL.createObjectURL = b => { blobs.push(b); return origCreate(b); };
+          fn(...args);
+          URL.createObjectURL = origCreate;
+          URL.revokeObjectURL = origRevoke;
+          // If a blob was captured, read it
+          if (blobs.length) return blobs[0].text();
+        } catch { /* ignore */ }
+        return Promise.resolve('');
+      }
+
+      // Tax summary CSV
+      const taxCSV = captureCSV('tax', exportTaxSummaryCSV, state, activeFYKey, userProfile);
+      // Invoices CSV
+      const invCSV = captureCSV('inv', exportInvoicesCSV, state, activeFYKey);
+      // Expenses CSV
+      const expCSV = captureCSV('exp', exportExpensesCSV, state, activeFYKey);
+      // GIFI
+      const gifiCSV = captureCSV('gifi', exportGIFI, state, activeFYKey);
+      // HST/GST
+      const hstCSV = captureCSV('hst', exportGST34CSV, state, activeFYKey);
+
+      const results = await Promise.all([taxCSV, invCSV, expCSV, gifiCSV, hstCSV]);
+      const files = [
+        { name: `tax-summary-${activeFYKey}.csv`, content: results[0] },
+        { name: `invoices-${activeFYKey}.csv`, content: results[1] },
+        { name: `expenses-${activeFYKey}.csv`, content: results[2] },
+        { name: `gifi-${activeFYKey}.csv`, content: results[3] },
+        { name: `hst-gst34-${activeFYKey}.csv`, content: results[4] },
+      ];
+
+      for (const f of files) {
+        if (f.content) zip.file(f.name, f.content);
+      }
+
+      // README
+      zip.file('README.txt', [
+        `Toque Books — Accountant Package`,
+        `Fiscal Year: ${fyLabel}`,
+        `Generated: ${new Date().toLocaleString('en-CA')}`,
+        ``,
+        `Files included:`,
+        `  tax-summary-${activeFYKey}.csv      — Full T2/T1 tax summary`,
+        `  invoices-${activeFYKey}.csv          — All invoices for the period`,
+        `  expenses-${activeFYKey}.csv          — All expenses for the period`,
+        `  gifi-${activeFYKey}.csv              — GIFI Schedule 100/125`,
+        `  hst-gst34-${activeFYKey}.csv         — HST/GST34 return lines`,
+        ``,
+        `All figures are estimates. Please verify with a CPA before filing.`,
+      ].join('\n'));
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `accountant-package-${activeFYKey}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Accountant zip failed', e);
+    } finally {
+      setZipLoading(false);
+    }
+  }
 
   const activeFYKey = state.activeFiscalYear === 'all'
     ? Object.keys(state.fiscalYears || {}).filter(k => k !== 'all').sort().at(-1) ?? null
@@ -327,8 +407,7 @@ export default function ExportPage() {
                 </div>
                 <button
                   className={`${styles.downloadBtn} ${done[item.id] ? styles.downloadBtnDone : ''}`}
-                  onClick={() => handleExport(item)}
-                >
+                  onClick={() => handleExport(item)}>
                   {done[item.id] ? (
                     <>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -352,6 +431,46 @@ export default function ExportPage() {
           </div>
         </div>
       ))}
+
+      {/* ── Accountant Package ── */}
+      <div className={styles.group}>
+        <div className={styles.groupHeader}>
+          <span className={styles.groupIcon}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </span>
+          <div>
+            <h2 className={styles.groupTitle}>Accountant Package</h2>
+            <p className={styles.groupSub}>Bundle all key exports into a single ZIP file for your accountant or bookkeeper</p>
+          </div>
+        </div>
+        <div className={styles.acctPackageBox}>
+          <p className={styles.acctPackageDesc}>
+            Generates a <strong>.zip</strong> containing: Tax Summary CSV, Invoices CSV, Expenses CSV, GIFI Schedule 100/125, and HST GST34 return. All figures are estimates — always verify with a CPA.
+          </p>
+          <button
+            className={styles.downloadBtn}
+            onClick={handleAccountantZip}
+            disabled={zipLoading}
+          >
+            {zipLoading ? (
+              'Generating…'
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <polyline points="9 12 12 15 15 12"/>
+                  <line x1="12" y1="8" x2="12" y2="15"/>
+                </svg>
+                Download Accountant Package (.zip)
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

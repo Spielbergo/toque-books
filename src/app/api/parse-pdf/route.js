@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
+import { verifyIdToken } from '@/lib/firebase/admin';
+import { createRateLimiter } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+const limiter = createRateLimiter({ windowMs: 60_000, max: 30 }); // 30 uploads/min per IP
 
 /**
  * POST /api/parse-pdf
@@ -12,6 +16,24 @@ export const maxDuration = 60;
  */
 export async function POST(request) {
   try {
+    // ── Auth ──────────────────────────────────────────────────────────
+    const authHeader = request.headers.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    try {
+      await verifyIdToken(token);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ── Rate limit ────────────────────────────────────────────────────
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    if (!limiter.check(ip)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const formData = await request.formData();
     const mode = formData.get('mode') || 'invoice';
     const files = formData.getAll('file');

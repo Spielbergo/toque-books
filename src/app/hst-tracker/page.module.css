@@ -1,0 +1,39 @@
+.page { display: flex; flex-direction: column; gap: 1.25rem; }
+.empty { padding: 3rem; text-align: center; color: var(--text-muted); }
+
+.summaryBar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+@media (max-width: 850px) { .summaryBar { grid-template-columns: repeat(2, 1fr); } }
+.summaryItem { display: flex; flex-direction: column; gap: 0.2rem; }
+.summaryLabel { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+.summaryValue { font-size: 1.1rem; font-weight: 700; }
+.summarySub { font-size: 0.72rem; color: var(--text-muted); }
+
+.toolbar { display: flex; justify-content: space-between; align-items: center; }
+.tableTitle { font-size: 0.95rem; font-weight: 600; }
+
+.tableWrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-lg); }
+.table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.table th, .table td { padding: 0.6rem 0.875rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+.table th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; background: var(--bg-surface); }
+.table tr:last-child td { border-bottom: none; }
+.right { text-align: right !important; }
+.confNo { font-family: monospace; font-size: 0.82rem; }
+.actions { text-align: right; white-space: nowrap; }
+.editBtn { background: none; border: none; cursor: pointer; font-size: 0.8rem; color: var(--accent); padding: 0.2rem 0.4rem; }
+.delBtn  { background: none; border: none; cursor: pointer; font-size: 0.8rem; color: var(--danger); padding: 0.2rem 0.4rem; }
+.row:hover { background: var(--bg-surface); }
+
+.disclaimer { font-size: 0.8rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md); padding: 0.75rem 1rem; border: 1px solid var(--border-color); }
+
+.modalGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem; }
+@media (max-width: 600px) { .modalGrid { grid-template-columns: 1fr; } }
+.autoFillNote { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+.modalActions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }

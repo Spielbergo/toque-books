@@ -5,6 +5,17 @@
   gap: 2rem;
 }
 
+/* Filing checklist */
+.checklistGrid { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0; }
+.checklistItem { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-md); font-size: 0.875rem; }
+.checklistDone { background: color-mix(in srgb, var(--success) 8%, transparent); }
+.checklistPending { background: color-mix(in srgb, var(--warning, #f59e0b) 8%, transparent); }
+.checklistIcon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+.checklistLabel { color: var(--text-primary); }
+.checklistLink { font-size: 0.78rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+.checklistLink:hover { text-decoration: underline; }
+.checklistComplete { margin-top: 0.75rem; padding: 0.75rem; background: color-mix(in srgb, var(--success) 12%, transparent); border-radius: var(--radius-md); text-align: center; font-weight: 600; font-size: 0.9rem; color: var(--success); }
+
 /* Summary row */
 .summaryRow {
   display: grid;
@@ -254,6 +265,28 @@
   line-height: 1.55;
 }
 .globalDisclaimer strong { color: var(--text-primary); }
+
+/* Previous year upload */
+.prevYearBox { display: flex; flex-direction: column; gap: 0.875rem; }
+.prevYearNote { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+.prevYearLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.prevYearFileInput { margin-top: 0.25rem; }
+.prevYearError { color: var(--danger); font-size: 0.82rem; }
+.prevYearPreview {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.875rem;
+}
+.prevYearPreviewTitle { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; }
+.prevYearList { margin: 0; padding-left: 1.2rem; font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.2rem; }
 
 /* Responsive */
 @media (max-width: 900px) {

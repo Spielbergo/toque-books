@@ -178,6 +178,20 @@
   background: var(--success, #16a34a) !important;
 }
 
+/* Accountant package */
+.acctPackageBox {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+.acctPackageDesc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.acctPackageDesc strong { color: var(--text-primary); }
+
 /* Empty state */
 .empty {
   padding: 3rem 2rem;

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { exportDataAsJSON, importDataFromJSON, clearData } from '@/lib/storage';
 import { formatDate, today } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
@@ -26,6 +27,7 @@ const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data'];
 
 export default function SettingsPage() {
   const { state, dispatch } = useApp();
+  const { user } = useAuth();
   const [tab, setTab] = useState(0);
 
   // Company form
@@ -144,6 +146,53 @@ export default function SettingsPage() {
     window.location.reload();
   };
 
+  // ── Firebase cloud backup ─────────────────────────
+  const [cloudStatus, setCloudStatus] = useState('idle'); // 'idle' | 'saving' | 'restoring' | 'done' | 'error'
+  const [cloudMsg, setCloudMsg] = useState('');
+
+  const handleCloudSave = async () => {
+    if (!user) return;
+    setCloudStatus('saving');
+    setCloudMsg('');
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase/client');
+      await setDoc(doc(db, 'users', user.uid, 'data', 'backup'), {
+        state: JSON.stringify(state),
+        savedAt: new Date().toISOString(),
+      });
+      setCloudStatus('done');
+      setCloudMsg('Backup saved to cloud.');
+    } catch (err) {
+      setCloudStatus('error');
+      setCloudMsg(err.message || 'Cloud save failed.');
+    }
+  };
+
+  const handleCloudRestore = async () => {
+    if (!user) return;
+    if (!confirm('Restore from cloud backup? This will overwrite all current data.')) return;
+    setCloudStatus('restoring');
+    setCloudMsg('');
+    try {
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase/client');
+      const snap = await getDoc(doc(db, 'users', user.uid, 'data', 'backup'));
+      if (!snap.exists()) {
+        setCloudStatus('error');
+        setCloudMsg('No cloud backup found.');
+        return;
+      }
+      const data = JSON.parse(snap.data().state);
+      dispatch({ type: 'RESTORE', payload: data });
+      setCloudStatus('done');
+      setCloudMsg(`Restored from ${snap.data().savedAt ? new Date(snap.data().savedAt).toLocaleString('en-CA') : 'cloud'}.`);
+    } catch (err) {
+      setCloudStatus('error');
+      setCloudMsg(err.message || 'Cloud restore failed.');
+    }
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.tabs}>
@@ -246,6 +295,20 @@ export default function SettingsPage() {
                 <span>HST Registered</span>
               </label>
               <p className={styles.toggleHint}>Mandatory when annual revenue exceeds $30,000.</p>
+            </div>
+
+            <div className={styles.toggleRow}>
+              <label className={styles.toggleLabel}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.recurringPromptEnabled !== false}
+                  className={`${styles.toggle} ${form.recurringPromptEnabled !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setForm(f => ({ ...f, recurringPromptEnabled: f.recurringPromptEnabled === false }))}
+                />
+                <span>Recurring Invoice Reminders</span>
+              </label>
+              <p className={styles.toggleHint}>Show a prompt on the Invoices page when a recurring template is due.</p>
             </div>
 
             <div className={styles.actions}>
@@ -393,6 +456,34 @@ export default function SettingsPage() {
               <p>Permanently delete all data including invoices, expenses, dividends, and settings. This cannot be undone.</p>
             </div>
             <Button variant="danger" onClick={() => setConfirmClear(true)}>🗑 Clear All Data</Button>
+          </div>
+
+          <div className={styles.dataCard}>
+            <div className={styles.dataCardInfo}>
+              <h4>☁ Firebase Cloud Backup</h4>
+              <p>Save your data to Firestore under your account, or restore from a previous cloud backup. Data is stored privately under your user ID.</p>
+              {cloudMsg && (
+                <p className={cloudStatus === 'error' ? styles.importError : styles.importSuccess}>{cloudMsg}</p>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="secondary"
+                onClick={handleCloudSave}
+                loading={cloudStatus === 'saving'}
+                disabled={!user || cloudStatus === 'saving' || cloudStatus === 'restoring'}
+              >
+                ⬆ Save to Cloud
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleCloudRestore}
+                loading={cloudStatus === 'restoring'}
+                disabled={!user || cloudStatus === 'saving' || cloudStatus === 'restoring'}
+              >
+                ⬇ Restore from Cloud
+              </Button>
+            </div>
           </div>
         </div>
       )}

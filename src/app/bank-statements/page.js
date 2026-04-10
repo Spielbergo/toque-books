@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import styles from './page.module.css';
 
 export default function BankStatementsPage() {
   const { state, activeFY, dispatch } = useApp();
+  const { user } = useAuth();
   const { toast } = useToast();
   const isAllTime = state.activeFiscalYear === 'all';
   const allStatements = Object.values(state.fiscalYears || {}).flatMap(fy => fy.bankStatements || []);
@@ -95,7 +97,8 @@ export default function BankStatementsPage() {
     for (const f of files) fd.append('file', f);
     fd.append('mode', 'bank_statement');
     try {
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd });
+      const token = await user.getIdToken();
+      const res = await fetch('/api/parse-pdf', { method: 'POST', body: fd, headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setUpload(data.results || []);
