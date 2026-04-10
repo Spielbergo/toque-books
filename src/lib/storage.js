@@ -11,9 +11,13 @@ function migrate() {
       if (legacy) {
         localStorage.setItem(STORAGE_KEY, legacy);
         localStorage.removeItem(LEGACY_KEY);
+        alert('Your data was migrated from an older version.');
       }
     }
-  } catch { /* private browsing or quota */ }
+  } catch (err) {
+    alert('Failed to access browser storage. Some features may not work.');
+    console.error('localStorage migration error:', err);
+  }
 }
 
 export function loadData() {
@@ -22,7 +26,9 @@ export function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch {
+  } catch (err) {
+    alert('Failed to load saved data from your browser.');
+    console.error('localStorage load error:', err);
     return null;
   }
 }
@@ -31,14 +37,20 @@ export function saveData(data) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, _savedAt: new Date().toISOString() }));
-  } catch {
-    // Storage quota exceeded or unavailable – silently fail
+  } catch (err) {
+    alert('Failed to save data to your browser. Changes may not be saved.');
+    console.error('localStorage save error:', err);
   }
 }
 
 export function clearData() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (err) {
+    alert('Failed to clear saved data from your browser.');
+    console.error('localStorage clear error:', err);
+  }
 }
 
 export function exportDataAsJSON(data) {

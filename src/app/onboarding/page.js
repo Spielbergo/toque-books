@@ -207,7 +207,6 @@ export default function OnboardingPage() {
   // Sync company name from state once it becomes available (handles async load timing)
   const syncedCompanyName = useRef(false);
   useEffect(() => {
-    console.log('[Onboarding Sync] syncedCompanyName.current:', syncedCompanyName.current, 'state.settings.companyName:', state?.settings?.companyName, 'wiz.companyName:', wiz.companyName);
     if (!syncedCompanyName.current && state?.settings?.companyName) {
       syncedCompanyName.current = true;
       setWiz(w => w.companyName ? w : { ...w, companyName: state.settings.companyName });
