@@ -148,6 +148,28 @@
   border-radius: 100px;
 }
 
+.badgePdf {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #dc2626;
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+}
+
+.badgeFutureTax {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #0369a1;
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+}
+
 /* Download button */
 .downloadBtn {
   display: flex;
@@ -200,6 +222,116 @@
   font-size: 0.9rem;
 }
 
+/* Corporation Info button (in page header) */
+.corpInfoBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition), border-color var(--transition);
+}
+.corpInfoBtn:hover {
+  background: var(--bg-hover, var(--border-color));
+}
+
+/* Corp Info modal content */
+.corpInfoNote {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+}
+
+.corpInfoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.corpInfoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.875rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.corpInfoRow:last-child {
+  border-bottom: none;
+}
+.corpInfoRow:nth-child(even) {
+  background: var(--bg-hover, rgba(0,0,0,0.02));
+}
+
+.corpInfoLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.corpInfoValueWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.corpInfoValue {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  word-break: break-all;
+  text-align: right;
+}
+
+.corpInfoEmpty {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-family: inherit;
+}
+
+/* Copy button inside modal rows */
+.copyBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.copyBtn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.copyBtnDone {
+  background: var(--success, #16a34a) !important;
+  border-color: var(--success, #16a34a) !important;
+  color: #fff !important;
+}
+
 /* Responsive */
 @media (min-width: 600px) {
   .grid {
@@ -213,4 +345,125 @@
   .card:nth-child(2n) {
     border-right: none;
   }
+}
+
+/* ─── Header button group ────────────────────────────────────── */
+.headerBtns {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ─── T1 field note (gross-up hint) ─────────────────────────── */
+.t1FieldNote {
+  font-style: italic;
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+
+/* ─── T1 modal download link ─────────────────────────────────── */
+.t1DownloadLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.t1DownloadLink:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ─── Filing Checklist modal ─────────────────────────────────── */
+.checklistTabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+.checklistTab {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.checklistTab:hover {
+  background: var(--bg-secondary);
+}
+.checklistTabActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.checklistSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.checklistStep {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.checklistStepNum {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+
+.checklistStepBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.checklistStepTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.checklistStepNote {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.checklistDisclaimer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-style: italic;
 }

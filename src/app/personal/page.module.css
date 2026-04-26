@@ -692,3 +692,186 @@
 }
 .familyCardNoteLink:hover { text-decoration: underline; }
 .right { text-align: right; }
+
+/* --- AI CRA Slip Import panel -------------------------------- */
+.slipImportPanel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius, 8px);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.slipImportToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: var(--bg-secondary);
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background var(--transition);
+}
+.slipImportToggle:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.slipImportBeta {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 20px;
+  background: var(--accent);
+  color: #fff;
+  letter-spacing: 0.03em;
+}
+
+.slipChevron {
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+.slipChevronOpen {
+  transform: rotate(180deg);
+}
+
+.slipImportBody {
+  padding: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.slipImportHint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.85rem;
+}
+
+.slipFileList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.slipFileName {
+  font-size: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  padding: 0.2rem 0.5rem;
+  color: var(--text-primary);
+}
+
+.slipError {
+  font-size: 0.8rem;
+  color: var(--error, #dc2626);
+  margin: 0.5rem 0 0;
+}
+
+.slipParseBtn {
+  margin-top: 0.75rem;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+.slipParseBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slipResults {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.slipResultCard {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+
+.slipResultHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: var(--bg-secondary);
+  font-size: 0.78rem;
+}
+
+.slipResultType {
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.72rem;
+}
+
+.slipResultYear {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.slipResultFilename {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.slipResultFields {
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.slipResultField {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.slipResultField strong {
+  color: var(--text-primary);
+}
+
+.slipResultError {
+  font-size: 0.78rem;
+  color: var(--error, #dc2626);
+  padding: 0.5rem 0.75rem;
+  background: var(--error-bg, #fef2f2);
+  border: 1px solid var(--error-border, #fecaca);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.slipApplyBtn {
+  align-self: flex-start;
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--success, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+.slipApplyBtn:hover {
+  opacity: 0.88;
+}

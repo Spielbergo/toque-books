@@ -163,6 +163,26 @@ export function calculateHSTSummary(invoices, expenses) {
   };
 }
 
+// ─── MILEAGE DEDUCTION ──────────────────────────────────────────────────────
+
+// CRA 2025 automobile allowance rates
+const MILEAGE_RATE_1   = 0.72; // first 5,000 km
+const MILEAGE_RATE_2   = 0.66; // balance
+const MILEAGE_THRESHOLD = 5000;
+
+/**
+ * Calculate CRA mileage allowance deduction from a list of mileage log entries.
+ * @param {Array} mileageLogs  - Array of { km, date, purpose, ... }
+ * @returns {{ totalKm: number, deductible: number }}
+ */
+export function calculateMileageDeduction(mileageLogs = []) {
+  const totalKm = mileageLogs.reduce((s, l) => s + (parseFloat(l.km) || 0), 0);
+  const deductible = totalKm <= MILEAGE_THRESHOLD
+    ? totalKm * MILEAGE_RATE_1
+    : MILEAGE_THRESHOLD * MILEAGE_RATE_1 + (totalKm - MILEAGE_THRESHOLD) * MILEAGE_RATE_2;
+  return { totalKm, deductible, rate1: MILEAGE_RATE_1, rate2: MILEAGE_RATE_2, threshold: MILEAGE_THRESHOLD };
+}
+
 // ─── PERSONAL TAX ───────────────────────────────────────────────────────────
 
 /**

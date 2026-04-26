@@ -11,6 +11,7 @@ import {
   calculatePersonalTax,
   calculateHSTSummary,
   calculateHomeOfficeDeduction,
+  calculateMileageDeduction,
   getDeductibleAmount,
 } from '@/lib/taxCalculations';
 import { expandRecurringForFY } from '@/lib/recurringUtils';
@@ -584,8 +585,10 @@ export function exportSage50CSV(state, fyKey) {
 export function exportTaxSummaryCSV(state, fyKey, userProfile) {
   const data = resolveFYData(state, fyKey);
   if (!data) return;
-  const { fy, invoices, expenses } = data;
+  const { fy, invoices, expenses: rawExpenses } = data;
   const s = state.settings;
+  // Exclude expenses manually pushed from the mileage page — mileage is calculated from logs below
+  const expenses = rawExpenses.filter(e => !(e.notes && e.notes.startsWith('Mileage log auto-calculated')));
 
   const grossRevenue = invoices
     .filter(i => i.status === 'paid' || i.status === 'sent')
@@ -594,7 +597,8 @@ export function exportTaxSummaryCSV(state, fyKey, userProfile) {
     sum + getDeductibleAmount(e.amount, e.category, e.businessUsePercent ?? 100), 0);
   const hoResult = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
   const totalCCA = (fy.ccaClasses ?? []).reduce((s2, c) => s2 + (c.claimedAmount || 0), 0);
-  const totalDeductions = totalDeductible + (hoResult?.deductible ?? 0) + totalCCA;
+  const mileageResult = calculateMileageDeduction(fy.mileageLogs ?? []);
+  const totalDeductions = totalDeductible + (hoResult?.deductible ?? 0) + totalCCA + mileageResult.deductible;
   const corp = calculateCorporateTax(grossRevenue, totalDeductions);
   const { hstCollected, itcTotal, netRemittance } = calculateHSTSummary(invoices, expenses);
   const totalDivs = (fy.dividendsPaid ?? []).reduce((s2, d) => s2 + (d.amount || 0), 0);
@@ -624,6 +628,8 @@ export function exportTaxSummaryCSV(state, fyKey, userProfile) {
     csvRow(['Gross Revenue', grossRevenue.toFixed(2)]),
     csvRow(['Total Deductible Expenses', totalDeductible.toFixed(2)]),
     csvRow(['Home Office Deduction', (hoResult?.deductible ?? 0).toFixed(2)]),
+    csvRow(['Mileage Deduction', mileageResult.deductible.toFixed(2)]),
+    csvRow(['Mileage Total KM', mileageResult.totalKm.toFixed(0)]),
     csvRow(['CCA (Schedule 8)', totalCCA.toFixed(2)]),
     csvRow(['Net Income', corp.netIncome.toFixed(2)]),
     csvRow(['Federal Tax', corp.fedTax.toFixed(2)]),
@@ -851,12 +857,16 @@ export function exportGIFI(state, fyKey) {
     .filter(i => i.status === 'sent')
     .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
 
-  // Total assets must equal total liabilities + equity (CRA validity check)
-  const totalLiabilities = slLiability;
-  const totalAssets      = totalLiabilities + totalEquity;
-
-  // Derive cash as the plug so assets always balance
-  const cashAmount = Math.max(0, totalAssets - arOutstanding - equipUCC - slAsset);
+  // Total assets must be ≥ 0. If equity is in deficit and there's no
+  // recorded shareholder loan to cover it, add an implicit one.
+  // (The owner must have funded the losses somehow — this reflects reality.)
+  const knownNonCashAssets = arOutstanding + equipUCC + slAsset;
+  const computedTotal = slLiability + totalEquity; // may be negative
+  const totalAssets = Math.max(knownNonCashAssets, computedTotal);
+  const implicitSlLoan = Math.max(0, totalAssets - computedTotal);
+  const effectiveSlLiability = slLiability + implicitSlLoan;
+  const totalLiabilities = effectiveSlLiability;
+  const cashAmount = Math.max(0, totalAssets - knownNonCashAssets);
 
   // ── Build output ──────────────────────────────────────────────────────────
 
@@ -925,4 +935,261 @@ export function exportGIFI(state, fyKey) {
   a.download = `GIFI-${fyKey}-${companySlug}.gfi`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ─── FutureTax T2 CSV Exports ─────────────────────────────────────────────────
+// FutureTax imports S100 and S125 via Tools → Import CSV/GFI File separately.
+// Format: Row 1 header "Code,Amount", Row 2+ data rows with whole-dollar amounts.
+
+function _computeGIFIData(state, fyKey) {
+  const data = resolveFYData(state, fyKey);
+  if (!data) return null;
+  const { fy, invoices, expenses } = data;
+  const s = state.settings;
+
+  // S125 — revenue
+  const grossRevenue = invoices
+    .filter(i => i.status === 'paid' || i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
+  // S125 — expenses by GIFI code
+  const gifiExpenses = {};
+  for (const e of expenses) {
+    const code = EXPENSE_CATEGORY_GIFI[e.category] ?? 9270;
+    const deductible = getDeductibleAmount(e.amount, e.category, e.businessUsePercent ?? 100);
+    if (deductible > 0) gifiExpenses[code] = (gifiExpenses[code] ?? 0) + deductible;
+  }
+  const hoResult = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
+  const homeOfficeDeduction = hoResult?.deductible ?? 0;
+  if (homeOfficeDeduction > 0) gifiExpenses[8911] = (gifiExpenses[8911] ?? 0) + homeOfficeDeduction;
+  const totalCCA = (fy.ccaClasses ?? []).reduce((sum, c) => sum + (c.claimedAmount || 0), 0);
+  if (totalCCA > 0) gifiExpenses[8670] = (gifiExpenses[8670] ?? 0) + totalCCA;
+
+  const totalDeductions = Object.values(gifiExpenses).reduce((sum, v) => sum + v, 0);
+  const netIncome = grossRevenue - totalDeductions;
+
+  // S100 — balance sheet
+  const openingRE     = fy.openingRetainedEarnings ?? 0;
+  const totalDivsPaid = (fy.dividendsPaid ?? []).reduce((sum, d) => sum + (d.amount || 0), 0);
+  const reClosing     = openingRE + netIncome - totalDivsPaid;
+  const commonShares  = s.commonSharesIssued ?? 1;
+  const totalEquity   = commonShares + reClosing;
+  const sl = fy.shareholderLoan ?? { openingBalance: 0, transactions: [] };
+  const slClosing     = (sl.openingBalance || 0) + (sl.transactions || []).reduce(
+    (sum, t) => t.type === 'withdrawal' ? sum + (t.amount || 0) : sum - (t.amount || 0), 0,
+  );
+  const slLiability   = Math.max(0, slClosing);
+  const slAsset       = Math.max(0, -slClosing);
+  const equipUCC      = (fy.ccaClasses ?? []).reduce((sum, c) =>
+    sum + Math.max(0, (c.openingUCC || 0) + (c.additions || 0) - (c.disposals || 0) - (c.claimedAmount || 0)), 0);
+  const arOutstanding = invoices
+    .filter(i => i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
+  // Total assets = liabilities + equity. When equity is a deep deficit and no
+  // shareholder loan is recorded, this can go negative — which FutureTax rejects.
+  // If that happens, add an implicit "Due to shareholder" loan to keep assets ≥ 0.
+  const knownNonCashAssets    = arOutstanding + equipUCC + slAsset;
+  const rawTotal              = slLiability + totalEquity;
+  const totalAssets           = Math.max(knownNonCashAssets, rawTotal);
+  const implicitSlLoan        = Math.max(0, totalAssets - rawTotal);
+  const effectiveSlLiability  = slLiability + implicitSlLoan;
+  const totalLiabilities      = effectiveSlLiability;
+  const cashAmount            = Math.max(0, totalAssets - knownNonCashAssets);
+
+  const r = n => Math.round(n);
+  const s100 = [], s125 = [];
+  const addLine = (arr, code, amount, force = false) => {
+    const rounded = r(amount);
+    if (force || rounded !== 0) arr.push([code, Math.abs(rounded)]);
+  };
+
+  // S100 — pre-compute balanced integer totals so 2599 = 3499 + 3620 exactly.
+  const r3499 = r(totalLiabilities);
+  const r3620 = r(totalEquity); // may be negative (deficit); preserve sign
+  const r2599 = r3499 + r3620; // guaranteed to balance, no independent rounding
+
+  // Assets (ascending code order, before liabilities section)
+  if (cashAmount > 0)    s100.push([1001, r(cashAmount)]);
+  if (arOutstanding > 0) s100.push([1060, r(arOutstanding)]);
+  if (slAsset > 0)       s100.push([1301, r(slAsset)]);
+  s100.push([1599, r(Math.max(0, totalAssets - equipUCC))]); // total current assets
+  if (equipUCC > 0)      s100.push([2008, r(equipUCC)]);
+  s100.push([2599, r2599]); // Total assets — REQUIRED
+
+  // Liabilities
+  if (effectiveSlLiability > 0) s100.push([2781, r(effectiveSlLiability)]);
+  s100.push([3499, r3499]); // Total liabilities — REQUIRED
+
+  // Equity
+  s100.push([3620, r3620]); // Total shareholder equity — REQUIRED (validity check code)
+
+  // S125 lines
+  addLine(s125, 8000, grossRevenue);
+  addLine(s125, 8299, grossRevenue, true);
+  for (const code of Object.keys(gifiExpenses).map(Number).sort((a, b) => a - b)) {
+    addLine(s125, code, gifiExpenses[code]);
+  }
+  addLine(s125, 9368, totalDeductions, true);
+  addLine(s125, 9999, netIncome, true);
+
+  return { s100, s125, s, fy };
+}
+
+export function exportFutureTaxS100CSV(state, fyKey) {
+  const result = _computeGIFIData(state, fyKey);
+  if (!result) return;
+  const { s100, s } = result;
+  const rows = ['Code,Amount', ...s100.map(([code, amt]) => `${code},${amt}`)];
+  const slug = (s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_');
+  download(`FutureTax-S100-${fyKey}-${slug}.csv`, rows.join('\r\n'), 'text/csv');
+}
+
+export function exportFutureTaxS125CSV(state, fyKey) {
+  const result = _computeGIFIData(state, fyKey);
+  if (!result) return;
+  const { s125, s } = result;
+  const rows = ['Code,Amount', ...s125.map(([code, amt]) => `${code},${amt}`)];
+  const slug = (s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_');
+  download(`FutureTax-S125-${fyKey}-${slug}.csv`, rows.join('\r\n'), 'text/csv');
+}
+
+export function exportFutureTaxCorpInfo(state, fyKey) {
+  const s = state.settings;
+  const fy = state.fiscalYears?.[fyKey];
+  if (!s || !fy) return;
+  const lines = [
+    '=== FutureTax T2 — Corporation Identification ===',
+    'Copy the values below into FutureTax Page 1 (Identification section).',
+    '',
+    `Business Number (BN):          ${s.businessNumber ?? ''}`,
+    `Corporation Name:              ${s.companyName ?? ''}`,
+    `Legal Name (if different):     ${s.legalName ?? ''}`,
+    `Province / Territory:          ${s.province ?? 'ON'}`,
+    `Address:                       ${s.address ?? ''}`,
+    `City:                          ${s.city ?? ''}`,
+    `Postal Code:                   ${s.postalCode ?? ''}`,
+    `Phone:                         ${s.phone ?? ''}`,
+    `Email:                         ${s.email ?? ''}`,
+    '',
+    `Fiscal Year Start:             ${fy.startDate ?? ''}`,
+    `Fiscal Year End:               ${fy.endDate ?? ''}`,
+    `HST Number:                    ${s.hstNumber ?? ''}`,
+    `Incorporation Year:            ${s.incorporationYear ?? ''}`,
+    '',
+    'Fields to fill in FutureTax:',
+    '  001  Business number (BN)',
+    '  002  Corporation name',
+    '  010–018  Head office address',
+    '  060  Fiscal year-end date',
+  ];
+  const slug = (s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_');
+  download(`FutureTax-CorpInfo-${fyKey}-${slug}.txt`, lines.join('\r\n'), 'text/plain');
+}
+
+// ─── FutureTax S141 — GIFI Additional Information ────────────────────────────
+// Schedule 141 asks who prepared the financials and what type of engagement.
+// Defaults assume an owner-manager self-filing with no outside accountant.
+// Users should verify Part 4 questions before filing.
+export function exportFutureTaxS141CSV(state, fyKey) {
+  const s = state.settings;
+  if (!s) return;
+
+  // S141 codes: value 1 = Yes/Selected, 2 = No
+  // Part 1 — Person primarily involved with financial information
+  // Owner = can be identified (111=1), no accounting designation (095=2), is connected (097=1)
+  const rows = [
+    [111, 1],  // Can you identify the person? Yes
+    [95,  2],  // Professional accounting designation? No
+    [97,  1],  // Connected to the corporation? Yes (owner)
+    // Part 2 — Type of involvement: 302 = Conducted a compilation engagement
+    [302, 1],
+    // Part 4 — Other information (safe "No" defaults for a simple owner-managed corp)
+    [101, 2],  // Notes to financial statements prepared? No
+    [104, 2],  // Subsequent events? No
+    [105, 2],  // Assets re-evaluated? No
+    [106, 2],  // Contingent liabilities? No
+    [107, 2],  // Commitments? No
+    [108, 2],  // Investments in JV/partnerships? No
+    [200, 2],  // Impairment/fair value changes? No
+    [250, 2],  // Derecognize financial instruments? No
+    [255, 2],  // Apply hedge accounting? No
+    [260, 2],  // Discontinue hedge accounting? No
+    [265, 2],  // Opening balance adjustment? No
+    // Part 5 — Who prepared the T2 return: 310 = Owner/self (prepared it themselves)
+    [310, 1],
+  ];
+
+  const csvRows = ['Code,Amount', ...rows.map(([code, amt]) => `${code},${amt}`)];
+  const slug = (s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_');
+  download(`FutureTax-S141-${fyKey}-${slug}.csv`, csvRows.join('\r\n'), 'text/csv');
+}
+
+// ─── FutureTax T1 — Personal Income Summary ──────────────────────────────────
+// Generates a plain-text cheat sheet of key T1 line numbers for quick manual
+// entry into FutureTax Personal or any other T1 tax software.
+export function exportFutureTaxT1Info(userProfile, fyKey) {
+  const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+  const py = userProfile?.personalYears?.[year] ?? {};
+  const personal = calculatePersonalTax({
+    nonEligibleDivs:  py.nonEligibleDivs  ?? 0,
+    eligibleDivs:     py.eligibleDivs     ?? 0,
+    employmentIncome: py.employmentIncome ?? 0,
+    otherIncome:      py.otherIncome      ?? 0,
+    rrspDeduction:    py.rrspDeduction    ?? 0,
+    taxWithheld:      py.taxWithheld      ?? 0,
+    cppContributions: py.cppContributions ?? 0,
+    eiPremiums:       py.eiPremiums       ?? 0,
+    spouseNetIncome:  py.spouseNetIncome  ?? null,
+  });
+
+  const fmt = v => (Math.round((v ?? 0) * 100) / 100).toFixed(2);
+  const lines = [
+    `CanBooks — FutureTax T1 Personal Income Summary`,
+    `Tax Year: ${year}`,
+    `Generated: ${new Date().toLocaleString('en-CA')}`,
+    ``,
+    `─────────────────────────────────────────────────────────`,
+    `INCOME`,
+    `─────────────────────────────────────────────────────────`,
+    `Line 10100  Employment Income (T4 Box 14)           $${fmt(py.employmentIncome)}`,
+    `Line 12000  Taxable non-eligible dividends          $${fmt(personal.neGrossedUp)}`,
+    `            (actual $${fmt(py.nonEligibleDivs ?? 0)} × 1.15 gross-up)`,
+    `Line 12010  Taxable eligible dividends              $${fmt(personal.elGrossedUp)}`,
+    `            (actual $${fmt(py.eligibleDivs ?? 0)} × 1.38 gross-up)`,
+    `Line 13000  Other income                            $${fmt(py.otherIncome)}`,
+    ``,
+    `            Total Income (Line 15000)               $${fmt(personal.totalIncome)}`,
+    ``,
+    `─────────────────────────────────────────────────────────`,
+    `DEDUCTIONS`,
+    `─────────────────────────────────────────────────────────`,
+    `Line 20800  RRSP Deduction                          $${fmt(py.rrspDeduction)}`,
+    ``,
+    `            Net Income (Line 23600)                 $${fmt(personal.netIncome)}`,
+    ``,
+    `─────────────────────────────────────────────────────────`,
+    `T4 SLIP BOXES (for manual entry)`,
+    `─────────────────────────────────────────────────────────`,
+    `Box 22  Income Tax Withheld                         $${fmt(py.taxWithheld)}`,
+    `Box 16  CPP Employee Contributions                  $${fmt(py.cppContributions)}`,
+    `Box 18  EI Employee Premiums                        $${fmt(py.eiPremiums)}`,
+    ``,
+    `─────────────────────────────────────────────────────────`,
+    `TAX SUMMARY`,
+    `─────────────────────────────────────────────────────────`,
+    `            Federal Tax                             $${fmt(personal.fedTax)}`,
+    `            Ontario Tax                             $${fmt(personal.onTax)}`,
+    `Line 43500  Total Tax Payable                       $${fmt(personal.totalTax)}`,
+    ``,
+    personal.balanceOwing >= 0
+      ? `Line 48500  Balance Owing                           $${fmt(personal.balanceOwing)}`
+      : `Line 48400  Refund                                  $${fmt(Math.abs(personal.balanceOwing))}`,
+    ``,
+    `─────────────────────────────────────────────────────────`,
+    `NOTE: These are estimates only. Verify all amounts against`,
+    `your official CRA T4/T5 slips before filing.`,
+  ];
+
+  download(`FutureTax-T1Info-${year}.txt`, lines.join('\n'), 'text/plain');
 }

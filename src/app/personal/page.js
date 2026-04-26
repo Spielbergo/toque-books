@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { calculatePersonalTax } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, formatPercent, today } from '@/lib/formatters';
@@ -9,6 +10,7 @@ import { RRSP_LIMIT_2025 } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
+import FileDropzone from '@/components/ui/FileDropzone';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import styles from './page.module.css';
 
@@ -40,6 +42,7 @@ function SuggestionBadge({ suggestion, current, isOverridden, onUse, onReset }) 
 
 export default function PersonalPage() {
   const { state, activeFY, activePY, dispatch, userProfile, activePersonalYear } = useApp();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [tab, setTab] = useState(0);
   const [pyForm, setPyForm] = useState({ ...activePY });
@@ -58,6 +61,13 @@ export default function PersonalPage() {
   const [divForm, setDivForm] = useState({ date: today(), amount: '', type: 'non_eligible', notes: '' });
   const [confirmDeleteDiv, setConfirmDeleteDiv] = useState(null);
   const [importSelected, setImportSelected] = useState(new Set()); // tx ids selected for import
+
+  // ── AI CRA slip import ───────────────────────────────────────────────────
+  const [slipOpen, setSlipOpen] = useState(false);
+  const [slipFiles, setSlipFiles] = useState([]);
+  const [slipParsing, setSlipParsing] = useState(false);
+  const [slipResults, setSlipResults] = useState([]);
+  const [slipError, setSlipError] = useState('');
 
   // ── Year navigation ──────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear();
@@ -180,6 +190,58 @@ export default function PersonalPage() {
   };
 
   const useField = field => resetField(field);
+
+  // ── AI slip parsing ──────────────────────────────────────────────────────
+  async function parseSlips() {
+    if (slipFiles.length === 0) return;
+    setSlipParsing(true);
+    setSlipError('');
+    setSlipResults([]);
+    try {
+      const token = await user.getIdToken();
+      const fd = new FormData();
+      for (const f of slipFiles) fd.append('file', f);
+      const res = await fetch('/api/ai-parse-pdf', {
+        method: 'POST',
+        body: fd,
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSlipResults(data.results || []);
+    } catch (err) {
+      setSlipError(err.message || 'Failed to parse slips');
+    } finally {
+      setSlipParsing(false);
+    }
+  }
+
+  function applySlipResults() {
+    const updates = {};
+    for (const r of slipResults) {
+      if (!r.parsed || r.error) continue;
+      const { t4, t5, noa } = r.parsed;
+      if (t4) {
+        if (t4.box14 != null) updates.employmentIncome = (updates.employmentIncome ?? 0) + t4.box14;
+        if (t4.box22 != null) updates.taxWithheld      = (updates.taxWithheld      ?? 0) + t4.box22;
+        if (t4.box16 != null) updates.cppContributions = (updates.cppContributions ?? 0) + t4.box16;
+        if (t4.box18 != null) updates.eiPremiums        = (updates.eiPremiums        ?? 0) + t4.box18;
+      }
+      if (t5) {
+        if (t5.box10 != null) updates.eligibleDivs    = (updates.eligibleDivs    ?? 0) + t5.box10;
+        if (t5.box24 != null) updates.nonEligibleDivs = (updates.nonEligibleDivs ?? 0) + t5.box24;
+      }
+      if (noa?.rrspRoom != null) {
+        updates.rrspRoom = noa.rrspRoom;
+      }
+    }
+    if (Object.keys(updates).length === 0) return;
+    setPyForm(f => ({ ...f, ...updates }));
+    toast({ message: 'Slip data applied to form', detail: 'Review the values then click Save.' });
+    setSlipOpen(false);
+    setSlipFiles([]);
+    setSlipResults([]);
+  }
 
   const savePY = e => {
     e.preventDefault();
@@ -313,6 +375,88 @@ export default function PersonalPage() {
           <div className={styles.sectionHeader}>
             <h3>Personal Tax Information — {activeYear}</h3>
             <p>Your personal income for Jan 1 – Dec 31, {activeYear}. Fields marked with a suggestion can be auto-filled from your app records.</p>
+          </div>
+
+          {/* Sync bar */}
+          {/* ── AI Slip Import ── */}
+          <div className={styles.slipImportPanel}>
+            <button
+              type="button"
+              className={styles.slipImportToggle}
+              onClick={() => setSlipOpen(o => !o)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Import CRA Slips (AI)
+              <span className={styles.slipImportBeta}>AI</span>
+              <svg
+                className={`${styles.slipChevron} ${slipOpen ? styles.slipChevronOpen : ''}`}
+                width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            {slipOpen && (
+              <div className={styles.slipImportBody}>
+                <p className={styles.slipImportHint}>
+                  Upload your T4, T5, or Notice of Assessment (PDF or image). AI will extract the key amounts and pre-fill the fields below.
+                </p>
+                <FileDropzone
+                  label="Drop T4, T5, or NOA files here or click to upload"
+                  hint="PDF, PNG, JPEG — max 20 MB each"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  onFiles={files => { setSlipFiles(files); setSlipResults([]); setSlipError(''); }}
+                />
+                {slipFiles.length > 0 && (
+                  <div className={styles.slipFileList}>
+                    {slipFiles.map((f, i) => (
+                      <span key={i} className={styles.slipFileName}>{f.name}</span>
+                    ))}
+                  </div>
+                )}
+                {slipError && <p className={styles.slipError}>{slipError}</p>}
+                <button
+                  type="button"
+                  className={styles.slipParseBtn}
+                  onClick={parseSlips}
+                  disabled={slipFiles.length === 0 || slipParsing}
+                >
+                  {slipParsing ? 'Parsing…' : 'Parse Slips'}
+                </button>
+                {slipResults.length > 0 && (
+                  <div className={styles.slipResults}>
+                    {slipResults.map((r, i) => r.error ? (
+                      <div key={i} className={styles.slipResultError}>
+                        <strong>{r.filename}</strong> — {r.error}
+                      </div>
+                    ) : (
+                      <div key={i} className={styles.slipResultCard}>
+                        <div className={styles.slipResultHeader}>
+                          <span className={styles.slipResultType}>{r.parsed?.slipType ?? 'Unknown'}</span>
+                          {r.parsed?.taxYear && <span className={styles.slipResultYear}>{r.parsed.taxYear}</span>}
+                          <span className={styles.slipResultFilename}>{r.filename}</span>
+                        </div>
+                        <div className={styles.slipResultFields}>
+                          {r.parsed?.t4?.box14 != null && <div className={styles.slipResultField}><span>Box 14 — Employment Income</span><strong>${r.parsed.t4.box14.toFixed(2)}</strong></div>}
+                          {r.parsed?.t4?.box22 != null && <div className={styles.slipResultField}><span>Box 22 — Tax Withheld</span><strong>${r.parsed.t4.box22.toFixed(2)}</strong></div>}
+                          {r.parsed?.t4?.box16 != null && <div className={styles.slipResultField}><span>Box 16 — CPP</span><strong>${r.parsed.t4.box16.toFixed(2)}</strong></div>}
+                          {r.parsed?.t4?.box18 != null && <div className={styles.slipResultField}><span>Box 18 — EI</span><strong>${r.parsed.t4.box18.toFixed(2)}</strong></div>}
+                          {r.parsed?.t5?.box10 != null && <div className={styles.slipResultField}><span>Box 10 — Eligible Divs</span><strong>${r.parsed.t5.box10.toFixed(2)}</strong></div>}
+                          {r.parsed?.t5?.box24 != null && <div className={styles.slipResultField}><span>Box 24 — Non-Elig Divs</span><strong>${r.parsed.t5.box24.toFixed(2)}</strong></div>}
+                          {r.parsed?.noa?.rrspRoom != null && <div className={styles.slipResultField}><span>RRSP Room</span><strong>${r.parsed.noa.rrspRoom.toFixed(2)}</strong></div>}
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" className={styles.slipApplyBtn} onClick={applySlipResults}>
+                      ↓ Apply to form
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Sync bar */}

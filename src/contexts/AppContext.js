@@ -628,8 +628,14 @@ export function AppProvider({ children }) {
         migrateFromCompany({ personalProfile, dependants, personalYears,
           activePersonalYear: aPY, otherIncomeSources });
       }
-      lastLoaded.current = companyOnlyData;
-      dispatch({ type: 'RESTORE', payload: companyOnlyData });
+      // Back-fill onboardingCompleted for accounts created before this flag existed.
+      // undefined (absent) → treat as completed; explicit false → still in onboarding.
+      const restoredData = {
+        ...companyOnlyData,
+        onboardingCompleted: companyOnlyData.onboardingCompleted ?? true,
+      };
+      lastLoaded.current = restoredData;
+      dispatch({ type: 'RESTORE', payload: restoredData });
     } else {
       const init = makeInitialState();
       lastLoaded.current = init;

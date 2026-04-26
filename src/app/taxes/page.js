@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   calculateCorporateTax,
   calculatePersonalTax,
@@ -9,6 +10,7 @@ import {
   calculateIntegration,
   getDeductibleAmount,
   calculateHomeOfficeDeduction,
+  calculateMileageDeduction,
 } from '@/lib/taxCalculations';
 import { formatCurrency, formatPercent, formatDate, today } from '@/lib/formatters';
 import { CORPORATE_RATES_2025 } from '@/lib/constants';
@@ -20,6 +22,7 @@ import { FormField, Input, Select } from '@/components/ui/FormField';
 
 export default function TaxesPage() {
   const { state, dispatch, activeFY, activePY, activePersonalYear } = useApp();
+  const { user } = useAuth();
 
   const [showCCAModal, setShowCCAModal] = useState(false);
   const [ccaEditId,    setCCAEditId]    = useState(null);
@@ -31,6 +34,12 @@ export default function TaxesPage() {
   // ── Previous year upload ──────────────────────────
   const [prevYearData, setPrevYearData] = useState(null);
   const [prevYearError, setPrevYearError] = useState('');
+
+  // ── AI Tax Review ────────────────────────────────────────────────
+  const [reviewOpen,    setReviewOpen]    = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewData,    setReviewData]    = useState(null);
+  const [reviewError,   setReviewError]   = useState('');
   const handlePrevYearFile = e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -69,6 +78,65 @@ export default function TaxesPage() {
     setPrevYearData(null);
   };
 
+  async function runTaxReview() {
+    setReviewOpen(true);
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewData(null);
+    try {
+      const token = await user.getIdToken();
+      const taxData = {
+        fiscalYear: state.activeFiscalYear,
+        corporate: {
+          grossRevenue:     corp.grossRevenue,
+          totalDeductions:  totalDeductionsWithHO,
+          netIncome:        corp.netIncome,
+          sbdIncome:        corp.sbdIncome,
+          totalTax:         corp.totalTax,
+          effectiveRatePct: +(corp.effectiveRate * 100).toFixed(2),
+          afterTaxIncome:   corp.afterTaxIncome,
+          closingRetainedEarnings: closingRE,
+          totalCCA,
+          homeOfficeDeduction: hoResult.deductible,
+        },
+        personal: {
+          taxYear:          activePersonalYear,
+          nonEligibleDivs:  activePY.nonEligibleDivs  || 0,
+          eligibleDivs:     activePY.eligibleDivs     || 0,
+          employmentIncome: activePY.employmentIncome || 0,
+          otherIncome:      activePY.otherIncome      || 0,
+          rrspDeduction:    activePY.rrspDeduction    || 0,
+          rrspRoom:         activePY.rrspRoom         || 0,
+          taxWithheld:      activePY.taxWithheld      || 0,
+          totalIncome:      personal.totalIncome,
+          netIncome:        personal.netIncome,
+          totalTax:         personal.totalTax,
+          effectiveRatePct: +(personal.effectiveRate * 100).toFixed(2),
+          balanceOwing:     personal.balanceOwing,
+        },
+        hst: {
+          collected:     hst.hstCollected,
+          itc:           hst.itcTotal,
+          netRemittance: hst.netRemittance,
+        },
+        dividendsPaid:          totalDivsPaid,
+        shareholderLoanBalance: slClosingBalance,
+      };
+      const res = await fetch('/api/tax-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ taxData }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setReviewData(data);
+    } catch (err) {
+      setReviewError(err.message || 'Failed to generate review');
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
   if (state.activeFiscalYear === 'all') {
     return (
       <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -84,12 +152,16 @@ export default function TaxesPage() {
   const { startDate, endDate } = activeFY;
   const inRange = date => !date || ((!startDate || date >= startDate) && (!endDate || date <= endDate));
   const invoices      = allFYData.flatMap(fy => fy.invoices || []).filter(inv => inRange(inv.issueDate));
-  const baseExpenses   = allFYData.flatMap(fy => fy.expenses || []).filter(exp => inRange(exp.date));
+  const baseExpenses   = allFYData.flatMap(fy => fy.expenses || []).filter(exp => inRange(exp.date))
+    // Exclude expenses that were manually pushed from the mileage page — mileage is now auto-calculated below
+    .filter(exp => !(exp.notes && exp.notes.startsWith('Mileage log auto-calculated')));
   const recurringForFY = startDate && endDate
     ? expandRecurringForFY(state.recurringExpenses || [], startDate, endDate)
     : [];
   const expenses       = [...baseExpenses, ...recurringForFY];
   const homeOffice     = activeFY.homeOffice ?? {};
+  const mileageLogs    = activeFY.mileageLogs ?? [];
+  const mileageResult  = calculateMileageDeduction(mileageLogs);
   const dividendsPaid  = activeFY.dividendsPaid ?? [];
   const ccaClasses     = activeFY.ccaClasses ?? [];
   const shareholderLoan = activeFY.shareholderLoan ?? { openingBalance: 0, transactions: [] };
@@ -111,7 +183,7 @@ export default function TaxesPage() {
 
   // Home office
   const hoResult = calculateHomeOfficeDeduction(homeOffice);
-  const totalDeductionsWithHO = totalDeductibleExp + hoResult.deductible + totalCCA;
+  const totalDeductionsWithHO = totalDeductibleExp + hoResult.deductible + totalCCA + mileageResult.deductible;
 
   // Corporate tax
   const corp = calculateCorporateTax(grossRevenue, totalDeductionsWithHO);
@@ -171,6 +243,55 @@ export default function TaxesPage() {
         <SummaryCard label="Total Combined Tax" value={formatCurrency(corp.totalTax + personal.totalTax)} color="info" sub="Corporate + Personal" />
       </div>
 
+      {/* ── AI Tax Review ── */}
+      <button className={styles.aiReviewBtn} onClick={runTaxReview}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        AI Tax Review
+        <span className={styles.aiReviewBeta}>AI</span>
+      </button>
+
+      {/* AI Tax Review Modal */}
+      <Modal isOpen={reviewOpen} onClose={() => setReviewOpen(false)} title="AI Tax Review" size="md">
+        {reviewLoading && (
+          <div className={styles.reviewLoading}>
+            <div className={styles.reviewSpinner} />
+            <p>Analysing your tax data…</p>
+          </div>
+        )}
+        {reviewError && (
+          <div className={styles.reviewError}>
+            <strong>Error:</strong> {reviewError}
+          </div>
+        )}
+        {reviewData && (
+          <div className={styles.reviewBody}>
+            {reviewData.summary && (
+              <p className={styles.reviewSummary}>{reviewData.summary}</p>
+            )}
+            <div className={styles.reviewItems}>
+              {(reviewData.items || []).map((item, i) => (
+                <div key={i} className={`${styles.reviewItem} ${styles[`reviewItem_${item.category}`]}`}>
+                  <div className={styles.reviewItemIcon}>
+                    {item.category === 'good'   ? '✅' : item.category === 'review' ? '⚠️' : '💡'}
+                  </div>
+                  <div className={styles.reviewItemBody}>
+                    <div className={styles.reviewItemTitle}>{item.title}</div>
+                    <div className={styles.reviewItemDetail}>{item.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className={styles.reviewDisclaimer}>
+              This review is generated by AI and is for general guidance only. It is not professional tax advice. Always consult a qualified CPA before filing.
+            </p>
+          </div>
+        )}
+      </Modal>
+
       {/* ── Corporate T2 ── */}
       <Section title="Corporate — T2 Estimate" badge={state.activeFiscalYear}>
         <div className={styles.twoCol}>
@@ -179,6 +300,7 @@ export default function TaxesPage() {
               <Row label="Gross revenue" value={formatCurrency(corp.grossRevenue)} />
               <Row label="Total deductible expenses" value={`− ${formatCurrency(totalDeductibleExp)}`} />
               <Row label="Home office deduction" value={`− ${formatCurrency(hoResult.deductible)}`} />
+              {mileageResult.totalKm > 0 && <Row label={`Mileage deduction (${mileageResult.totalKm.toFixed(0)} km)`} value={`− ${formatCurrency(mileageResult.deductible)}`} />}
               {totalCCA > 0 && <Row label="CCA — Schedule 8" value={`− ${formatCurrency(totalCCA)}`} />}
               <Row label="Net income before tax" value={formatCurrency(corp.netIncome)} bold />
             </SubSection>
