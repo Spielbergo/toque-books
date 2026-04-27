@@ -157,6 +157,8 @@ export default function InvoicesPage() {
   const [rateLoading, setRateLoading] = useState(false);
   const [confirmDupNumber, setConfirmDupNumber] = useState(false);
   const [confirmDeleteRecurId, setConfirmDeleteRecurId] = useState(null);
+  const [sortKey, setSortKey] = useState('invoiceNumber');
+  const [sortDir, setSortDir] = useState('desc');
 
   // ── Auto-open edit from ?edit=<id> (e.g. dashboard link) ─────────────────
   const searchParams = useSearchParams();
@@ -658,10 +660,44 @@ export default function InvoicesPage() {
   const importTotalValid  = importResults.filter(r => !r.error).length;
   const allImportsDone    = importTotalValid > 0 && importSavedCount >= importTotalValid;
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // ── Sort ─────────────────────────────────────────
+  const handleSort = key => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'invoiceNumber' ? 'desc' : 'asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    let aVal, bVal;
+    switch (sortKey) {
+      case 'invoiceNumber':
+        aVal = parseInt(a.invoiceNumber, 10);
+        bVal = parseInt(b.invoiceNumber, 10);
+        if (isNaN(aVal) || isNaN(bVal)) {
+          aVal = a.invoiceNumber || '';
+          bVal = b.invoiceNumber || '';
+        }
+        break;
+      case 'client':   aVal = a.client?.name?.toLowerCase() || ''; bVal = b.client?.name?.toLowerCase() || ''; break;
+      case 'issueDate': aVal = a.issueDate || ''; bVal = b.issueDate || ''; break;
+      case 'dueDate':   aVal = a.dueDate   || ''; bVal = b.dueDate   || ''; break;
+      case 'total':     aVal = a.total     || 0;  bVal = b.total     || 0;  break;
+      case 'status':    aVal = a.status    || ''; bVal = b.status    || ''; break;
+      default:          aVal = 0; bVal = 0;
+    }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage   = Math.min(currentPage, totalPages);
   const pageStart  = (safePage - 1) * PAGE_SIZE;
-  const paginated  = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  const paginated  = sorted.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <div className={styles.page}>
@@ -943,9 +979,15 @@ export default function InvoicesPage() {
                   <th className={styles.checkCell}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                   </th>
-                  <th>Invoice #</th><th>Client</th><th>Date</th><th>Due</th>
-                  <th className={styles.right}>Subtotal</th><th className={styles.right}>HST</th>
-                  <th className={styles.right}>Total</th><th>Status</th><th></th>
+                  <SortTh label="Invoice #" colKey="invoiceNumber" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <SortTh label="Client"    colKey="client"        sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <SortTh label="Date"      colKey="issueDate"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <SortTh label="Due"       colKey="dueDate"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <th className={styles.right}>Subtotal</th>
+                  <th className={styles.right}>HST</th>
+                  <SortTh label="Total"  colKey="total"  sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className={styles.right} />
+                  <SortTh label="Status" colKey="status" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -1061,7 +1103,7 @@ export default function InvoicesPage() {
           }
           <button className={styles.pageBtn} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>›</button>
           <button className={styles.pageBtn} onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages}>»</button>
-          <span className={styles.pageInfo}>{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}</span>
+          <span className={styles.pageInfo}>{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, sorted.length)} of {sorted.length}</span>
         </div>
       )}
 
@@ -1509,4 +1551,17 @@ export default function InvoicesPage() {
   );
 }
 
-
+function SortTh({ label, colKey, sortKey, sortDir, onSort, className }) {
+  const active = sortKey === colKey;
+  return (
+    <th
+      className={[styles.sortableTh, active ? styles.sortableThActive : '', className].filter(Boolean).join(' ')}
+      onClick={() => onSort(colKey)}
+    >
+      {label}
+      <span className={styles.sortIndicator}>
+        {active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+      </span>
+    </th>
+  );
+}
