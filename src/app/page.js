@@ -10,6 +10,17 @@ import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import styles from './dashboard.module.css';
 import { expandRecurringForFY } from '@/lib/recurringUtils';
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
 
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -231,7 +242,7 @@ export default function DashboardPage() {
           {payables.length === 0
             ? <EmptyState icon="✅" title="All clear" description="No outstanding invoices." />
             : (
-              <div className={styles.tblScroll}>
+              <div className={styles.tblScrollSm}>
                 <table className={styles.payTbl}>
                   <thead>
                     <tr>
@@ -244,7 +255,12 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {payables.map(inv => (
-                      <tr key={inv.id} className={inv.status === 'overdue' ? styles.payOverdue : ''}>
+                      <tr
+                        key={inv.id}
+                        className={`${inv.status === 'overdue' ? styles.payOverdue : ''} ${styles.payClickable}`}
+                        onClick={() => window.location.href = `/invoices?edit=${inv.id}`}
+                        title="Click to edit"
+                      >
                         <td className={styles.payNum}>{inv.invoiceNumber}</td>
                         <td className={styles.payCli}>{inv.client?.name || '—'}</td>
                         <td className={styles.payDue}>{inv.dueDate ? formatDate(inv.dueDate) : '—'}</td>
@@ -273,9 +289,9 @@ export default function DashboardPage() {
           {recentInvoices.length === 0
             ? <EmptyState icon="📄" title="No invoices yet" description="Add your first invoice to get started." action={<Link href="/invoices"><Button size="sm">Add Invoice</Button></Link>} />
             : (
-              <div className={styles.invoiceList}>
+              <div className={`${styles.invoiceList} ${styles.invoiceListSm}`}>
                 {recentInvoices.map(inv => (
-                  <div key={inv.id} className={styles.invoiceRow}>
+                  <Link key={inv.id} href={`/invoices?edit=${inv.id}`} className={styles.invoiceRow} title="Click to edit">
                     <div className={styles.invLeft}>
                       <span className={styles.invNum}>{inv.invoiceNumber}</span>
                       <span className={styles.invClient}>{inv.client?.name || 'Unknown client'}</span>
@@ -285,12 +301,63 @@ export default function DashboardPage() {
                       <span className={styles.invAmount}>{formatCurrency(inv.total)}</span>
                       <Badge color={getStatusColor(inv.status)}>{inv.status}</Badge>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
         </div>
       </div>
+
+      {/* P&L Chart */}
+      {monthlyData.length > 1 && (
+        <div className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>Profit &amp; Loss — Monthly</h2>
+          </div>
+          <div className={styles.chartWrap}>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={monthlyData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickFormatter={monthLabel}
+                  tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={v => v === 0 ? '$0' : v >= 1000 ? `$${(v/1000).toFixed(0)}k` : `$${v}`}
+                  tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    color: 'var(--text-primary)',
+                  }}
+                  formatter={(value, name) => [
+                    formatCurrency(value),
+                    name === 'revenue' ? 'Revenue' : name === 'expenses' ? 'Expenses' : 'Net Income',
+                  ]}
+                  labelFormatter={monthLabel}
+                />
+                <Legend
+                  formatter={v => v === 'revenue' ? 'Revenue' : v === 'expenses' ? 'Expenses' : 'Net Income'}
+                  wrapperStyle={{ fontSize: '0.8rem', paddingTop: '8px' }}
+                />
+                <Bar dataKey="revenue"  fill="#22c55e" opacity={0.85} radius={[3,3,0,0]} maxBarSize={40} />
+                <Bar dataKey="expenses" fill="#ef4444" opacity={0.75} radius={[3,3,0,0]} maxBarSize={40} />
+                <Line dataKey="net" type="monotone" stroke="var(--accent, #6366f1)" strokeWidth={2} dot={{ r: 3, fill: 'var(--accent, #6366f1)' }} activeDot={{ r: 5 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Alerts */}
       {overdueInvoices.length > 0 && (

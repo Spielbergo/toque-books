@@ -167,6 +167,13 @@
   gap: 0.5rem;
 }
 
+/* Compact scrollable version for dashboard */
+.invoiceListSm {
+  max-height: 224px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
 .invoiceRow {
   display: flex;
   justify-content: space-between;
@@ -176,6 +183,15 @@
   border-radius: var(--radius-md);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.invoiceRow:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
 }
 
 .invLeft {
@@ -266,6 +282,11 @@
   color: var(--danger-text);
 }
 
+/* P&L Chart */
+.chartWrap {
+  padding: 0.25rem 0 0;
+}
+
 /* Alerts */
 .alert {
   display: flex;
@@ -352,6 +373,20 @@
   overflow-y: auto;
 }
 
+/* Compact scroll wrapper for dashboard cards (~30% shorter) */
+.tblScrollSm {
+  overflow-x: auto;
+  max-height: 224px;
+  overflow-y: auto;
+}
+
+.tblScrollSm .payTbl th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  z-index: 1;
+}
+
 /* ── Net Income table ────────────────────────────────────────────────────── */
 .niTbl {
   width: 100%;
@@ -427,6 +462,9 @@
 
 .payTbl tbody tr:last-child td { border-bottom: none; }
 .payTbl tbody tr:hover td { background: var(--bg-hover); }
+
+.payClickable { cursor: pointer; }
+.payClickable:hover td { background: var(--bg-hover) !important; }
 
 .payNum { font-weight: 600; color: var(--accent-text, var(--accent)); font-size: 0.8rem; white-space: nowrap; }
 .payCli { color: var(--text-primary); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

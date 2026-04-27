@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -140,6 +141,7 @@ export default function InvoicesPage() {
   const [pdfLoading, setPdfLoading] = useState(null);
   const [zipLoading, setZipLoading] = useState(false);
   const [previewUrl, setPreviewUrl]         = useState(null);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(null);
   const [showSendModal, setShowSendModal]   = useState(false);
   const [sendInvoice, setSendInvoice]       = useState(null);
@@ -153,6 +155,18 @@ export default function InvoicesPage() {
   const [tab, setTab] = useState('invoices'); // 'invoices' | 'recurring'
   const [dismissedRecurPrompt, setDismissedRecurPrompt] = useState(false);
   const [rateLoading, setRateLoading] = useState(false);
+
+  // ── Auto-open edit from ?edit=<id> (e.g. dashboard link) ─────────────────
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || allInvoices.length === 0) return;
+    const target = allInvoices.find(inv => inv.id === editId);
+    if (target) openEdit(target);
+    // Remove the query param so refreshing doesn't re-open
+    window.history.replaceState(null, '', window.location.pathname);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, allInvoices.length]);
 
   // ── Recurring invoice state ───────────────────────
   const [showRecurModal, setShowRecurModal] = useState(false);
@@ -375,7 +389,9 @@ export default function InvoicesPage() {
     setPreviewLoading(key);
     try {
       const blob = await generateInvoicePDF(invoice, state.settings);
-      const url = URL.createObjectURL(blob);
+      const file = new File([blob], invoiceFilename(invoice, state.settings), { type: 'application/pdf' });
+      const url = URL.createObjectURL(file);
+      setPreviewInvoice(invoice);
       setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
     } catch (err) {
       alert('Preview failed: ' + err.message);
@@ -386,6 +402,7 @@ export default function InvoicesPage() {
 
   const closePreview = () => {
     setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setPreviewInvoice(null);
   };
 
   // ── Send invoice / reminder ──────────────────────────────────────
@@ -1350,7 +1367,15 @@ export default function InvoicesPage() {
 
       {/* ── PDF Preview Modal ── */}
       <Modal isOpen={!!previewUrl} onClose={closePreview} title="Invoice Preview" size="xl"
-        footer={<Button variant="secondary" onClick={closePreview}>Close</Button>}
+        footer={<>
+          <Button variant="secondary" onClick={closePreview}>Close</Button>
+          {previewInvoice && (
+            <Button onClick={() => downloadInvoicePDF(previewInvoice, state.settings)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:'0.35rem'}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download PDF
+            </Button>
+          )}
+        </>}
       >
         <div className={styles.previewBody}>
           {previewUrl && <iframe src={previewUrl} className={styles.previewFrame} title="Invoice Preview" />}

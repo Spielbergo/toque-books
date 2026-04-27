@@ -1,11 +1,38 @@
 import { NextResponse } from 'next/server';
 import { verifyIdToken } from '@/lib/firebase/admin';
 import { createRateLimiter } from '@/lib/rateLimit';
+import { createHash } from 'crypto';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const limiter = createRateLimiter({ windowMs: 60_000, max: 5 }); // 5 reviews/min per IP
+
+// ── Server-side prompt cache ──────────────────────────────────────────────────
+// Avoids repeat Gemini API calls when the same tax data is reviewed multiple
+// times (same session, dev hot-reload, etc.). TTL: 30 minutes.
+const CACHE_TTL_MS = 30 * 60 * 1000;
+const responseCache = new Map(); // hash → { result, expiresAt }
+
+function hashTaxData(taxData) {
+  return createHash('sha256').update(JSON.stringify(taxData)).digest('hex').slice(0, 16);
+}
+
+function getCached(key) {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { responseCache.delete(key); return null; }
+  return entry.result;
+}
+
+function setCached(key, result) {
+  // Evict old entries if cache grows large (safety valve)
+  if (responseCache.size >= 200) {
+    const now = Date.now();
+    for (const [k, v] of responseCache) { if (now > v.expiresAt) responseCache.delete(k); }
+  }
+  responseCache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+}
 
 /**
  * POST /api/tax-review
@@ -46,6 +73,11 @@ export async function POST(request) {
     if (!taxData) {
       return NextResponse.json({ error: 'Missing taxData' }, { status: 400 });
     }
+
+    // ── Cache check ───────────────────────────────────────────────────
+    const cacheKey = hashTaxData(taxData);
+    const cached = getCached(cacheKey);
+    if (cached) return NextResponse.json(cached);
 
     const prompt = `You are a Canadian tax advisor reviewing a small business owner's tax situation for their Ontario CCPC (Canadian-Controlled Private Corporation).
 
@@ -91,6 +123,7 @@ Guidelines:
     const jsonText = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const parsed = JSON.parse(jsonText);
 
+    setCached(cacheKey, parsed);
     return NextResponse.json(parsed);
   } catch (e) {
     console.error('tax-review route error:', e);
