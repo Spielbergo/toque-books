@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useToast } from '@/contexts/ToastContext';
 import { exportDataAsJSON, importDataFromJSON, clearData } from '@/lib/storage';
 import { formatDate, today } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
@@ -56,6 +57,7 @@ export default function SettingsPage() {
   const { state, dispatch } = useApp();
   const { user } = useAuth();
   const { userProfile, userDispatch } = useUserProfile();
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState(0);
 
@@ -107,7 +109,7 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 300 * 1024) {
-      alert('Badge logo is too large. Please use an image under 300 KB.');
+      toast({ message: 'Badge logo is too large. Please use an image under 300 KB.', type: 'error' });
       return;
     }
     const reader = new FileReader();
@@ -120,7 +122,7 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 600 * 1024) {
-      alert('Logo file is too large. Please use an image under 600 KB.');
+      toast({ message: 'Logo file is too large. Please use an image under 600 KB.', type: 'error' });
       return;
     }
     const reader = new FileReader();
@@ -135,6 +137,7 @@ export default function SettingsPage() {
 
   // Confirm danger
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState(false);
   const importRef = useRef(null);
@@ -152,7 +155,7 @@ export default function SettingsPage() {
     const endYear = parseInt(fyForm.endYear);
     const key = `FY${startYear}-${String(endYear).slice(-2)}`;
     if (state.fiscalYears[key]) {
-      alert(`${key} already exists.`);
+      toast({ message: `${key} already exists.`, type: 'error' });
       return;
     }
     dispatch({
@@ -236,7 +239,11 @@ export default function SettingsPage() {
 
   const handleCloudRestore = async () => {
     if (!user) return;
-    if (!confirm('Restore from cloud backup? This will overwrite all current data.')) return;
+    setConfirmRestore(true);
+  };
+
+  const doCloudRestore = async () => {
+    setConfirmRestore(false);
     setCloudStatus('restoring');
     setCloudMsg('');
     try {
@@ -700,6 +707,18 @@ export default function SettingsPage() {
         }
       >
         <p>This will permanently delete all invoices, expenses, settings, dividends, and personal tax data. Export a backup first if you want to keep anything.</p>
+      </Modal>
+
+      {/* ── Confirm Cloud Restore ── */}
+      <Modal isOpen={confirmRestore} onClose={() => setConfirmRestore(false)} title="Restore from Cloud?" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmRestore(false)}>Cancel</Button>
+            <Button variant="danger" onClick={doCloudRestore}>Yes, Restore</Button>
+          </>
+        }
+      >
+        <p>This will overwrite all current data with your cloud backup. This cannot be undone.</p>
       </Modal>
     </div>
   );

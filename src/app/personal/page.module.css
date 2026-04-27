@@ -984,3 +984,121 @@
   color: var(--text-muted);
   line-height: 1.5;
 }
+
+/* ── Medical / Donations table ── */
+.medTable {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.medTableHeader {
+  display: grid;
+  grid-template-columns: 110px 1fr 100px 90px 36px;
+  gap: 0;
+  padding: 0.45rem 1rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.medTableRow {
+  display: grid;
+  grid-template-columns: 110px 1fr 100px 90px 36px;
+  gap: 0;
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+  align-items: center;
+}
+.medTableRow:last-child { border-bottom: none; }
+.medAmount { font-weight: 600; color: var(--text-primary); text-align: right; }
+.medPatient { color: var(--text-muted); font-size: 0.78rem; }
+
+/* ── Credit summary card ── */
+.creditCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.creditCardTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+.creditRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.creditRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+}
+.creditRow strong { color: var(--text-primary); }
+.creditRowDivider {
+  border-top: 1px solid var(--border);
+  margin: 0.25rem 0;
+}
+.creditTotal {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+.creditTotal strong { color: var(--success, #16a34a); font-size: 1rem; }
+.creditHint {
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  margin-top: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ── Spouse T1 estimate card ── */
+.spouseEstCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  margin-top: 2rem;
+}
+.spouseEstTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+}
+.spouseEstGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.spouseEstRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.spouseEstRow:last-child { border-bottom: none; }
+.spouseEstRow strong { color: var(--text-primary); }
+.spouseEstBalance {
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-top: 2px solid var(--border) !important;
+  padding-top: 0.5rem !important;
+}
+

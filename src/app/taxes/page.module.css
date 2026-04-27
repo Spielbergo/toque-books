@@ -269,6 +269,106 @@
 /* Previous year upload */
 .prevYearBox { display: flex; flex-direction: column; gap: 0.875rem; }
 .prevYearNote { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* ── Balance Sheet (S100) ─────────────────────────────────────────── */
+.bsIntro { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5; }
+.bsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+.bsCol { display: flex; flex-direction: column; gap: 0; }
+.bsColTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--border);
+}
+.bsSection {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  margin-top: 0.5rem;
+}
+.bsRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--bg-secondary);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.bsRow:last-of-type { border-bottom: 1px solid var(--border); }
+.bsLabel { flex: 1; }
+.bsAuto { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
+.bsValue { font-weight: 600; color: var(--text-primary); min-width: 90px; text-align: right; white-space: nowrap; }
+.bsInput {
+  width: 100px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-primary));
+  color: var(--text-primary);
+  text-align: right;
+}
+.bsOverride {
+  width: 100px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-primary));
+  color: var(--text-primary);
+  text-align: right;
+}
+.bsSubtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+.bsImbalance {
+  padding: 0.65rem 1rem;
+  background: var(--danger-bg, #fef2f2);
+  border: 1px solid var(--danger-border, #fecaca);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  color: var(--danger, #dc2626);
+  margin-top: 0.5rem;
+}
+.bsBalanced {
+  padding: 0.65rem 1rem;
+  background: var(--success-bg, #f0fdf4);
+  border: 1px solid var(--success-border, #bbf7d0);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  color: var(--success, #16a34a);
+  margin-top: 0.5rem;
+}
+@media (max-width: 700px) {
+  .bsGrid { grid-template-columns: 1fr; }
+}
 .prevYearLabel {
   display: flex;
   flex-direction: column;

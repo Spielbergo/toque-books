@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -13,6 +14,7 @@ export default function CompaniesPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { companies, activeCompanyId, createCompany, selectCompany, updateCompanyName, deleteCompany, appLoading, activeCompany } = useApp();
+  const { toast } = useToast();
 
   const [showCreate, setShowCreate]   = useState(false);
   const [newName, setNewName]         = useState('');
@@ -57,7 +59,7 @@ export default function CompaniesPage() {
       await updateCompanyName(editingId, editName.trim());
       setEditingId(null);
     } catch (err) {
-      alert(err.message || 'Failed to rename.');
+      toast({ message: err.message || 'Failed to rename.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -73,7 +75,7 @@ export default function CompaniesPage() {
         // Will have no companies — stay on this page for onboarding
       }
     } catch (err) {
-      alert(err.message || 'Failed to delete.');
+      toast({ message: err.message || 'Failed to delete.', type: 'error' });
     } finally {
       setDeleting(false);
     }

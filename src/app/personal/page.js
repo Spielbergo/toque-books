@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { calculatePersonalTax } from '@/lib/taxCalculations';
+import { calculatePersonalTax, calculateMedicalCredit, calculateDonationCredit } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, formatPercent, today } from '@/lib/formatters';
 import { RRSP_LIMIT_2025 } from '@/lib/constants';
 import Button from '@/components/ui/Button';
@@ -78,6 +78,14 @@ export default function PersonalPage() {
   const [spouseSlipParsing, setSpouseSlipParsing] = useState(false);
   const [spouseSlipResults, setSpouseSlipResults] = useState([]);
   const [spouseSlipError, setSpouseSlipError] = useState('');
+
+  // ── Medical expenses ─────────────────────────────────────────────────────
+  const [showMedModal, setShowMedModal] = useState(false);
+  const [medForm, setMedForm] = useState({ date: '', description: '', patient: 'self', amount: '' });
+
+  // ── Donations ────────────────────────────────────────────────────────────
+  const [showDonModal, setShowDonModal] = useState(false);
+  const [donForm, setDonForm] = useState({ date: '', charity: '', amount: '', receiptNo: '' });
 
   // ── Year navigation ──────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear();
@@ -389,6 +397,17 @@ export default function PersonalPage() {
     spouseNetIncome:  activePY.spouseNetIncome  ?? null,
   });
 
+  // Medical and donation credits (from saved activePY data)
+  const savedMedical   = activePY.medicalExpenses || [];
+  const totalMedical   = savedMedical.reduce((s, e) => s + (e.amount || 0), 0);
+  const medCredit      = calculateMedicalCredit(totalMedical, taxResult.netIncome);
+  const savedDonations = activePY.donations || [];
+  const totalDonations = savedDonations.reduce((s, d) => s + (d.amount || 0), 0);
+  const donCredit      = calculateDonationCredit(totalDonations);
+  const extraCredits   = medCredit.totalCredit + donCredit.totalCredit;
+  const adjustedTax    = Math.max(0, taxResult.totalTax - extraCredits);
+  const adjustedBalance = adjustedTax - (activePY.taxWithheld || 0);
+
   const hasSyncable = Object.keys(suggestions).some(k => (suggestions[k] || 0) > 0);
 
   // Dynamic tabs — show Spouse and Dependants only if they exist
@@ -398,11 +417,15 @@ export default function PersonalPage() {
     'Personal Income',
     'Dividends Paid',
     'T1 Estimate',
-    ...(hasSpouse ? [`${spouseName}'s Income`] : []),
+    'Medical Expenses',
+    'Donations',
+    ...(hasSpouse ? [`${spouseName}'s T1`] : []),
     ...(hasDeps ? ['Dependants'] : []),
   ];
-  const TAB_SPOUSE = hasSpouse ? 3 : -1;
-  const TAB_DEPS = hasDeps ? (hasSpouse ? 4 : 3) : -1;
+  const TAB_MEDICAL = 3;
+  const TAB_DONATIONS = 4;
+  const TAB_SPOUSE = hasSpouse ? 5 : -1;
+  const TAB_DEPS = hasDeps ? (hasSpouse ? 6 : 5) : -1;
 
   return (
     <div className={styles.page}>
@@ -856,6 +879,35 @@ export default function PersonalPage() {
               <span>Number of payments</span>
               <strong>{dividendsPaid.length}</strong>
             </div>
+            {totalDivPaid > 0 && (
+              <div className={styles.divSummaryItem} style={{ marginLeft: 'auto' }}>
+                <Button size="sm" variant="secondary" onClick={async () => {
+                  try {
+                  const { pdf } = await import('@react-pdf/renderer');
+                  const { default: T5Document } = await import('@/components/T5Document');
+                  const { createElement } = await import('react');
+                  const profile = userProfile.personalProfile || {};
+                  const neTotal = dividendsPaid.filter(d => !d.type || d.type === 'non_eligible').reduce((s, d) => s + (d.amount || 0), 0);
+                  const elTotal = dividendsPaid.filter(d => d.type === 'eligible').reduce((s, d) => s + (d.amount || 0), 0);
+                  const blob = await pdf(createElement(T5Document, {
+                    settings: state.settings,
+                    recipientName: profile.ownerLegalName || '',
+                    recipientSIN:  profile.ownerSIN || '',
+                    year: activeYear,
+                    py: { nonEligibleDivs: neTotal, eligibleDivs: elTotal },
+                  })).toBlob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `T5-${activeYear}-${(profile.ownerLegalName || 'shareholder').replace(/\s+/g, '-')}.pdf`;
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 10000);
+                  } catch (err) {
+                    toast({ message: 'T5 PDF generation failed', detail: err.message, type: 'error' });
+                  }
+                }}>⬇ T5 PDF</Button>
+              </div>
+            )}
           </div>
 
           {dividendsPaid.length === 0 ? (
@@ -959,9 +1011,15 @@ export default function PersonalPage() {
 
             <div className={styles.taxTotal}>
               <div className={styles.taxTotalRow}>
-                <span>Total estimated tax</span>
+                <span>Total estimated tax (before personal credits)</span>
                 <strong>{formatCurrency(taxResult.totalTax)}</strong>
               </div>
+              {extraCredits > 0 && (
+                <div className={styles.taxTotalRow}>
+                  <span>Medical + donation credits (tabs 4 & 5)</span>
+                  <strong style={{ color: 'var(--success)' }}>− {formatCurrency(extraCredits)}</strong>
+                </div>
+              )}
               {taxResult.taxWithheld > 0 && (
                 <div className={styles.taxTotalRow}>
                   <span>Income tax withheld at source (T4 Box 22)</span>
@@ -969,9 +1027,9 @@ export default function PersonalPage() {
                 </div>
               )}
               <div className={`${styles.taxTotalRow} ${styles.taxTotalBalance}`}>
-                <span>{taxResult.balanceOwing >= 0 ? 'Balance owing (est.)' : 'Estimated refund'}</span>
-                <strong style={{ color: taxResult.balanceOwing < 0 ? 'var(--success)' : 'var(--danger)' }}>
-                  {taxResult.balanceOwing < 0 ? formatCurrency(-taxResult.balanceOwing) : formatCurrency(taxResult.balanceOwing)}
+                <span>{adjustedBalance >= 0 ? 'Balance owing (est.)' : 'Estimated refund'}</span>
+                <strong style={{ color: adjustedBalance < 0 ? 'var(--success)' : 'var(--danger)' }}>
+                  {adjustedBalance < 0 ? formatCurrency(-adjustedBalance) : formatCurrency(adjustedBalance)}
                 </strong>
               </div>
               <div className={styles.taxTotalRow}>
@@ -979,24 +1037,126 @@ export default function PersonalPage() {
                 <strong>{formatPercent(taxResult.effectiveRate)}</strong>
               </div>
               <div className={styles.taxTotalRow}>
-                <span>After-tax income</span>
-                <strong>{formatCurrency(taxResult.afterTaxIncome)}</strong>
+                <span>After-tax income (incl. credits)</span>
+                <strong>{formatCurrency(taxResult.afterTaxIncome + extraCredits)}</strong>
               </div>
             </div>
 
             <div className={styles.t1Disclaimer}>
-              <strong>⚠️ This is an estimate only.</strong> It assumes Ontario residency, no other credits (medical, charitable, etc.), and uses {activeYear} rates. Filing deadline: April 30, {activeYear + 1}.
+              <strong>⚠️ This is an estimate only.</strong> It assumes Ontario residency and uses {activeYear} rates. Medical and donation credits are based on values entered in the Medical and Donations tabs. Filing deadline: April 30, {activeYear + 1}.
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══ TAB 3: Spouse Income ═══ */}
+      {/* ═══ TAB 3: Medical Expenses ═══ */}
+      {tab === TAB_MEDICAL && (
+        <div className={styles.section}>
+          <div className={styles.divHeader}>
+            <div>
+              <h3>Medical Expenses — {activeYear}</h3>
+              <p className={styles.divSub}>Track eligible medical and dental expenses for you, your spouse, and dependants (CRA line 33099). Claim all on the higher-income earner's return.</p>
+            </div>
+            <Button size="sm" onClick={() => { setMedForm({ date: '', description: '', patient: 'self', amount: '' }); setShowMedModal(true); }}>+ Add Expense</Button>
+          </div>
+
+          {savedMedical.length === 0 ? (
+            <EmptyState icon="🏥" title="No medical expenses yet" description="Add prescriptions, dental, vision, physiotherapy, and other CRA-eligible medical expenses for this tax year." action={<Button size="sm" onClick={() => { setMedForm({ date: '', description: '', patient: 'self', amount: '' }); setShowMedModal(true); }}>+ Add Expense</Button>} />
+          ) : (
+            <div className={styles.medTable}>
+              <div className={styles.medTableHeader}>
+                <span>Date</span>
+                <span>Description</span>
+                <span>Patient</span>
+                <span className={styles.right}>Amount</span>
+                <span></span>
+              </div>
+              {[...savedMedical].sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(e => (
+                <div key={e.id} className={styles.medTableRow}>
+                  <span>{e.date || '—'}</span>
+                  <span>{e.description || '—'}</span>
+                  <span className={styles.medPatient}>{e.patient === 'spouse' ? spouseName || 'Spouse' : e.patient === 'dependant' ? 'Dependant' : 'Self'}</span>
+                  <span className={`${styles.right} ${styles.medAmount}`}>{formatCurrency(e.amount || 0)}</span>
+                  <button className={styles.divDelete} onClick={() => dispatch({ type: 'DELETE_MEDICAL_EXPENSE', payload: { id: e.id, year: activeYear } })} aria-label="Delete">🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {savedMedical.length > 0 && (
+            <div className={styles.creditCard}>
+              <div className={styles.creditCardTitle}>Medical Expense Credit — {activeYear}</div>
+              <div className={styles.creditRows}>
+                <div className={styles.creditRow}><span>Total medical expenses</span><strong>{formatCurrency(medCredit.totalMedical)}</strong></div>
+                <div className={styles.creditRow}><span>3% of net income floor (max ${formatCurrency(medCredit.threshold)})</span><strong>− {formatCurrency(medCredit.threshold)}</strong></div>
+                <div className={styles.creditRow}><span>Eligible amount</span><strong>{formatCurrency(medCredit.eligible)}</strong></div>
+                <div className={styles.creditRowDivider}></div>
+                <div className={styles.creditRow}><span>Federal credit (15%)</span><strong>{formatCurrency(medCredit.fedCredit)}</strong></div>
+                <div className={styles.creditRow}><span>Ontario credit (5.05%)</span><strong>{formatCurrency(medCredit.onCredit)}</strong></div>
+                <div className={`${styles.creditRow} ${styles.creditTotal}`}><span>Total estimated credit</span><strong>{formatCurrency(medCredit.totalCredit)}</strong></div>
+              </div>
+              <p className={styles.creditHint}>Tip: Claim all household medical expenses on the higher-income earner's return to maximize this credit.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ TAB 4: Donations ═══ */}
+      {tab === TAB_DONATIONS && (
+        <div className={styles.section}>
+          <div className={styles.divHeader}>
+            <div>
+              <h3>Charitable Donations — {activeYear}</h3>
+              <p className={styles.divSub}>Eligible donations to registered charities (CRA line 34900). Keep official donation receipts.</p>
+            </div>
+            <Button size="sm" onClick={() => { setDonForm({ date: '', charity: '', amount: '', receiptNo: '' }); setShowDonModal(true); }}>+ Add Donation</Button>
+          </div>
+
+          {savedDonations.length === 0 ? (
+            <EmptyState icon="🎗️" title="No donations yet" description="Add charitable donations to registered Canadian charities for this tax year. You need official CRA-registered receipts." action={<Button size="sm" onClick={() => { setDonForm({ date: '', charity: '', amount: '', receiptNo: '' }); setShowDonModal(true); }}>+ Add Donation</Button>} />
+          ) : (
+            <div className={styles.medTable}>
+              <div className={styles.medTableHeader}>
+                <span>Date</span>
+                <span>Charity</span>
+                <span>Receipt #</span>
+                <span className={styles.right}>Amount</span>
+                <span></span>
+              </div>
+              {[...savedDonations].sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(d => (
+                <div key={d.id} className={styles.medTableRow}>
+                  <span>{d.date || '—'}</span>
+                  <span>{d.charity || '—'}</span>
+                  <span className={styles.medPatient}>{d.receiptNo || '—'}</span>
+                  <span className={`${styles.right} ${styles.medAmount}`}>{formatCurrency(d.amount || 0)}</span>
+                  <button className={styles.divDelete} onClick={() => dispatch({ type: 'DELETE_DONATION', payload: { id: d.id, year: activeYear } })} aria-label="Delete">🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {savedDonations.length > 0 && (
+            <div className={styles.creditCard}>
+              <div className={styles.creditCardTitle}>Charitable Donation Credit — {activeYear}</div>
+              <div className={styles.creditRows}>
+                <div className={styles.creditRow}><span>Total donations</span><strong>{formatCurrency(donCredit.totalDonations)}</strong></div>
+                <div className={styles.creditRowDivider}></div>
+                <div className={styles.creditRow}><span>Federal credit (15% / 29%)</span><strong>{formatCurrency(donCredit.fedCredit)}</strong></div>
+                <div className={styles.creditRow}><span>Ontario credit (5.05% / 11.16%)</span><strong>{formatCurrency(donCredit.onCredit)}</strong></div>
+                <div className={`${styles.creditRow} ${styles.creditTotal}`}><span>Total estimated credit</span><strong>{formatCurrency(donCredit.totalCredit)}</strong></div>
+              </div>
+              <p className={styles.creditHint}>The higher 29% federal / 11.16% Ontario rates apply to donations over $200 in a year. Combining years may increase your credit.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ TAB 5: Spouse T1 ═══ */}
       {tab === TAB_SPOUSE && TAB_SPOUSE >= 0 && (
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <h3>{spouseName ? `${spouseName}'s` : "Spouse's"} Income — {activeYear}</h3>
-            <p>Income for {spouseName || 'your spouse'} — used to calculate the spousal amount credit (line 30300).</p>
+            <p>Income for {spouseName || 'your spouse'} — used to calculate the spousal amount credit (line 30300) on your return, and to estimate their own T1.</p>
           </div>
           {/* Spouse Slip Import */}
           <div className={styles.slipImportPanel}>
@@ -1065,8 +1225,20 @@ export default function PersonalPage() {
               <FormField label="RRSP Deduction" hint="Reduces net income for the spousal credit calculation">
                 <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseRrspDeduction || ''} onChange={e => handleField('spouseRrspDeduction', e.target.value)} placeholder="0.00" />
               </FormField>
-              <FormField label="Tax Withheld (T4 Box 22)" hint="Reference only — for spouse's own T1 filing">
+              <FormField label="Tax Withheld (T4 Box 22)" hint="Income tax deducted at source — for their own T1">
                 <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseTaxWithheld || ''} onChange={e => handleField('spouseTaxWithheld', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="CPP Contributions (T4 Box 16)" hint="Employee CPP contributions — generates a non-refundable credit">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseCPP || ''} onChange={e => handleField('spouseCPP', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="EI Premiums (T4 Box 18)" hint="Employee EI premiums — generates a non-refundable credit">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseEI || ''} onChange={e => handleField('spouseEI', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="Medical Expenses (total)" hint="Total medical expenses for their own T1 return">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseMedicalTotal || ''} onChange={e => handleField('spouseMedicalTotal', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="Charitable Donations (total)" hint="Total donations to registered charities">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseDonationsTotal || ''} onChange={e => handleField('spouseDonationsTotal', e.target.value)} placeholder="0.00" />
               </FormField>
             </div>
             {(() => {
@@ -1086,6 +1258,44 @@ export default function PersonalPage() {
               {pySaved && <span className={styles.savedMsg}>✅ Saved!</span>}
             </div>
           </form>
+
+          {/* Spouse T1 Estimate */}
+          {(() => {
+            const spTax = calculatePersonalTax({
+              employmentIncome: activePY.spouseEmploymentIncome || 0,
+              nonEligibleDivs:  activePY.spouseNonEligibleDivs || 0,
+              eligibleDivs:     activePY.spouseEligibleDivs    || 0,
+              otherIncome:      activePY.spouseOtherIncome     || 0,
+              rrspDeduction:    activePY.spouseRrspDeduction   || 0,
+              taxWithheld:      activePY.spouseTaxWithheld     || 0,
+              cppContributions: activePY.spouseCPP             || 0,
+              eiPremiums:       activePY.spouseEI              || 0,
+            });
+            const spMedCredit = calculateMedicalCredit(activePY.spouseMedicalTotal || 0, spTax.netIncome);
+            const spDonCredit = calculateDonationCredit(activePY.spouseDonationsTotal || 0);
+            const spExtra     = spMedCredit.totalCredit + spDonCredit.totalCredit;
+            const spAdjTax    = Math.max(0, spTax.totalTax - spExtra);
+            const spBalance   = spAdjTax - (activePY.spouseTaxWithheld || 0);
+            if (spTax.netIncome === 0) return null;
+            return (
+              <div className={styles.spouseEstCard}>
+                <h4 className={styles.spouseEstTitle}>{spouseName}'s T1 Estimate — {activeYear}</h4>
+                <div className={styles.spouseEstGrid}>
+                  <div className={styles.spouseEstRow}><span>Net income (line 23600)</span><strong>{formatCurrency(spTax.netIncome)}</strong></div>
+                  <div className={styles.spouseEstRow}><span>Total tax (before personal credits)</span><strong>{formatCurrency(spTax.totalTax)}</strong></div>
+                  {spExtra > 0 && <div className={styles.spouseEstRow}><span>Medical + donation credits</span><strong style={{ color: 'var(--success)' }}>− {formatCurrency(spExtra)}</strong></div>}
+                  {activePY.spouseTaxWithheld > 0 && <div className={styles.spouseEstRow}><span>Tax withheld at source</span><strong style={{ color: 'var(--success)' }}>− {formatCurrency(activePY.spouseTaxWithheld)}</strong></div>}
+                  <div className={`${styles.spouseEstRow} ${styles.spouseEstBalance}`}>
+                    <span>{spBalance >= 0 ? 'Balance owing (est.)' : 'Estimated refund'}</span>
+                    <strong style={{ color: spBalance < 0 ? 'var(--success)' : 'var(--danger)' }}>
+                      {spBalance < 0 ? formatCurrency(-spBalance) : formatCurrency(spBalance)}
+                    </strong>
+                  </div>
+                </div>
+                <p className={styles.creditHint}>Save income values above to update this estimate. Ontario residency assumed.</p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1120,6 +1330,72 @@ export default function PersonalPage() {
           </div>
         </div>
       )}
+
+      {/* ── Medical Expense Modal ── */}
+      <Modal isOpen={showMedModal} onClose={() => setShowMedModal(false)} title="Add Medical Expense" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowMedModal(false)}>Cancel</Button>
+            <Button type="submit" form="med-form">Add</Button>
+          </>
+        }
+      >
+        <form id="med-form" onSubmit={e => {
+          e.preventDefault();
+          dispatch({ type: 'ADD_MEDICAL_EXPENSE', payload: { year: activeYear, expense: { date: medForm.date, description: medForm.description, patient: medForm.patient, amount: parseFloat(medForm.amount) || 0 } } });
+          setShowMedModal(false);
+        }}>
+          <div className={styles.divFormGrid}>
+            <FormField label="Date" required>
+              <Input type="date" value={medForm.date} onChange={e => setMedForm(f => ({ ...f, date: e.target.value }))} required />
+            </FormField>
+            <FormField label="Amount" required>
+              <Input type="number" min="0" step="0.01" prefix="$" value={medForm.amount} onChange={e => setMedForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" required />
+            </FormField>
+            <FormField label="Description" className={styles.colSpan2} hint="e.g. Dental cleaning, Prescription, Physiotherapy">
+              <Input type="text" value={medForm.description} onChange={e => setMedForm(f => ({ ...f, description: e.target.value }))} placeholder="Description…" />
+            </FormField>
+            <FormField label="Patient" className={styles.colSpan2}>
+              <Select value={medForm.patient} onChange={e => setMedForm(f => ({ ...f, patient: e.target.value }))}>
+                <option value="self">Myself</option>
+                {hasSpouse && <option value="spouse">{spouseName || 'Spouse'}</option>}
+                <option value="dependant">Dependant</option>
+              </Select>
+            </FormField>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Donation Modal ── */}
+      <Modal isOpen={showDonModal} onClose={() => setShowDonModal(false)} title="Add Charitable Donation" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowDonModal(false)}>Cancel</Button>
+            <Button type="submit" form="don-form">Add</Button>
+          </>
+        }
+      >
+        <form id="don-form" onSubmit={e => {
+          e.preventDefault();
+          dispatch({ type: 'ADD_DONATION', payload: { year: activeYear, donation: { date: donForm.date, charity: donForm.charity, amount: parseFloat(donForm.amount) || 0, receiptNo: donForm.receiptNo } } });
+          setShowDonModal(false);
+        }}>
+          <div className={styles.divFormGrid}>
+            <FormField label="Date" required>
+              <Input type="date" value={donForm.date} onChange={e => setDonForm(f => ({ ...f, date: e.target.value }))} required />
+            </FormField>
+            <FormField label="Amount" required>
+              <Input type="number" min="0" step="0.01" prefix="$" value={donForm.amount} onChange={e => setDonForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" required />
+            </FormField>
+            <FormField label="Charity Name" className={styles.colSpan2}>
+              <Input type="text" value={donForm.charity} onChange={e => setDonForm(f => ({ ...f, charity: e.target.value }))} placeholder="e.g. Red Cross, Hospital Foundation…" />
+            </FormField>
+            <FormField label="Receipt Number" className={styles.colSpan2} hint="From your official donation receipt">
+              <Input type="text" value={donForm.receiptNo} onChange={e => setDonForm(f => ({ ...f, receiptNo: e.target.value }))} placeholder="Optional" />
+            </FormField>
+          </div>
+        </form>
+      </Modal>
 
       {/* ── Dividend Modal ── */}
       <Modal isOpen={showDivModal} onClose={() => setShowDivModal(false)} title="Record Dividend Payment" size="sm"

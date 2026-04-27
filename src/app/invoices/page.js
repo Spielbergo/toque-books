@@ -155,6 +155,8 @@ export default function InvoicesPage() {
   const [tab, setTab] = useState('invoices'); // 'invoices' | 'recurring'
   const [dismissedRecurPrompt, setDismissedRecurPrompt] = useState(false);
   const [rateLoading, setRateLoading] = useState(false);
+  const [confirmDupNumber, setConfirmDupNumber] = useState(false);
+  const [confirmDeleteRecurId, setConfirmDeleteRecurId] = useState(null);
 
   // ── Auto-open edit from ?edit=<id> (e.g. dashboard link) ─────────────────
   const searchParams = useSearchParams();
@@ -335,11 +337,7 @@ export default function InvoicesPage() {
   };
 
   // ── Save ──────────────────────────────────────────
-  const handleSave = e => {
-    e.preventDefault();
-    if (isDuplicateNumber(form.invoiceNumber)) {
-      if (!window.confirm(`Invoice #${form.invoiceNumber} already exists. Save anyway?`)) return;
-    }
+  const doSave = () => {
     if (editInv) {
       dispatch({ type: 'UPDATE_INVOICE', payload: { ...form, id: editInv.id } });
       toast({ message: `Invoice #${form.invoiceNumber} updated` });
@@ -369,6 +367,15 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleSave = e => {
+    e.preventDefault();
+    if (isDuplicateNumber(form.invoiceNumber)) {
+      setConfirmDupNumber(true);
+      return;
+    }
+    doSave();
+  };
+
   // ── Delete ────────────────────────────────────────
   const handleDelete = id => {
     dispatch({ type: 'DELETE_INVOICE', payload: id });
@@ -394,7 +401,7 @@ export default function InvoicesPage() {
       setPreviewInvoice(invoice);
       setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
     } catch (err) {
-      alert('Preview failed: ' + err.message);
+      toast({ message: 'Preview failed', detail: err.message, type: 'error' });
     } finally {
       setPreviewLoading(null);
     }
@@ -502,7 +509,7 @@ export default function InvoicesPage() {
       await downloadInvoicePDF(inv, state.settings);
     } catch (err) {
       console.error('PDF generation error:', err);
-      alert('PDF generation failed: ' + err.message);
+      toast({ message: 'PDF generation failed', detail: err.message, type: 'error' });
     } finally {
       setPdfLoading(null);
     }
@@ -519,7 +526,7 @@ export default function InvoicesPage() {
       await downloadInvoicesZIP(toDownload, state.settings);
     } catch (err) {
       console.error('ZIP generation error:', err);
-      alert('ZIP generation failed: ' + err.message);
+      toast({ message: 'ZIP generation failed', detail: err.message, type: 'error' });
     } finally {
       setZipLoading(false);
     }
@@ -747,7 +754,7 @@ export default function InvoicesPage() {
                         <td><span className={r.active ? styles.statusPaid : styles.statusDraft}>{r.active ? 'Active' : 'Paused'}</span></td>
                         <td className={styles.right}>
                           <Button variant="ghost" size="sm" onClick={() => { setRecurEditId(r.id); setRecurForm({ clientId: r.clientId || '', subject: r.subject || '', frequency: r.frequency || 'monthly', nextDate: r.nextDate || '', notes: r.notes || '', active: r.active !== false }); setShowRecurModal(true); }}>Edit</Button>
-                          <Button variant="ghost" size="sm" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm('Delete this recurring template?')) dispatch({ type: 'DELETE_RECURRING_INVOICE', payload: r.id }); }}>Delete</Button>
+                          <Button variant="ghost" size="sm" style={{ color: 'var(--danger)' }} onClick={() => setConfirmDeleteRecurId(r.id)}>Delete</Button>
                         </td>
                       </tr>
                     );
@@ -1392,6 +1399,30 @@ export default function InvoicesPage() {
         }
       >
         <p className={styles.confirmText}>This invoice will be permanently removed. This cannot be undone.</p>
+      </Modal>
+
+      {/* ── Confirm Duplicate Invoice Number ── */}
+      <Modal isOpen={confirmDupNumber} onClose={() => setConfirmDupNumber(false)} title="Duplicate Invoice Number" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmDupNumber(false)}>Cancel</Button>
+            <Button onClick={() => { setConfirmDupNumber(false); doSave(); }}>Save Anyway</Button>
+          </>
+        }
+      >
+        <p className={styles.confirmText}>Invoice #{form.invoiceNumber} already exists. Do you want to save a duplicate?</p>
+      </Modal>
+
+      {/* ── Confirm Delete Recurring Template ── */}
+      <Modal isOpen={!!confirmDeleteRecurId} onClose={() => setConfirmDeleteRecurId(null)} title="Delete Recurring Template?" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmDeleteRecurId(null)}>Cancel</Button>
+            <Button variant="danger" onClick={() => { dispatch({ type: 'DELETE_RECURRING_INVOICE', payload: confirmDeleteRecurId }); setConfirmDeleteRecurId(null); }}>Delete</Button>
+          </>
+        }
+      >
+        <p className={styles.confirmText}>This recurring template will be permanently deleted.</p>
       </Modal>
 
       {/* ── Send Invoice / Reminder Modal ── */}

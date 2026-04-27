@@ -398,3 +398,98 @@ export function calculateIntegration(corporateIncome, dividendsPaid, rrspDeducti
     corporateRetained,
   };
 }
+
+// ─── MEDICAL EXPENSE CREDIT (line 33099 / 33199) ────────────────────────────
+// CRA 2025: 15% federal × max(0, total − min(3% of net income, $2,759))
+// Ontario:   5.05% × same eligible amount
+// The $2,759 threshold is indexed annually; 2025 amount.
+const MEDICAL_FLOOR_2025 = 2759;
+
+/**
+ * Calculate the medical expense tax credit.
+ * @param {number} totalMedical  Total medical + dental expenses claimed
+ * @param {number} netIncome     Claimant's net income (line 23600)
+ */
+export function calculateMedicalCredit(totalMedical, netIncome) {
+  const threshold = Math.min(netIncome * 0.03, MEDICAL_FLOOR_2025);
+  const eligible  = Math.max(0, (totalMedical || 0) - threshold);
+  const fedCredit = eligible * 0.15;
+  const onCredit  = eligible * 0.0505;
+  return {
+    totalMedical: totalMedical || 0,
+    threshold,
+    eligible,
+    fedCredit,
+    onCredit,
+    totalCredit: fedCredit + onCredit,
+  };
+}
+
+// ─── CHARITABLE DONATION CREDIT (line 34900) ────────────────────────────────
+// Federal:  15% on first $200, 29% on remainder (33% if income > $246,752)
+// Ontario:  5.05% on first $200, 11.16% on remainder
+const DONATION_THRESHOLD = 200;
+
+/**
+ * Calculate the charitable donations and gifts tax credit.
+ * @param {number} totalDonations  Total eligible donations this tax year
+ */
+export function calculateDonationCredit(totalDonations) {
+  const total   = totalDonations || 0;
+  const first   = Math.min(total, DONATION_THRESHOLD);
+  const over    = Math.max(0, total - DONATION_THRESHOLD);
+  const fedCredit = first * 0.15 + over * 0.29;
+  const onCredit  = first * 0.0505 + over * 0.1116;
+  return {
+    totalDonations: total,
+    fedCredit,
+    onCredit,
+    totalCredit: fedCredit + onCredit,
+  };
+}
+
+// ─── CPP/EI PAYROLL CALCULATIONS (2025) ─────────────────────────────────────
+// Employee CPP rate: 5.95%,  max contribution: $3,867.50 (on pensionable earnings ≤ $71,300)
+// Employee EI  rate: 1.66%,  max premium:      $1,049.12 (on insurable earnings ≤ $63,200)
+// Employer CPP: 1:1 match;  Employer EI: 1.4× employee premium
+
+const CPP_RATE_2025         = 0.0595;
+const CPP_MAX_EMPLOYEE_2025 = 3867.50;
+const CPP_EXEMPT_2025       = 3500;     // basic exemption
+const EI_RATE_2025          = 0.0166;
+const EI_MAX_EMPLOYEE_2025  = 1049.12;
+const EI_EMPLOYER_FACTOR    = 1.4;
+
+/**
+ * Calculate CPP and EI deductions for a pay period.
+ * @param {number} grossPay       Gross pay for this period
+ * @param {number} ytdGross       Year-to-date gross pay BEFORE this period
+ * @param {number} ytdCPP         Year-to-date CPP contributions BEFORE this period
+ * @param {number} ytdEI          Year-to-date EI premiums BEFORE this period
+ * @param {number} periodsPerYear Number of pay periods per year (e.g. 26 for bi-weekly)
+ */
+export function calculatePayrollDeductions(grossPay, ytdGross = 0, ytdCPP = 0, ytdEI = 0, periodsPerYear = 26) {
+  // CPP: apply to pensionable earnings above pro-rated exemption
+  const proRatedExempt  = CPP_EXEMPT_2025 / periodsPerYear;
+  const pensionable     = Math.max(0, grossPay - proRatedExempt);
+  const cppOwed         = pensionable * CPP_RATE_2025;
+  const cppRemaining    = Math.max(0, CPP_MAX_EMPLOYEE_2025 - ytdCPP);
+  const cpp             = Math.min(cppOwed, cppRemaining);
+
+  // EI: apply to insurable earnings
+  const eiOwed          = grossPay * EI_RATE_2025;
+  const eiRemaining     = Math.max(0, EI_MAX_EMPLOYEE_2025 - ytdEI);
+  const ei              = Math.min(eiOwed, eiRemaining);
+
+  // Employer contributions
+  const employerCPP     = cpp;             // 1:1 match
+  const employerEI      = ei * EI_EMPLOYER_FACTOR;
+
+  return {
+    grossPay,
+    cpp: Math.round(cpp * 100) / 100,
+    ei:  Math.round(ei  * 100) / 100,
+    employerCPP: Math.round(employerCPP * 100) / 100,
+    employerEI:  Math.round(employerEI  * 100) / 100,
+  };
+}

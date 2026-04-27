@@ -17,6 +17,10 @@ const DEFAULT_PERSONAL = {
   taxWithheld:      0,   // T4 Box 22 — income tax withheld at source
   cppContributions: 0,   // T4 Box 16 — CPP employee contributions
   eiPremiums:       0,   // T4 Box 18 — EI employee premiums
+  // Medical expenses (line 33099) — household tracker
+  medicalExpenses: [],   // [{ id, date, description, patient: 'self'|'spouse'|'dependant', amount }]
+  // Charitable donations (line 34900)
+  donations: [],         // [{ id, date, charity, amount, receiptNo }]
   spouseNetIncome:  null, // null = no spouse; auto-computed from spouse detail fields below
   // Spouse per-year income detail (used to compute spouseNetIncome for line 23600)
   spouseEmploymentIncome: 0,
@@ -25,6 +29,11 @@ const DEFAULT_PERSONAL = {
   spouseTaxWithheld:      0,
   spouseOtherIncome:      0,
   spouseRrspDeduction:    0,
+  // Additional spouse T1 fields (for their own T1 estimate)
+  spouseCPP:            0,
+  spouseEI:             0,
+  spouseDonationsTotal: 0,   // total donations for spouse's return
+  spouseMedicalTotal:   0,   // total medical for spouse's return
 };
 
 export function makeDefaultUserProfile() {
@@ -96,6 +105,56 @@ function reducer(state, action) {
 
     case 'UPDATE_OTHER_INCOME_SOURCES':
       return { ...state, otherIncomeSources: { ...state.otherIncomeSources, ...action.payload } };
+
+    case 'ADD_MEDICAL_EXPENSE': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      const item = { id: Math.random().toString(36).slice(2), ...action.payload.expense };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, medicalExpenses: [...(py.medicalExpenses || []), item] },
+        },
+      };
+    }
+
+    case 'DELETE_MEDICAL_EXPENSE': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, medicalExpenses: (py.medicalExpenses || []).filter(e => e.id !== action.payload.id) },
+        },
+      };
+    }
+
+    case 'ADD_DONATION': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      const item = { id: Math.random().toString(36).slice(2), ...action.payload.donation };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, donations: [...(py.donations || []), item] },
+        },
+      };
+    }
+
+    case 'DELETE_DONATION': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, donations: (py.donations || []).filter(d => d.id !== action.payload.id) },
+        },
+      };
+    }
 
     default:
       return state;

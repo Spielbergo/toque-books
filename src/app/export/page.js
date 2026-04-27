@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useToast } from '@/contexts/ToastContext';
 import {
   exportJSON,
   exportExpensesCSV,
@@ -308,6 +309,7 @@ const EXPORT_GROUPS = [
 export default function ExportPage() {
   const { state } = useApp();
   const { userProfile } = useUserProfile();
+  const { toast } = useToast();
   const [done, setDone] = useState({});
   const [zipLoading, setZipLoading] = useState(false);
   const [corpInfoOpen, setCorpInfoOpen] = useState(false);
@@ -399,7 +401,7 @@ export default function ExportPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('Accountant zip failed', e);
+      toast({ message: 'Failed to generate accountant package', detail: e.message, type: 'error' });
     } finally {
       setZipLoading(false);
     }
@@ -463,11 +465,20 @@ export default function ExportPage() {
 
   function handleExport(item) {
     try {
-      item.fn(state, activeFYKey, userProfile);
-      setDone(prev => ({ ...prev, [item.id]: true }));
-      setTimeout(() => setDone(prev => ({ ...prev, [item.id]: false })), 3000);
+      const result = item.fn(state, activeFYKey, userProfile);
+      if (result instanceof Promise) {
+        result.then(() => {
+          setDone(prev => ({ ...prev, [item.id]: true }));
+          setTimeout(() => setDone(prev => ({ ...prev, [item.id]: false })), 3000);
+        }).catch(e => {
+          toast({ message: 'Export failed', detail: e.message, type: 'error' });
+        });
+      } else {
+        setDone(prev => ({ ...prev, [item.id]: true }));
+        setTimeout(() => setDone(prev => ({ ...prev, [item.id]: false })), 3000);
+      }
     } catch (e) {
-      console.error('Export failed', e);
+      toast({ message: 'Export failed', detail: e.message, type: 'error' });
     }
   }
 

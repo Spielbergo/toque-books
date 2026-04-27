@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -448,6 +448,18 @@ export default function TaxesPage() {
         </div>
       </Section>
 
+      {/* ── Corporate Balance Sheet (S100) ── */}
+      <BalanceSheetSection
+        activeFY={activeFY}
+        invoices={invoices}
+        ccaClasses={ccaClasses}
+        hst={hst}
+        corp={corp}
+        slClosingBalance={slClosingBalance}
+        closingRE={closingRE}
+        dispatch={dispatch}
+      />
+
       {/* ── Personal T1 ── */}
       <Section title="Personal — T1 Estimate" badge={`${activePersonalYear} Tax Year`}>
         <div className={styles.twoCol}>
@@ -682,6 +694,174 @@ export default function TaxesPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+// ─── Balance Sheet Section ───────────────────────────────────────────────────
+function BalanceSheetSection({ activeFY, invoices, ccaClasses, hst, corp, slClosingBalance, closingRE, dispatch }) {
+  const bs      = activeFY.balanceSheet ?? {};
+  const [form, setForm] = useState({
+    manualCash:                bs.manualCash              ?? '',
+    otherCurrentAssets:        bs.otherCurrentAssets       ?? 0,
+    otherLongTermAssets:       bs.otherLongTermAssets      ?? 0,
+    accountsPayable:           bs.accountsPayable          ?? 0,
+    otherCurrentLiabilities:   bs.otherCurrentLiabilities  ?? 0,
+    longTermDebt:              bs.longTermDebt             ?? 0,
+    shareCapital:              bs.shareCapital             ?? 1,
+  });
+  const [saved, setSaved] = useState(false);
+
+  // Re-sync when FY changes
+  useEffect(() => {
+    const b = activeFY.balanceSheet ?? {};
+    setForm({
+      manualCash:              b.manualCash              ?? '',
+      otherCurrentAssets:      b.otherCurrentAssets      ?? 0,
+      otherLongTermAssets:     b.otherLongTermAssets     ?? 0,
+      accountsPayable:         b.accountsPayable         ?? 0,
+      otherCurrentLiabilities: b.otherCurrentLiabilities ?? 0,
+      longTermDebt:            b.longTermDebt            ?? 0,
+      shareCapital:            b.shareCapital            ?? 1,
+    });
+  }, [activeFY]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-computed values
+  const latestStmt = [...(activeFY.bankStatements || [])].sort((a, b) =>
+    (b.periodEnd || '').localeCompare(a.periodEnd || '')).find(s => s.closingBalance != null);
+  const autoCash = latestStmt?.closingBalance ?? 0;
+  const cash     = form.manualCash !== '' ? parseFloat(form.manualCash) || 0 : autoCash;
+
+  const ar = invoices.filter(inv => inv.status === 'sent').reduce((s, inv) => s + (inv.total || 0), 0);
+
+  const equipmentUCC = ccaClasses.reduce((s, c) => {
+    const net = (c.openingUCC || 0) + (c.additions || 0) - (c.disposals || 0) - (c.claimedAmount || 0);
+    return s + Math.max(0, net);
+  }, 0);
+
+  const hstPayable  = Math.max(0, hst.netRemittance);
+  const taxPayable  = Math.max(0, corp.totalTax);
+  const slLiability = Math.max(0, -slClosingBalance); // negative = shareholder owes corp (unlikely); positive = corp owes shareholder
+
+  // Balance sheet totals
+  const totalCurrentAssets  = cash + ar + (parseFloat(form.otherCurrentAssets) || 0);
+  const totalLongTermAssets  = equipmentUCC + (parseFloat(form.otherLongTermAssets) || 0);
+  const totalAssets          = totalCurrentAssets + totalLongTermAssets;
+
+  const totalCurrentLiab     = (parseFloat(form.accountsPayable) || 0) + hstPayable + taxPayable + (parseFloat(form.otherCurrentLiabilities) || 0);
+  const totalLongTermLiab    = (parseFloat(form.longTermDebt) || 0);
+  const shareCapitalAmt      = parseFloat(form.shareCapital) || 1;
+  const totalEquity           = shareCapitalAmt + closingRE + slLiability;
+  const totalLiabEquity       = totalCurrentLiab + totalLongTermLiab + totalEquity;
+  const difference            = Math.abs(totalAssets - totalLiabEquity);
+
+  const save = e => {
+    e.preventDefault();
+    dispatch({ type: 'UPDATE_BALANCE_SHEET', payload: {
+      manualCash:              form.manualCash !== '' ? parseFloat(form.manualCash) || 0 : null,
+      otherCurrentAssets:      parseFloat(form.otherCurrentAssets)      || 0,
+      otherLongTermAssets:     parseFloat(form.otherLongTermAssets)     || 0,
+      accountsPayable:         parseFloat(form.accountsPayable)         || 0,
+      otherCurrentLiabilities: parseFloat(form.otherCurrentLiabilities) || 0,
+      longTermDebt:            parseFloat(form.longTermDebt)            || 0,
+      shareCapital:            parseFloat(form.shareCapital)            || 1,
+    } });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+  const f = v => '$' + Math.abs(v).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <Section title="Corporate Balance Sheet (S100)" badge="Year-end">
+      <p className={styles.bsIntro}>Used for FutureTax Schedule 100. Auto-filled values come from your app data — enter any manual overrides and save.</p>
+      <form onSubmit={save}>
+        <div className={styles.bsGrid}>
+          {/* Assets */}
+          <div className={styles.bsCol}>
+            <div className={styles.bsColTitle}>Assets</div>
+            <div className={styles.bsSection}>Current Assets</div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Cash / Bank <span className={styles.bsAuto}>(auto)</span></span>
+              <span className={styles.bsValue}>{f(autoCash)}</span>
+              <input className={styles.bsOverride} type="number" step="0.01" placeholder="Override…" value={form.manualCash} onChange={e => setForm(p => ({ ...p, manualCash: e.target.value }))} />
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Accounts Receivable <span className={styles.bsAuto}>(auto)</span></span>
+              <span className={styles.bsValue}>{f(ar)}</span>
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Other Current Assets</span>
+              <input className={styles.bsInput} type="number" step="0.01" min="0" value={form.otherCurrentAssets} onChange={e => setForm(p => ({ ...p, otherCurrentAssets: e.target.value }))} />
+            </div>
+            <div className={styles.bsSubtotal}><span>Total Current Assets</span><strong>{f(totalCurrentAssets)}</strong></div>
+
+            <div className={styles.bsSection}>Capital / Long-term</div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Equipment / CCA UCC <span className={styles.bsAuto}>(auto)</span></span>
+              <span className={styles.bsValue}>{f(equipmentUCC)}</span>
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Other Long-term Assets</span>
+              <input className={styles.bsInput} type="number" step="0.01" min="0" value={form.otherLongTermAssets} onChange={e => setForm(p => ({ ...p, otherLongTermAssets: e.target.value }))} />
+            </div>
+            <div className={styles.bsSubtotal}><span>Total Assets</span><strong>{f(totalAssets)}</strong></div>
+          </div>
+
+          {/* Liabilities + Equity */}
+          <div className={styles.bsCol}>
+            <div className={styles.bsColTitle}>Liabilities &amp; Equity</div>
+            <div className={styles.bsSection}>Current Liabilities</div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Accounts Payable</span>
+              <input className={styles.bsInput} type="number" step="0.01" min="0" value={form.accountsPayable} onChange={e => setForm(p => ({ ...p, accountsPayable: e.target.value }))} />
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>HST/GST Payable <span className={styles.bsAuto}>(auto)</span></span>
+              <span className={styles.bsValue}>{f(hstPayable)}</span>
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Income Tax Payable <span className={styles.bsAuto}>(auto)</span></span>
+              <span className={styles.bsValue}>{f(taxPayable)}</span>
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Other Current Liabilities</span>
+              <input className={styles.bsInput} type="number" step="0.01" min="0" value={form.otherCurrentLiabilities} onChange={e => setForm(p => ({ ...p, otherCurrentLiabilities: e.target.value }))} />
+            </div>
+            <div className={styles.bsSubtotal}><span>Total Current Liabilities</span><strong>{f(totalCurrentLiab)}</strong></div>
+
+            <div className={styles.bsSection}>Long-term Liabilities</div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Long-term Debt / Loans</span>
+              <input className={styles.bsInput} type="number" step="0.01" min="0" value={form.longTermDebt} onChange={e => setForm(p => ({ ...p, longTermDebt: e.target.value }))} />
+            </div>
+
+            <div className={styles.bsSection}>Equity</div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Share Capital</span>
+              <input className={styles.bsInput} type="number" step="0.01" min="0" value={form.shareCapital} onChange={e => setForm(p => ({ ...p, shareCapital: e.target.value }))} />
+            </div>
+            <div className={styles.bsRow}>
+              <span className={styles.bsLabel}>Retained Earnings <span className={styles.bsAuto}>(auto)</span></span>
+              <span className={styles.bsValue}>{f(closingRE)}</span>
+            </div>
+            <div className={styles.bsSubtotal}><span>Total Liabilities &amp; Equity</span><strong>{f(totalLiabEquity)}</strong></div>
+          </div>
+        </div>
+
+        {difference > 1 && (
+          <div className={styles.bsImbalance}>
+            ⚠️ Balance sheet is out of balance by {f(difference)}. Review accounts payable, shareholder loan, or other manual entries.
+          </div>
+        )}
+        {difference <= 1 && totalAssets > 0 && (
+          <div className={styles.bsBalanced}>✅ Balance sheet balances — Assets = Liabilities + Equity ({f(totalAssets)})</div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+          <Button type="submit" size="sm">Save Balance Sheet</Button>
+          {saved && <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>✅ Saved!</span>}
+        </div>
+      </form>
+    </Section>
   );
 }
 

@@ -709,8 +709,7 @@ export async function exportT4PDF(state, fyKey, userProfile) {
     || s?.ownerName || 'Employee';
 
   if (!py.employmentIncome || Number(py.employmentIncome) === 0) {
-    alert('No employment income recorded for this year. Enter T4 Box 14 on the Personal Tax page first.');
-    return;
+    throw new Error('No employment income recorded for this year. Enter T4 Box 14 on the Personal Tax page first.');
   }
 
   const blob = await createPdfBlob(T4Document, {
@@ -972,7 +971,8 @@ function _computeGIFIData(state, fyKey) {
   const openingRE     = fy.openingRetainedEarnings ?? 0;
   const totalDivsPaid = (fy.dividendsPaid ?? []).reduce((sum, d) => sum + (d.amount || 0), 0);
   const reClosing     = openingRE + netIncome - totalDivsPaid;
-  const commonShares  = s.commonSharesIssued ?? 1;
+  const bs            = fy.balanceSheet ?? {};
+  const commonShares  = bs.shareCapital != null ? Number(bs.shareCapital) : (s.commonSharesIssued ?? 1);
   const totalEquity   = commonShares + reClosing;
   const sl = fy.shareholderLoan ?? { openingBalance: 0, transactions: [] };
   const slClosing     = (sl.openingBalance || 0) + (sl.transactions || []).reduce(
@@ -986,16 +986,25 @@ function _computeGIFIData(state, fyKey) {
     .filter(i => i.status === 'sent')
     .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
 
+  // Balance sheet manual overrides from BalanceSheetSection
+  const bsOtherCurrentAssets    = Number(bs.otherCurrentAssets    || 0);
+  const bsOtherLongTermAssets   = Number(bs.otherLongTermAssets   || 0);
+  const bsAccountsPayable       = Number(bs.accountsPayable       || 0);
+  const bsOtherCurrentLiab      = Number(bs.otherCurrentLiabilities || 0);
+  const bsLongTermDebt          = Number(bs.longTermDebt          || 0);
+
   // Total assets = liabilities + equity. When equity is a deep deficit and no
   // shareholder loan is recorded, this can go negative — which FutureTax rejects.
   // If that happens, add an implicit "Due to shareholder" loan to keep assets ≥ 0.
-  const knownNonCashAssets    = arOutstanding + equipUCC + slAsset;
-  const rawTotal              = slLiability + totalEquity;
+  const knownNonCashAssets    = arOutstanding + equipUCC + slAsset + bsOtherCurrentAssets + bsOtherLongTermAssets;
+  const rawTotal              = slLiability + bsAccountsPayable + bsOtherCurrentLiab + bsLongTermDebt + totalEquity;
   const totalAssets           = Math.max(knownNonCashAssets, rawTotal);
   const implicitSlLoan        = Math.max(0, totalAssets - rawTotal);
   const effectiveSlLiability  = slLiability + implicitSlLoan;
-  const totalLiabilities      = effectiveSlLiability;
+  const totalLiabilities      = effectiveSlLiability + bsAccountsPayable + bsOtherCurrentLiab + bsLongTermDebt;
   const cashAmount            = Math.max(0, totalAssets - knownNonCashAssets);
+  // If user manually overrode the cash (bank balance), prefer that
+  const finalCash             = bs.manualCash != null ? Number(bs.manualCash) : cashAmount;
 
   const r = n => Math.round(n);
   const s100 = [], s125 = [];
@@ -1010,15 +1019,20 @@ function _computeGIFIData(state, fyKey) {
   const r2599 = r3499 + r3620; // guaranteed to balance, no independent rounding
 
   // Assets (ascending code order, before liabilities section)
-  if (cashAmount > 0)    s100.push([1001, r(cashAmount)]);
+  if (finalCash > 0)     s100.push([1001, r(finalCash)]);
   if (arOutstanding > 0) s100.push([1060, r(arOutstanding)]);
   if (slAsset > 0)       s100.push([1301, r(slAsset)]);
-  s100.push([1599, r(Math.max(0, totalAssets - equipUCC))]); // total current assets
+  if (bsOtherCurrentAssets > 0) s100.push([1480, r(bsOtherCurrentAssets)]);
+  s100.push([1599, r(Math.max(0, totalAssets - equipUCC - bsOtherLongTermAssets))]); // total current assets
   if (equipUCC > 0)      s100.push([2008, r(equipUCC)]);
+  if (bsOtherLongTermAssets > 0) s100.push([2178, r(bsOtherLongTermAssets)]);
   s100.push([2599, r2599]); // Total assets — REQUIRED
 
   // Liabilities
+  if (bsAccountsPayable > 0)    s100.push([2600, r(bsAccountsPayable)]);
+  if (bsOtherCurrentLiab > 0)   s100.push([2680, r(bsOtherCurrentLiab)]);
   if (effectiveSlLiability > 0) s100.push([2781, r(effectiveSlLiability)]);
+  if (bsLongTermDebt > 0)       s100.push([2960, r(bsLongTermDebt)]);
   s100.push([3499, r3499]); // Total liabilities — REQUIRED
 
   // Equity

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import Button from '@/components/ui/Button';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
@@ -128,6 +129,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { dispatch, state } = useApp();
   const { user } = useAuth();
+  const { toast } = useToast();
   const logoInputRef      = useRef(null);
   const badgeLogoInputRef = useRef(null);
 
@@ -330,7 +332,7 @@ export default function OnboardingPage() {
   const handleLogoUpload = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 600 * 1024) { alert('Logo too large — max 600 KB.'); return; }
+    if (file.size > 600 * 1024) { toast({ message: 'Logo too large — max 600 KB.', type: 'error' }); return; }
     const reader = new FileReader();
     reader.onload = ev => {
       const data = ev.target.result;
@@ -348,7 +350,7 @@ export default function OnboardingPage() {
   const handleBadgeLogoUpload = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 300 * 1024) { alert('Badge logo too large — max 300 KB.'); return; }
+    if (file.size > 300 * 1024) { toast({ message: 'Badge logo too large — max 300 KB.', type: 'error' }); return; }
     const reader = new FileReader();
     reader.onload = ev => set('badgeLogo', ev.target.result);
     reader.readAsDataURL(file);

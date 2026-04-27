@@ -62,6 +62,16 @@ const DEFAULT_PERSONAL = {
   rrspRoom: 0,
 };
 
+const DEFAULT_BALANCE_SHEET = {
+  manualCash: null,           // null = auto-fill from latest bank statement; number = override
+  otherCurrentAssets: 0,      // prepaid expenses, deposits, etc.
+  otherLongTermAssets: 0,     // long-term investments, deposits
+  accountsPayable: 0,
+  otherCurrentLiabilities: 0, // accrued liabilities, deferred revenue, etc.
+  longTermDebt: 0,
+  shareCapital: 1,            // usually $1 for most CCPCs
+};
+
 function makeInitialState() {
   return {
     settings: { ...DEFAULT_SETTINGS },
@@ -82,9 +92,12 @@ function makeInitialState() {
         ccaClasses: [],
         hstRemittances: [],   // [{ id, period, amtCollected, itc, netRemittance, remittedDate, confirmationNo, notes }]
         mileageLogs: [],      // [{ id, date, startOdo, endOdo, km, purpose, client, notes }]
+        balanceSheet: { ...DEFAULT_BALANCE_SHEET },
+        payrollRuns: [],      // [{ id, employeeId, periodStart, periodEnd, grossPay, cpp, ei, incomeTax, netPay }]
       },
     },
     clients: [],
+    employees: [],             // [{ id, name, sin, address, city, province, postalCode, birthDate, startDate }]
     onboardingCompleted: false,
     businessType: 'ccpc', // 'ccpc' | 'sole_prop' | 'partnership' | 'pc' | 'other'
     businessOps: {
@@ -177,6 +190,8 @@ function reducer(state, action) {
             ccaClasses: carriedCCA,
             hstRemittances: [],
             mileageLogs: [],
+            balanceSheet: { ...DEFAULT_BALANCE_SHEET },
+            payrollRuns: [],
           },
         },
         activeFiscalYear: key,
@@ -492,6 +507,59 @@ function reducer(state, action) {
       return updateFY(state, fy, { shareholderLoan: { ...sl, openingBalance: action.payload } });
     }
 
+    // Balance sheet
+    case 'UPDATE_BALANCE_SHEET': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      const bs = state.fiscalYears[fy].balanceSheet ?? { ...DEFAULT_BALANCE_SHEET };
+      return updateFY(state, fy, { balanceSheet: { ...bs, ...action.payload } });
+    }
+
+    // Employees (top-level — not per FY)
+    case 'ADD_EMPLOYEE': {
+      const emp = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, employees: [...(state.employees || []), emp] };
+    }
+    case 'UPDATE_EMPLOYEE': {
+      return {
+        ...state,
+        employees: (state.employees || []).map(e =>
+          e.id === action.payload.id ? { ...e, ...action.payload } : e
+        ),
+      };
+    }
+    case 'DELETE_EMPLOYEE': {
+      return { ...state, employees: (state.employees || []).filter(e => e.id !== action.payload) };
+    }
+
+    // Payroll runs (per FY)
+    case 'ADD_PAYROLL_RUN': {
+      const fy = resolveMutableFY(state);
+      if (!fy) return state;
+      const run = { id: uuidv4(), ...action.payload };
+      return updateFY(state, fy, { payrollRuns: [...(state.fiscalYears[fy].payrollRuns || []), run] });
+    }
+    case 'UPDATE_PAYROLL_RUN': {
+      const fy = Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.payrollRuns || []).some(r => r.id === action.payload.id)
+      )?.[0] || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, {
+        payrollRuns: (state.fiscalYears[fy].payrollRuns || []).map(r =>
+          r.id === action.payload.id ? { ...r, ...action.payload } : r
+        ),
+      });
+    }
+    case 'DELETE_PAYROLL_RUN': {
+      const fy = Object.entries(state.fiscalYears || {}).find(([, d]) =>
+        (d.payrollRuns || []).some(r => r.id === action.payload)
+      )?.[0] || resolveMutableFY(state);
+      if (!fy) return state;
+      return updateFY(state, fy, {
+        payrollRuns: (state.fiscalYears[fy].payrollRuns || []).filter(r => r.id !== action.payload),
+      });
+    }
+
     // CCA asset classes
     case 'ADD_CCA_CLASS': {
       const fy = resolveMutableFY(state);
@@ -597,7 +665,8 @@ export function AppProvider({ children }) {
 
   const wrappedDispatch = useCallback((action) => {
     const userActions = ['UPDATE_PERSONAL_PROFILE', 'SET_DEPENDANTS', 'UPDATE_PERSONAL',
-      'SET_ACTIVE_PERSONAL_YEAR', 'UPDATE_OTHER_INCOME_SOURCES'];
+      'SET_ACTIVE_PERSONAL_YEAR', 'UPDATE_OTHER_INCOME_SOURCES',
+      'ADD_MEDICAL_EXPENSE', 'DELETE_MEDICAL_EXPENSE', 'ADD_DONATION', 'DELETE_DONATION'];
     if (userActions.includes(action.type)) {
       userDispatch(action);
       return;
