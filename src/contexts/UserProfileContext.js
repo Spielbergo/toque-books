@@ -17,13 +17,23 @@ const DEFAULT_PERSONAL = {
   taxWithheld:      0,   // T4 Box 22 — income tax withheld at source
   cppContributions: 0,   // T4 Box 16 — CPP employee contributions
   eiPremiums:       0,   // T4 Box 18 — EI employee premiums
-  spouseNetIncome:  null, // null = no spouse; number = spouse/partner net income
+  spouseNetIncome:  null, // null = no spouse; auto-computed from spouse detail fields below
+  // Spouse per-year income detail (used to compute spouseNetIncome for line 23600)
+  spouseEmploymentIncome: 0,
+  spouseEligibleDivs:     0,
+  spouseNonEligibleDivs:  0,
+  spouseTaxWithheld:      0,
+  spouseOtherIncome:      0,
+  spouseRrspDeduction:    0,
 };
 
 export function makeDefaultUserProfile() {
   const year = new Date().getFullYear();
   return {
     personalProfile: {
+      ownerLegalName: '',
+      ownerDOB: '',
+      ownerSIN: '',
       maritalStatus: '',
       spouseName: '',
       spouseIncomeType: '',

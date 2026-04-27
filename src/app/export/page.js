@@ -27,8 +27,15 @@ import {
   exportFutureTaxCorpInfo,
   exportFutureTaxS141CSV,
   exportFutureTaxT1Info,
+  resolveFYData,
 } from '@/lib/exportHelpers';
-import { calculatePersonalTax } from '@/lib/taxCalculations';
+import {
+  calculatePersonalTax,
+  calculateCorporateTax,
+  calculateHSTSummary,
+  calculateHomeOfficeDeduction,
+  getDeductibleAmount,
+} from '@/lib/taxCalculations';
 import Modal from '@/components/ui/Modal';
 import styles from './page.module.css';
 
@@ -304,7 +311,9 @@ export default function ExportPage() {
   const [done, setDone] = useState({});
   const [zipLoading, setZipLoading] = useState(false);
   const [corpInfoOpen, setCorpInfoOpen] = useState(false);
+  const [corpInfoTab, setCorpInfoTab] = useState(0);
   const [t1InfoOpen, setT1InfoOpen] = useState(false);
+  const [t1ModalTab, setT1ModalTab] = useState(0);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [checklistTab, setChecklistTab] = useState('t2');
   const [copied, setCopied] = useState({});
@@ -402,7 +411,7 @@ export default function ExportPage() {
 
   const fyLabel = state.fiscalYears?.[activeFYKey]?.label ?? activeFYKey ?? '—';
 
-  const t1Year = parseInt((activeFYKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+  const t1Year = userProfile?.activePersonalYear || new Date().getFullYear();
   const t1Py = userProfile?.personalYears?.[t1Year] ?? {};
   const t1Personal = calculatePersonalTax({
     nonEligibleDivs:  t1Py.nonEligibleDivs  ?? 0,
@@ -415,7 +424,42 @@ export default function ExportPage() {
     eiPremiums:       t1Py.eiPremiums       ?? 0,
     spouseNetIncome:  t1Py.spouseNetIncome  ?? null,
   });
+  const t2Fmt = v => (Math.round((v ?? 0) * 100) / 100).toFixed(2);
   const t1Fmt = v => (Math.round((v ?? 0) * 100) / 100).toFixed(2);
+
+  // ── T2 computed data ──
+  const t2FYData = activeFYKey ? resolveFYData(state, activeFYKey) : null;
+  const t2FY = t2FYData?.fy ?? {};
+  const t2Invoices = t2FYData?.invoices ?? [];
+  const t2Expenses = t2FYData?.expenses ?? [];
+  const t2GrossRevenue = t2Invoices
+    .filter(i => i.status === 'paid' || i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+  const t2TotalDeductible = t2Expenses.reduce((sum, e) =>
+    sum + getDeductibleAmount(e.amount, e.category, e.businessUsePercent ?? 100), 0);
+  const t2HO = calculateHomeOfficeDeduction(t2FY.homeOffice ?? {});
+  const t2CCA = (t2FY.ccaClasses ?? []).reduce((s, c) => s + (c.claimedAmount || 0), 0);
+  const t2TotalDeductions = t2TotalDeductible + (t2HO?.deductible ?? 0) + t2CCA;
+  const t2Corp = calculateCorporateTax(t2GrossRevenue, t2TotalDeductions);
+  const t2DivsPaid = (t2FY.dividendsPaid ?? []).reduce((s, d) => s + (d.amount || 0), 0);
+  const t2OpeningRE = t2FY.openingRetainedEarnings ?? 0;
+  const t2ClosingRE = t2OpeningRE + t2Corp.afterTaxIncome - t2DivsPaid;
+  const t2HST = t2FYData ? calculateHSTSummary(t2Invoices, t2Expenses) : { hstCollected: 0, itcTotal: 0, netRemittance: 0 };
+  const t2S = state.settings ?? {};
+
+  const t1HasSpouse = userProfile?.personalProfile?.maritalStatus === 'married' ||
+                      userProfile?.personalProfile?.maritalStatus === 'common_law';
+  const t1SpouseName = userProfile?.personalProfile?.spouseName || 'Spouse';
+  const t1Deps = userProfile?.dependants ?? [];
+  const t1SpouseCalc = t1HasSpouse ? calculatePersonalTax({
+    nonEligibleDivs:  t1Py.spouseNonEligibleDivs  ?? 0,
+    eligibleDivs:     t1Py.spouseEligibleDivs      ?? 0,
+    employmentIncome: t1Py.spouseEmploymentIncome  ?? 0,
+    otherIncome:      t1Py.spouseOtherIncome        ?? 0,
+    rrspDeduction:    t1Py.spouseRrspDeduction      ?? 0,
+    taxWithheld:      t1Py.spouseTaxWithheld        ?? 0,
+    spouseNetIncome:  t1Personal.netIncome,
+  }) : null;
 
   function handleExport(item) {
     try {
@@ -460,43 +504,175 @@ export default function ExportPage() {
             </svg>
             T1 Personal Info
           </button>
-          <button className={styles.corpInfoBtn} onClick={() => setCorpInfoOpen(true)}>
+          <button className={styles.corpInfoBtn} onClick={() => { setCorpInfoTab(0); setCorpInfoOpen(true); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
               <line x1="9" y1="9" x2="15" y2="9"/>
               <line x1="9" y1="13" x2="15" y2="13"/>
               <line x1="9" y1="17" x2="13" y2="17"/>
             </svg>
-            Corporation Info
+            T2 Corporate Info
           </button>
         </div>
       </div>
 
-      {/* ── Corp Info Modal ── */}
-      <Modal isOpen={corpInfoOpen} onClose={() => setCorpInfoOpen(false)} title="Corporation Information" size="md">
-        <p className={styles.corpInfoNote}>Click any field to copy it to the clipboard for quick manual entry into FutureTax or other tax software.</p>
-        <div className={styles.corpInfoGrid}>
-          {[
-            { label: 'Corporation Name',       key: 'companyName',       value: state.settings?.companyName },
-            { label: 'Legal Name',             key: 'legalName',         value: state.settings?.legalName },
-            { label: 'Business Number (BN)',   key: 'businessNumber',    value: state.settings?.businessNumber },
-            { label: 'HST / GST Number',       key: 'hstNumber',         value: state.settings?.hstNumber },
-            { label: 'Province',               key: 'province',          value: state.settings?.province },
-            { label: 'Address',                key: 'address',           value: state.settings?.address },
-            { label: 'City',                   key: 'city',              value: state.settings?.city },
-            { label: 'Postal Code',            key: 'postalCode',        value: state.settings?.postalCode },
-            { label: 'Phone',                  key: 'phone',             value: state.settings?.phone },
-            { label: 'Email',                  key: 'email',             value: state.settings?.email },
-            { label: 'Website',                key: 'website',           value: state.settings?.website },
-            { label: 'Incorporation Year',     key: 'incorporationYear', value: state.settings?.incorporationYear },
-            { label: 'Fiscal Year Start',      key: 'fyStart',           value: state.fiscalYears?.[activeFYKey]?.startDate },
-            { label: 'Fiscal Year End',        key: 'fyEnd',             value: state.fiscalYears?.[activeFYKey]?.endDate },
-          ].map(({ label, key, value }) => (
-            <div key={key} className={styles.corpInfoRow}>
-              <span className={styles.corpInfoLabel}>{label}</span>
-              <div className={styles.corpInfoValueWrap}>
-                <span className={styles.corpInfoValue}>{value || <em className={styles.corpInfoEmpty}>not set</em>}</span>
-                {value ? (
+      {/* ── T2 Corporate Info Modal ── */}
+      <Modal isOpen={corpInfoOpen} onClose={() => setCorpInfoOpen(false)} title={`T2 Corporate Info — ${fyLabel}`} size="md">
+        <div className={styles.checklistTabs}>
+          <button className={`${styles.checklistTab} ${corpInfoTab === 0 ? styles.checklistTabActive : ''}`} onClick={() => setCorpInfoTab(0)}>Identification</button>
+          <button className={`${styles.checklistTab} ${corpInfoTab === 1 ? styles.checklistTabActive : ''}`} onClick={() => setCorpInfoTab(1)}>T2 Income &amp; Tax</button>
+          <button className={`${styles.checklistTab} ${corpInfoTab === 2 ? styles.checklistTabActive : ''}`} onClick={() => setCorpInfoTab(2)}>HST / GST</button>
+        </div>
+
+        {/* ── Identification ── */}
+        {corpInfoTab === 0 && (<>
+          <p className={styles.corpInfoNote}>Corporation identification for T2 Page 1. Click any field to copy.</p>
+          <div className={styles.corpInfoGrid}>
+            {[
+              { label: 'Business Number (BN 9-digit)',  key: 'c_bn',   value: t2S.businessNumber },
+              { label: 'Corporation Name',              key: 'c_name', value: t2S.companyName },
+              { label: 'Legal Name (if different)',     key: 'c_legal',value: t2S.legalName },
+              { label: 'Province / Territory',          key: 'c_prov', value: t2S.province },
+              { label: 'Address',                       key: 'c_addr', value: t2S.address },
+              { label: 'City',                          key: 'c_city', value: t2S.city },
+              { label: 'Postal Code',                   key: 'c_pc',   value: t2S.postalCode },
+              { label: 'Phone',                         key: 'c_ph',   value: t2S.phone },
+              { label: 'Email',                         key: 'c_em',   value: t2S.email },
+              { label: 'HST / GST Number (RT account)', key: 'c_hst',  value: t2S.hstNumber },
+              { label: 'Incorporation Year',            key: 'c_inc',  value: t2S.incorporationYear },
+              { label: 'Fiscal Year Start (line 060)',  key: 'c_fys',  value: t2FY.startDate },
+              { label: 'Fiscal Year End (line 061)',    key: 'c_fye',  value: t2FY.endDate },
+            ].map(({ label, key, value }) => (
+              <div key={key} className={styles.corpInfoRow}>
+                <span className={styles.corpInfoLabel}>{label}</span>
+                <div className={styles.corpInfoValueWrap}>
+                  <span className={styles.corpInfoValue}>{value || <em className={styles.corpInfoEmpty}>not set</em>}</span>
+                  {value ? (
+                    <button className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`} onClick={() => copyField(key, String(value))} title={`Copy ${label}`}>
+                      {copied[key] ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                      {copied[key] ? 'Copied' : 'Copy'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className={styles.t1DownloadLink} onClick={() => exportFutureTaxCorpInfo(state, activeFYKey)}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Identification as TXT
+          </button>
+        </>)}
+
+        {/* ── T2 Income & Tax ── */}
+        {corpInfoTab === 1 && (<>
+          <p className={styles.corpInfoNote}>Key T2 lines for FutureTax, TaxPrep, Cantax, UFile T2, Profile, etc. Click any value to copy.</p>
+          <div className={styles.corpInfoGrid}>
+            {[
+              { label: 'Gross Revenue (line 8000 — S125)',             key: 't2_8000',  value: t2Fmt(t2GrossRevenue) },
+              { label: 'Total Expenses (line 9270 — S125)',            key: 't2_9270',  value: t2Fmt(t2TotalDeductible) },
+              { label: 'Home Office Deduction (S125)',                  key: 't2_ho',    value: t2Fmt(t2HO?.deductible ?? 0) },
+              { label: 'CCA Deduction — Sched. 8 (line 9936)',         key: 't2_cca',   value: t2Fmt(t2CCA) },
+              { label: 'Net Income Before Tax (line 300)',             key: 't2_300',   value: t2Fmt(t2Corp.netIncome) },
+              { label: 'SBD Income (≤ $500K — line 400)',              key: 't2_400',   value: t2Fmt(t2Corp.sbdIncome) },
+              { label: 'Federal Tax — SBD rate 9% (line 700)',         key: 't2_700fed',value: t2Fmt(t2Corp.fedTaxSBD) },
+              { label: 'Federal Tax — General rate (line 700)',        key: 't2_700gen',value: t2Fmt(t2Corp.fedTaxGeneral) },
+              { label: 'Ontario Tax — SBD rate 3.2% (T2 ON428)',       key: 't2_on_s',  value: t2Fmt(t2Corp.onTaxSBD) },
+              { label: 'Ontario Tax — General rate (T2 ON428)',        key: 't2_on_g',  value: t2Fmt(t2Corp.onTaxGeneral) },
+              { label: 'Total Corporate Tax (line 770)',               key: 't2_770',   value: t2Fmt(t2Corp.totalTax) },
+              { label: 'After-Tax Income',                             key: 't2_ati',   value: t2Fmt(t2Corp.afterTaxIncome) },
+              { label: 'Dividends Paid (S3)',                          key: 't2_divs',  value: t2Fmt(t2DivsPaid) },
+              { label: 'Opening Retained Earnings (S3 — line 3600)',   key: 't2_re_o',  value: t2Fmt(t2OpeningRE) },
+              { label: 'Closing Retained Earnings (S3 — line 3849)',   key: 't2_re_c',  value: t2Fmt(t2ClosingRE) },
+            ].map(({ label, key, value, note }) => (
+              <div key={key} className={styles.corpInfoRow}>
+                <span className={styles.corpInfoLabel}>{label}{note && <em className={styles.t1FieldNote}> ({note})</em>}</span>
+                <div className={styles.corpInfoValueWrap}>
+                  <span className={styles.corpInfoValue}>${value}</span>
+                  <button className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`} onClick={() => copyField(key, value)} title={`Copy ${label}`}>
+                    {copied[key] ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                    {copied[key] ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
+            Rates: federal SBD 9% + Ontario SBD 3.2% = 12.2% on first $500K. General rate 26.5%. Ontario CCPC assumed. Verify with your accountant.
+          </p>
+        </>)}
+
+        {/* ── HST / GST ── */}
+        {corpInfoTab === 2 && (<>
+          <p className={styles.corpInfoNote}>GST34 return lines for CRA filing or manual entry. Click any value to copy.</p>
+          <div className={styles.corpInfoGrid}>
+            {[
+              { label: 'HST Number (RT account)',                  key: 'h_num',  value: t2S.hstNumber },
+              { label: 'Reporting Period Start',                   key: 'h_ps',   value: t2FY.startDate },
+              { label: 'Reporting Period End',                     key: 'h_pe',   value: t2FY.endDate },
+              { label: 'Line 103 — HST/GST Collected',            key: 'h_103',  value: t2Fmt(t2HST.hstCollected) },
+              { label: 'Line 106 — Input Tax Credits (ITC)',      key: 'h_106',  value: t2Fmt(t2HST.itcTotal) },
+              { label: 'Line 109 — Net Tax Owing (103 − 106)',    key: 'h_109',  value: t2Fmt(t2HST.netRemittance) },
+              { label: 'Total Revenue for HST Period',            key: 'h_rev',  value: t2Fmt(t2GrossRevenue) },
+            ].map(({ label, key, value }) => (
+              <div key={key} className={styles.corpInfoRow}>
+                <span className={styles.corpInfoLabel}>{label}</span>
+                <div className={styles.corpInfoValueWrap}>
+                  <span className={styles.corpInfoValue}>{key === 'h_num' || key === 'h_ps' || key === 'h_pe' ? (value || <em className={styles.corpInfoEmpty}>not set</em>) : `$${value}`}</span>
+                  {value ? (
+                    <button className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`} onClick={() => copyField(key, String(value))} title={`Copy ${label}`}>
+                      {copied[key] ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                      {copied[key] ? 'Copied' : 'Copy'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className={styles.t1DownloadLink} onClick={() => exportGST34CSV(state, activeFYKey)}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download GST34 as CSV
+          </button>
+        </>)}
+      </Modal>
+
+      {/* ── T1 Personal Info Modal ── */}
+      <Modal isOpen={t1InfoOpen} onClose={() => { setT1InfoOpen(false); setT1ModalTab(0); }} title={`T1 Personal Info — ${t1Year}`} size="md">
+        {/* Modal tabs */}
+        <div className={styles.checklistTabs}>
+          <button className={`${styles.checklistTab} ${t1ModalTab === 0 ? styles.checklistTabActive : ''}`} onClick={() => setT1ModalTab(0)}>My Return</button>
+          {t1HasSpouse && <button className={`${styles.checklistTab} ${t1ModalTab === 1 ? styles.checklistTabActive : ''}`} onClick={() => setT1ModalTab(1)}>{t1SpouseName}&apos;s Return</button>}
+          {t1Deps.length > 0 && <button className={`${styles.checklistTab} ${t1ModalTab === 2 ? styles.checklistTabActive : ''}`} onClick={() => setT1ModalTab(2)}>Dependants</button>}
+        </div>
+
+        {/* ── My Return ── */}
+        {t1ModalTab === 0 && (<>
+          <p className={styles.corpInfoNote}>Key T1 line numbers for manual entry into FutureTax Personal or any T1 software. Click any field to copy.</p>
+          <div className={styles.corpInfoGrid}>
+            {[
+              { label: 'Line 10100 — Employment Income',      key: 't1_10100', value: t1Fmt(t1Py.employmentIncome) },
+              { label: 'Line 12000 — Taxable NE Dividends',  key: 't1_12000', value: t1Fmt(t1Personal.neGrossedUp),  note: `actual $${t1Fmt(t1Py.nonEligibleDivs ?? 0)} × 1.15` },
+              { label: 'Line 12010 — Taxable Eligible Divs', key: 't1_12010', value: t1Fmt(t1Personal.elGrossedUp),  note: `actual $${t1Fmt(t1Py.eligibleDivs ?? 0)} × 1.38` },
+              { label: 'Line 13000 — Other Income',          key: 't1_13000', value: t1Fmt(t1Py.otherIncome) },
+              { label: 'Line 15000 — Total Income',          key: 't1_15000', value: t1Fmt(t1Personal.totalIncome) },
+              { label: 'Line 20800 — RRSP Deduction',        key: 't1_20800', value: t1Fmt(t1Py.rrspDeduction) },
+              { label: 'Line 23600 — Net Income',            key: 't1_23600', value: t1Fmt(t1Personal.netIncome) },
+              { label: 'T4 Box 22 — Tax Withheld',           key: 't1_box22', value: t1Fmt(t1Py.taxWithheld) },
+              { label: 'T4 Box 16 — CPP Contributions',      key: 't1_box16', value: t1Fmt(t1Py.cppContributions) },
+              { label: 'T4 Box 18 — EI Premiums',            key: 't1_box18', value: t1Fmt(t1Py.eiPremiums) },
+              { label: 'Line 43500 — Total Tax Payable',     key: 't1_43500', value: t1Fmt(t1Personal.totalTax) },
+              {
+                label: t1Personal.balanceOwing >= 0 ? 'Line 48500 — Balance Owing' : 'Line 48400 — Refund',
+                key: 't1_balance',
+                value: t1Fmt(Math.abs(t1Personal.balanceOwing)),
+              },
+            ].map(({ label, key, value, note }) => (
+              <div key={key} className={styles.corpInfoRow}>
+                <span className={styles.corpInfoLabel}>
+                  {label}
+                  {note && <em className={styles.t1FieldNote}> ({note})</em>}
+                </span>
+                <div className={styles.corpInfoValueWrap}>
+                  <span className={styles.corpInfoValue}>${value}</span>
                   <button
                     className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`}
                     onClick={() => copyField(key, value)}
@@ -514,71 +690,98 @@ export default function ExportPage() {
                     )}
                     {copied[key] ? 'Copied' : 'Copy'}
                   </button>
-                ) : null}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Modal>
+            ))}
+          </div>
+          <button className={styles.t1DownloadLink} onClick={() => exportFutureTaxT1Info(userProfile, activeFYKey)}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download as TXT
+          </button>
+        </>)}
 
-      {/* ── T1 Personal Info Modal ── */}
-      <Modal isOpen={t1InfoOpen} onClose={() => setT1InfoOpen(false)} title={`T1 Personal Info — ${t1Year}`} size="md">
-        <p className={styles.corpInfoNote}>Key T1 line numbers for manual entry into FutureTax Personal or any T1 software. Click any field to copy.</p>
-        <div className={styles.corpInfoGrid}>
-          {[
-            { label: 'Line 10100 — Employment Income',      key: 't1_10100', value: t1Fmt(t1Py.employmentIncome) },
-            { label: 'Line 12000 — Taxable NE Dividends',  key: 't1_12000', value: t1Fmt(t1Personal.neGrossedUp),  note: `actual $${t1Fmt(t1Py.nonEligibleDivs ?? 0)} × 1.15` },
-            { label: 'Line 12010 — Taxable Eligible Divs', key: 't1_12010', value: t1Fmt(t1Personal.elGrossedUp),  note: `actual $${t1Fmt(t1Py.eligibleDivs ?? 0)} × 1.38` },
-            { label: 'Line 13000 — Other Income',          key: 't1_13000', value: t1Fmt(t1Py.otherIncome) },
-            { label: 'Line 15000 — Total Income',          key: 't1_15000', value: t1Fmt(t1Personal.totalIncome) },
-            { label: 'Line 20800 — RRSP Deduction',        key: 't1_20800', value: t1Fmt(t1Py.rrspDeduction) },
-            { label: 'Line 23600 — Net Income',            key: 't1_23600', value: t1Fmt(t1Personal.netIncome) },
-            { label: 'T4 Box 22 — Tax Withheld',           key: 't1_box22', value: t1Fmt(t1Py.taxWithheld) },
-            { label: 'T4 Box 16 — CPP Contributions',      key: 't1_box16', value: t1Fmt(t1Py.cppContributions) },
-            { label: 'T4 Box 18 — EI Premiums',            key: 't1_box18', value: t1Fmt(t1Py.eiPremiums) },
-            { label: 'Line 43500 — Total Tax Payable',     key: 't1_43500', value: t1Fmt(t1Personal.totalTax) },
-            {
-              label: t1Personal.balanceOwing >= 0 ? 'Line 48500 — Balance Owing' : 'Line 48400 — Refund',
-              key: 't1_balance',
-              value: t1Fmt(Math.abs(t1Personal.balanceOwing)),
-            },
-          ].map(({ label, key, value, note }) => (
-            <div key={key} className={styles.corpInfoRow}>
-              <span className={styles.corpInfoLabel}>
-                {label}
-                {note && <em className={styles.t1FieldNote}> ({note})</em>}
-              </span>
-              <div className={styles.corpInfoValueWrap}>
-                <span className={styles.corpInfoValue}>${value}</span>
-                <button
-                  className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`}
-                  onClick={() => copyField(key, value)}
-                  title={`Copy ${label}`}
-                >
-                  {copied[key] ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                  )}
-                  {copied[key] ? 'Copied' : 'Copy'}
-                </button>
+        {/* ── Spouse Return ── */}
+        {t1ModalTab === 1 && t1HasSpouse && t1SpouseCalc && (<>
+          <p className={styles.corpInfoNote}>Estimated T1 lines for {t1SpouseName}&apos;s return. Enter their income in the &ldquo;{t1SpouseName}&apos;s Income&rdquo; tab on the Personal page.</p>
+          <div className={styles.corpInfoGrid}>
+            {[
+              { label: 'Line 10100 — Employment Income',      key: 'sp_10100', value: t1Fmt(t1Py.spouseEmploymentIncome) },
+              { label: 'Line 12000 — Taxable NE Dividends',  key: 'sp_12000', value: t1Fmt(t1SpouseCalc.neGrossedUp),   note: `actual $${t1Fmt(t1Py.spouseNonEligibleDivs ?? 0)} × 1.15` },
+              { label: 'Line 12010 — Taxable Eligible Divs', key: 'sp_12010', value: t1Fmt(t1SpouseCalc.elGrossedUp),   note: `actual $${t1Fmt(t1Py.spouseEligibleDivs ?? 0)} × 1.38` },
+              { label: 'Line 13000 — Other Income',          key: 'sp_13000', value: t1Fmt(t1Py.spouseOtherIncome) },
+              { label: 'Line 15000 — Total Income',          key: 'sp_15000', value: t1Fmt(t1SpouseCalc.totalIncome) },
+              { label: 'Line 20800 — RRSP Deduction',        key: 'sp_20800', value: t1Fmt(t1Py.spouseRrspDeduction) },
+              { label: 'Line 23600 — Net Income',            key: 'sp_23600', value: t1Fmt(t1SpouseCalc.netIncome) },
+              { label: 'T4 Box 22 — Tax Withheld',           key: 'sp_box22', value: t1Fmt(t1Py.spouseTaxWithheld) },
+              { label: 'Line 43500 — Total Tax Payable',     key: 'sp_43500', value: t1Fmt(t1SpouseCalc.totalTax) },
+              {
+                label: t1SpouseCalc.balanceOwing >= 0 ? 'Line 48500 — Balance Owing' : 'Line 48400 — Refund',
+                key: 'sp_balance',
+                value: t1Fmt(Math.abs(t1SpouseCalc.balanceOwing)),
+              },
+            ].map(({ label, key, value, note }) => (
+              <div key={key} className={styles.corpInfoRow}>
+                <span className={styles.corpInfoLabel}>
+                  {label}
+                  {note && <em className={styles.t1FieldNote}> ({note})</em>}
+                </span>
+                <div className={styles.corpInfoValueWrap}>
+                  <span className={styles.corpInfoValue}>${value}</span>
+                  <button
+                    className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`}
+                    onClick={() => copyField(key, value)}
+                    title={`Copy ${label}`}
+                  >
+                    {copied[key] ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                    )}
+                    {copied[key] ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <button className={styles.t1DownloadLink} onClick={() => exportFutureTaxT1Info(userProfile, activeFYKey)}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Download as TXT
-        </button>
+            ))}
+          </div>
+          <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
+            Note: {t1SpouseName}&apos;s CPP/EI and other credits are not tracked here. Enter them directly in their T1 software. Spousal amount credit on your return (line 30300) is based on their net income.
+          </p>
+        </>)}
+
+        {/* ── Dependants ── */}
+        {t1ModalTab === 2 && t1Deps.length > 0 && (<>
+          <p className={styles.corpInfoNote}>Dependants on file. DTC-eligible dependants may allow you to claim line 31800 (disability amount transferred).</p>
+          <div className={styles.corpInfoGrid}>
+            {t1Deps.map((dep, i) => {
+              const depAge = dep.birthYear ? new Date().getFullYear() - parseInt(dep.birthYear) : null;
+              const REL = { child: 'Child', parent: 'Parent', grandparent: 'Grandparent', sibling: 'Sibling', other: 'Dependant' };
+              return (
+                <div key={dep.id ?? i} className={styles.corpInfoRow} style={{ alignItems: 'flex-start', flexDirection: 'column', gap: '0.25rem' }}>
+                  <span className={styles.corpInfoLabel} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {dep.name || REL[dep.relationship] || 'Dependant'}
+                  </span>
+                  <span className={styles.corpInfoLabel}>
+                    {REL[dep.relationship] || 'Dependant'}
+                    {depAge !== null ? ` · age ${depAge}` : dep.birthYear ? ` · b. ${dep.birthYear}` : ''}
+                    {dep.disability ? ' · DTC eligible — claim line 31800' : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
+            Dependant credits (caregiver, Canada Caregiver) for lines 30400, 30425, 30450 are not estimated here. Enter them manually in your T1 software.
+          </p>
+        </>)}
       </Modal>
 
       {/* ── Filing Checklist Modal ── */}

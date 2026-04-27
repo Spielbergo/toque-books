@@ -563,31 +563,45 @@ export default function ExpensesPage() {
 
               <div className={styles.hoSection}>
                 <h4 className={styles.hoSectionTitle}>Monthly Home Expenses</h4>
-                <div className={styles.hoFields}>
-                  <FormField label="Rent (if renting)">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.rent || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, rent: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Mortgage Interest (if owning)" hint="Interest portion only, not principal">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.mortgageInterest || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, mortgageInterest: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Utilities (hydro, water, etc.)">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.utilities || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, utilities: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Heat">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.heat || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, heat: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Internet">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.internet || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, internet: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Property Tax (owners)" hint="Prorated monthly amount">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.propertyTax || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, propertyTax: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Maintenance & Repairs">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.maintenance || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, maintenance: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
-                  <FormField label="Condo Fees">
-                    <Input type="number" min="0" step="0.01" prefix="$" value={hoForm.monthlyExpenses?.condoFees || ''} onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, condoFees: parseFloat(e.target.value) || 0 } }))} placeholder="0.00" />
-                  </FormField>
+                <div className={styles.hoExpenseTable}>
+                  <div className={styles.hoExpenseHeader}>
+                    <span>Expense</span>
+                    <span>Monthly Amount</span>
+                    <span>HST Paid</span>
+                  </div>
+                  {[
+                    { key: 'rent',            label: 'Rent',                        hint: 'Residential rent is HST-exempt',                          hasHst: false },
+                    { key: 'mortgageInterest',label: 'Mortgage Interest',           hint: 'Interest portion only — no HST on financial services',    hasHst: false },
+                    { key: 'utilities',       label: 'Utilities (hydro / electricity)', hint: null,                                                  hasHst: true  },
+                    { key: 'heat',            label: 'Heat (natural gas / oil)',    hint: null,                                                      hasHst: true  },
+                    { key: 'internet',        label: 'Internet',                    hint: null,                                                      hasHst: true  },
+                    { key: 'propertyTax',     label: 'Property Tax',                hint: 'Government charge — no HST',                             hasHst: false },
+                    { key: 'maintenance',     label: 'Maintenance & Repairs',       hint: 'HST applies if paid to a registered contractor',          hasHst: true  },
+                    { key: 'condoFees',       label: 'Condo Fees',                  hint: 'Usually exempt unless condo corp is HST-registered',      hasHst: false },
+                  ].map(({ key, label, hint, hasHst }) => (
+                    <div key={key} className={styles.hoExpenseRow}>
+                      <div className={styles.hoExpenseLabel}>
+                        <span>{label}</span>
+                        {hint && <span className={styles.hoExpenseHint}>{hint}</span>}
+                      </div>
+                      <div>
+                        <Input type="number" min="0" step="0.01" prefix="$"
+                          value={hoForm.monthlyExpenses?.[key] || ''}
+                          onChange={e => setHoForm(f => ({ ...f, monthlyExpenses: { ...f.monthlyExpenses, [key]: parseFloat(e.target.value) || 0 } }))}
+                          placeholder="0.00" />
+                      </div>
+                      <div>
+                        {hasHst ? (
+                          <Input type="number" min="0" step="0.01" prefix="$"
+                            value={hoForm.monthlyHST?.[key] || ''}
+                            onChange={e => setHoForm(f => ({ ...f, monthlyHST: { ...f.monthlyHST, [key]: parseFloat(e.target.value) || 0 } }))}
+                            placeholder="0.00" />
+                        ) : (
+                          <span className={styles.hoHstExempt}>Exempt</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -602,6 +616,12 @@ export default function ExpensesPage() {
                 <span>Monthly home expenses</span>
                 <strong>{formatCurrency(hoCalc.monthlyTotal)}</strong>
               </div>
+              {hoCalc.monthlyHSTTotal > 0 && (
+                <div className={styles.hoResultRow}>
+                  <span>Monthly HST on eligible expenses</span>
+                  <strong>{formatCurrency(hoCalc.monthlyHSTTotal)}</strong>
+                </div>
+              )}
               <div className={styles.hoResultRow}>
                 <span>Annual total ({hoCalc.months} months)</span>
                 <strong>{formatCurrency(hoCalc.annualTotal)}</strong>
@@ -610,6 +630,12 @@ export default function ExpensesPage() {
                 <span>Deductible amount</span>
                 <strong>{formatCurrency(hoCalc.deductible)}</strong>
               </div>
+              {hoCalc.hstITC > 0 && (
+                <div className={`${styles.hoResultRow} ${styles.hoResultITCRow}`}>
+                  <span>HST ITC from home office ({hoCalc.percentDisplay}% of annual HST)</span>
+                  <strong>{formatCurrency(hoCalc.hstITC)}</strong>
+                </div>
+              )}
             </div>
 
             <div className={styles.hoActions}>

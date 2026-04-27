@@ -104,10 +104,11 @@ export function calculateHomeOfficeDeduction(homeOffice) {
     totalHomeSqFt = 0,
     officeSqFt = 0,
     monthlyExpenses = {},
+    monthlyHST = {},
     months = 12,
   } = homeOffice;
 
-  if (!totalHomeSqFt || !officeSqFt) return { percent: 0, annualTotal: 0, deductible: 0 };
+  if (!totalHomeSqFt || !officeSqFt) return { percent: 0, annualTotal: 0, deductible: 0, hstITC: 0 };
 
   const percent = officeSqFt / totalHomeSqFt;
 
@@ -122,9 +123,21 @@ export function calculateHomeOfficeDeduction(homeOffice) {
     condoFees = 0,
   } = monthlyExpenses;
 
+  // Only utilities, heat, internet, and maintenance typically have HST
+  const {
+    utilities: hstUtils = 0,
+    heat: hstHeat = 0,
+    internet: hstInternet = 0,
+    maintenance: hstMaint = 0,
+  } = monthlyHST;
+
   const monthlyTotal = rent + mortgageInterest + utilities + heat + internet + propertyTax + maintenance + condoFees;
   const annualTotal = monthlyTotal * months;
   const deductible = annualTotal * percent;
+
+  const monthlyHSTTotal = hstUtils + hstHeat + hstInternet + hstMaint;
+  const annualHSTTotal = monthlyHSTTotal * months;
+  const hstITC = annualHSTTotal * percent;
 
   return {
     percent,
@@ -133,6 +146,9 @@ export function calculateHomeOfficeDeduction(homeOffice) {
     annualTotal,
     deductible,
     months,
+    monthlyHSTTotal,
+    annualHSTTotal,
+    hstITC,
   };
 }
 

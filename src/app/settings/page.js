@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import { exportDataAsJSON, importDataFromJSON, clearData } from '@/lib/storage';
 import { formatDate, today } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
@@ -23,12 +25,75 @@ const PROVINCES = [
   { value: 'NL', label: 'Newfoundland & Labrador' },
 ];
 
-const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data'];
+const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data', 'Personal Profile'];
+
+const MARITAL_STATUSES = [
+  { value: '', label: 'Select…' },
+  { value: 'single', label: 'Single' },
+  { value: 'married', label: 'Married' },
+  { value: 'common_law', label: 'Common-law' },
+  { value: 'separated', label: 'Separated' },
+  { value: 'divorced', label: 'Divorced' },
+  { value: 'widowed', label: 'Widowed' },
+];
+
+const SPOUSE_INCOME_TYPES = [
+  { value: '', label: 'Select…' },
+  { value: 'employed', label: 'T4 employed' },
+  { value: 'self_employed', label: 'Self-employed' },
+  { value: 'none', label: 'No income' },
+];
+
+const DEPENDANT_RELATIONSHIPS = [
+  { value: 'child', label: 'Child' },
+  { value: 'parent', label: 'Parent' },
+  { value: 'grandparent', label: 'Grandparent' },
+  { value: 'sibling', label: 'Sibling' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function SettingsPage() {
   const { state, dispatch } = useApp();
   const { user } = useAuth();
+  const { userProfile, userDispatch } = useUserProfile();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState(0);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'personal') setTab(4);
+  }, [searchParams]);
+
+  // Personal profile form
+  const [ppForm, setPpForm] = useState(() => ({
+    ...(userProfile?.personalProfile ?? {}),
+  }));
+  const [ppSaved, setPpSaved] = useState(false);
+  const [deps, setDeps] = useState(() => userProfile?.dependants ?? []);
+
+  useEffect(() => {
+    setPpForm({ ...(userProfile?.personalProfile ?? {}) });
+    setDeps(userProfile?.dependants ?? []);
+  }, [userProfile]);
+
+  const savePP = e => {
+    e.preventDefault();
+    userDispatch({ type: 'UPDATE_PERSONAL_PROFILE', payload: ppForm });
+    userDispatch({ type: 'SET_DEPENDANTS', payload: deps });
+    setPpSaved(true);
+    setTimeout(() => setPpSaved(false), 2500);
+  };
+
+  const addDep = () => setDeps(d => [
+    ...d,
+    { id: Math.random().toString(36).slice(2), name: '', birthYear: '', relationship: 'child', disability: false },
+  ]);
+
+  const updateDep = (id, field, value) =>
+    setDeps(d => d.map(dep => dep.id === id ? { ...dep, [field]: value } : dep));
+
+  const removeDep = id => setDeps(d => d.filter(dep => dep.id !== id));
+
+  const hasSpouse = ppForm.maritalStatus === 'married' || ppForm.maritalStatus === 'common_law';
 
   // Company form
   const [form, setForm] = useState({ ...state.settings });
@@ -485,6 +550,105 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ══ Personal Profile ══ */}
+      {tab === 4 && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h3>Personal Profile</h3>
+            <p>Marital status, spouse details, and dependants used for spousal credits and T1 tax estimates.</p>
+          </div>
+          <form onSubmit={savePP}>
+            <div className={styles.subsectionHeader}>
+              <h4>Your Personal Details</h4>
+            </div>
+            <div className={styles.formGrid}>
+              <FormField label="Legal Name" hint="Your name as it appears on your T1 return">
+                <Input value={ppForm.ownerLegalName || ''} onChange={e => setPpForm(f => ({ ...f, ownerLegalName: e.target.value }))} placeholder="Jane Smith" />
+              </FormField>
+              <FormField label="Date of Birth" hint="Used for age-related credits">
+                <Input type="date" value={ppForm.ownerDOB || ''} onChange={e => setPpForm(f => ({ ...f, ownerDOB: e.target.value }))} />
+              </FormField>
+              <FormField label="Social Insurance Number (SIN)" hint="Optional — stored privately. Never transmitted.">
+                <Input value={ppForm.ownerSIN || ''} onChange={e => setPpForm(f => ({ ...f, ownerSIN: e.target.value }))} placeholder="000 000 000" maxLength={11} />
+              </FormField>
+            </div>
+
+            <div className={styles.subsectionHeader}>
+              <h4>Marital Status</h4>
+            </div>
+            <div className={styles.formGrid}>
+              <FormField label="Marital Status">
+                <Select value={ppForm.maritalStatus || ''} onChange={e => setPpForm(f => ({ ...f, maritalStatus: e.target.value }))}>
+                  {MARITAL_STATUSES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+              </FormField>
+            </div>
+
+            {hasSpouse && (
+              <>
+                <div className={styles.subsectionHeader}>
+                  <h4>Spouse / Partner</h4>
+                </div>
+                <div className={styles.formGrid}>
+                  <FormField label="Spouse / Partner Name">
+                    <Input value={ppForm.spouseName || ''} onChange={e => setPpForm(f => ({ ...f, spouseName: e.target.value }))} placeholder="Jane Smith" />
+                  </FormField>
+                  <FormField label="Employment Status">
+                    <Select value={ppForm.spouseIncomeType || ''} onChange={e => setPpForm(f => ({ ...f, spouseIncomeType: e.target.value }))}>
+                      {SPOUSE_INCOME_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </Select>
+                  </FormField>
+                  {ppForm.spouseIncomeType && ppForm.spouseIncomeType !== 'none' && (
+                    <FormField label="Estimated Annual Income">
+                      <Input type="number" min="0" value={ppForm.spouseEstIncome || ''} onChange={e => setPpForm(f => ({ ...f, spouseEstIncome: parseFloat(e.target.value) || 0 }))} placeholder="0" />
+                    </FormField>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className={styles.subsectionHeader}>
+              <h4>Dependants</h4>
+              <Button type="button" size="sm" variant="secondary" onClick={addDep}>+ Add Dependant</Button>
+            </div>
+
+            {deps.length === 0 && (
+              <p className={styles.fyNote}>No dependants added. Click "+ Add Dependant" to add a child, parent, or other eligible dependant.</p>
+            )}
+
+            {deps.map(dep => (
+              <div key={dep.id} className={styles.depRow}>
+                <div className={styles.formGrid}>
+                  <FormField label="Name (optional)">
+                    <Input value={dep.name || ''} onChange={e => updateDep(dep.id, 'name', e.target.value)} placeholder="e.g. Alex Smith" />
+                  </FormField>
+                  <FormField label="Birth Year">
+                    <Input type="number" min="1900" max={new Date().getFullYear()} value={dep.birthYear || ''} onChange={e => updateDep(dep.id, 'birthYear', e.target.value)} placeholder={String(new Date().getFullYear() - 10)} />
+                  </FormField>
+                  <FormField label="Relationship">
+                    <Select value={dep.relationship || 'child'} onChange={e => updateDep(dep.id, 'relationship', e.target.value)}>
+                      {DEPENDANT_RELATIONSHIPS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </Select>
+                  </FormField>
+                  <FormField label="Eligible for DTC?">
+                    <Select value={dep.disability ? 'yes' : 'no'} onChange={e => updateDep(dep.id, 'disability', e.target.value === 'yes')}>
+                      <option value="no">No</option>
+                      <option value="yes">Yes — eligible for DTC</option>
+                    </Select>
+                  </FormField>
+                </div>
+                <button type="button" className={styles.depRemove} onClick={() => removeDep(dep.id)} aria-label="Remove dependant">✕</button>
+              </div>
+            ))}
+
+            <div className={styles.actions}>
+              <Button type="submit">Save Personal Profile</Button>
+              {ppSaved && <span className={styles.savedMsg}>✅ Saved!</span>}
+            </div>
+          </form>
         </div>
       )}
 

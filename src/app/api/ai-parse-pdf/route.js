@@ -3,52 +3,138 @@ import { verifyIdToken } from '@/lib/firebase/admin';
 import { createRateLimiter } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 30;
 
-const limiter = createRateLimiter({ windowMs: 60_000, max: 10 }); // 10 AI calls/min per IP
+const limiter = createRateLimiter({ windowMs: 60_000, max: 30 });
 
-const EXTRACTION_PROMPT = `You are a Canadian tax slip parser. Analyze this CRA tax document image or PDF and extract all available data.
-
-Return ONLY a valid JSON object with this exact structure (use null for any field not found or not present in this document):
-{
-  "slipType": "T4" or "T5" or "NOA" or "T4A" or "unknown",
-  "taxYear": number or null,
-  "t4": {
-    "box14": number or null,
-    "box22": number or null,
-    "box16": number or null,
-    "box18": number or null
-  },
-  "t5": {
-    "box10": number or null,
-    "box24": number or null
-  },
-  "noa": {
-    "rrspRoom": number or null
+/**
+ * Extract a dollar amount from text near a label.
+ * Returns a float or null.
+ */
+function extractAmount(text, patterns) {
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) {
+      const raw = m[1].replace(/,/g, '').trim();
+      const val = parseFloat(raw);
+      if (!isNaN(val)) return val;
+    }
   }
+  return null;
 }
 
-Field meanings:
-- T4 Box 14: Employment income
-- T4 Box 22: Income tax deducted
-- T4 Box 16: Employee CPP contributions
-- T4 Box 18: Employee EI premiums
-- T5 Box 10: Actual amount of eligible dividends
-- T5 Box 24: Actual amount of non-eligible dividends
-- NOA rrspRoom: RRSP deduction limit for next year (from Notice of Assessment)
+/**
+ * Extract a 4-digit tax year from text.
+ */
+function extractYear(text) {
+  // Look for "Tax Year YYYY" or "YYYY Tax Year" or just a 4-digit year in 20xx range
+  const m = text.match(/tax\s+year[:\s]+(\d{4})/i)
+    || text.match(/(\d{4})\s+tax\s+year/i)
+    || text.match(/\b(20\d{2})\b/);
+  return m ? parseInt(m[1]) : null;
+}
 
-Rules:
-- Extract monetary values as plain numbers without dollar signs, commas, or spaces (e.g. 12345.67)
-- Set fields to null if not present in the document
-- If this is a T4, set t5 and noa to null
-- If this is a T5, set t4 and noa to null
-- If this is a NOA, set t4 and t5 to null
-- Return ONLY the JSON object, no explanation or markdown`;
+/**
+ * Parse a CRA T4 slip from extracted text.
+ */
+function parseT4(text) {
+  return {
+    slipType: 'T4',
+    taxYear: extractYear(text),
+    t4: {
+      // Box 14 — Employment income
+      box14: extractAmount(text, [
+        /(?:box|case)\s*14[:\s]+\$?([\d,]+\.?\d*)/i,
+        /employment\s+income[:\s]+\$?([\d,]+\.?\d*)/i,
+        /14\s+employment[^$\d]*\$?([\d,]+\.?\d*)/i,
+      ]),
+      // Box 22 — Income tax deducted
+      box22: extractAmount(text, [
+        /(?:box|case)\s*22[:\s]+\$?([\d,]+\.?\d*)/i,
+        /income\s+tax\s+deducted[:\s]+\$?([\d,]+\.?\d*)/i,
+        /22\s+income\s+tax[^$\d]*\$?([\d,]+\.?\d*)/i,
+      ]),
+      // Box 16 — CPP contributions
+      box16: extractAmount(text, [
+        /(?:box|case)\s*16[:\s]+\$?([\d,]+\.?\d*)/i,
+        /cpp\s+contributions?[:\s]+\$?([\d,]+\.?\d*)/i,
+        /employee['s]*\s+cpp[^$\d]*\$?([\d,]+\.?\d*)/i,
+      ]),
+      // Box 18 — EI premiums
+      box18: extractAmount(text, [
+        /(?:box|case)\s*18[:\s]+\$?([\d,]+\.?\d*)/i,
+        /ei\s+premiums?[:\s]+\$?([\d,]+\.?\d*)/i,
+        /employee['s]*\s+ei[^$\d]*\$?([\d,]+\.?\d*)/i,
+      ]),
+    },
+    t5: null,
+    noa: null,
+  };
+}
+
+/**
+ * Parse a CRA T5 slip from extracted text.
+ */
+function parseT5(text) {
+  return {
+    slipType: 'T5',
+    taxYear: extractYear(text),
+    t4: null,
+    t5: {
+      // Box 10 — Actual amount of eligible dividends
+      box10: extractAmount(text, [
+        /(?:box|case)\s*10[:\s]+\$?([\d,]+\.?\d*)/i,
+        /actual\s+amount\s+of\s+eligible\s+dividends?[:\s]+\$?([\d,]+\.?\d*)/i,
+        /eligible\s+dividends?[^$\d]*\$?([\d,]+\.?\d*)/i,
+      ]),
+      // Box 24 — Actual amount of non-eligible dividends
+      box24: extractAmount(text, [
+        /(?:box|case)\s*24[:\s]+\$?([\d,]+\.?\d*)/i,
+        /actual\s+amount\s+of\s+non[\s-]eligible\s+dividends?[:\s]+\$?([\d,]+\.?\d*)/i,
+        /non[\s-]eligible\s+dividends?[^$\d]*\$?([\d,]+\.?\d*)/i,
+      ]),
+    },
+    noa: null,
+  };
+}
+
+/**
+ * Parse a CRA Notice of Assessment from extracted text.
+ */
+function parseNOA(text) {
+  return {
+    slipType: 'NOA',
+    taxYear: extractYear(text),
+    t4: null,
+    t5: null,
+    noa: {
+      rrspRoom: extractAmount(text, [
+        /rrsp\s+deduction\s+limit[:\s]+\$?([\d,]+\.?\d*)/i,
+        /your\s+rrsp\s+limit[:\s]+\$?([\d,]+\.?\d*)/i,
+        /available\s+contribution\s+room[:\s]+\$?([\d,]+\.?\d*)/i,
+        /rrsp\/prpp\s+deduction\s+limit[:\s]+\$?([\d,]+\.?\d*)/i,
+      ]),
+    },
+  };
+}
+
+/**
+ * Detect slip type from text.
+ */
+function detectSlipType(text) {
+  const t = text.toUpperCase();
+  if (t.includes('STATEMENT OF REMUNERATION') || t.includes('T4 ') || /\bT4\b/.test(t)) return 'T4';
+  if (t.includes('STATEMENT OF INVESTMENT INCOME') || t.includes('T5 ') || /\bT5\b/.test(t)) return 'T5';
+  if (t.includes('NOTICE OF ASSESSMENT') || t.includes('NOA') || t.includes('RRSP DEDUCTION LIMIT')) return 'NOA';
+  if (t.includes('T4A')) return 'T4A';
+  return 'unknown';
+}
 
 /**
  * POST /api/ai-parse-pdf
- * Accepts multipart form data with one or more 'file' entries (PDF or image).
- * Sends each file to Gemini 1.5 Flash and returns structured T4/T5/NOA data.
+ * Accepts multipart form data with one or more 'file' entries (PDF only).
+ * Extracts text locally using pdf-parse and returns structured T4/T5/NOA data.
+ * No data is sent to any external service.
  * Returns { results: [{ filename, parsed? | error? }] }
  */
 export async function POST(request) {
@@ -71,15 +157,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    // ── Gemini API key ────────────────────────────────────────────────
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      return NextResponse.json(
-        { error: 'AI features not configured. Add your GEMINI_API_KEY to .env.local.' },
-        { status: 503 }
-      );
-    }
-
     const formData = await request.formData();
     const files = formData.getAll('file');
 
@@ -87,16 +164,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    const pdf = require('pdf-parse/lib/pdf-parse.js');
     const results = [];
 
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
-
     for (const file of files) {
-      if (!allowedTypes.includes(file.type)) {
-        results.push({ filename: file.name, error: 'Unsupported file type. Use PDF, PNG, or JPEG.' });
+      if (file.type !== 'application/pdf') {
+        results.push({ filename: file.name, error: 'Only PDF files are supported. Convert images to PDF first.' });
         continue;
       }
       if (file.size > 20 * 1024 * 1024) {
@@ -106,32 +179,36 @@ export async function POST(request) {
 
       try {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const base64 = buffer.toString('base64');
-        const mimeType = file.type === 'application/pdf' ? 'application/pdf' : file.type;
+        const data = await pdf(buffer);
+        const text = data.text;
 
-        const result = await model.generateContent([
-          { inlineData: { data: base64, mimeType } },
-          EXTRACTION_PROMPT,
-        ]);
-
-        const raw = result.response.text().trim();
-        // Strip markdown code fences if Gemini wraps in ```json ... ```
-        const jsonText = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-        const parsed = JSON.parse(jsonText);
+        const slipType = detectSlipType(text);
+        let parsed;
+        if (slipType === 'T4' || slipType === 'T4A') {
+          parsed = parseT4(text);
+          parsed.slipType = slipType;
+        } else if (slipType === 'T5') {
+          parsed = parseT5(text);
+        } else if (slipType === 'NOA') {
+          parsed = parseNOA(text);
+        } else {
+          parsed = { slipType: 'unknown', taxYear: extractYear(text), t4: null, t5: null, noa: null };
+        }
 
         results.push({ filename: file.name, parsed });
       } catch (e) {
-        console.error('Gemini parse error for', file.name, e?.message);
+        console.error('pdf-parse error for', file.name, e?.message);
         results.push({
           filename: file.name,
-          error: 'Could not extract data — ensure this is a CRA T4, T5, or Notice of Assessment',
+          error: 'Could not read PDF — ensure this is a text-based CRA T4, T5, or Notice of Assessment (not a scanned image)',
         });
       }
     }
 
     return NextResponse.json({ results });
   } catch (e) {
-    console.error('ai-parse-pdf route error:', e);
+    console.error('parse-pdf route error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

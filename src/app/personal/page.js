@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
@@ -14,7 +14,7 @@ import FileDropzone from '@/components/ui/FileDropzone';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import styles from './page.module.css';
 
-const TABS = ['Personal Income', 'Dividends Paid', 'T1 Estimate'];
+// TABS computed dynamically inside component based on spouse/dependants
 
 // ─── Suggestion badge shown below auto-fillable fields ────────────────────────
 function SuggestionBadge({ suggestion, current, isOverridden, onUse, onReset }) {
@@ -68,6 +68,16 @@ export default function PersonalPage() {
   const [slipParsing, setSlipParsing] = useState(false);
   const [slipResults, setSlipResults] = useState([]);
   const [slipError, setSlipError] = useState('');
+
+  // ── Spouse ───────────────────────────────────────────────────────────────
+  const hasSpouse = userProfile?.personalProfile?.maritalStatus === 'married' ||
+                    userProfile?.personalProfile?.maritalStatus === 'common_law';
+  const spouseName = userProfile?.personalProfile?.spouseName || 'Spouse';
+  const [spouseSlipOpen, setSpouseSlipOpen] = useState(false);
+  const [spouseSlipFiles, setSpouseSlipFiles] = useState([]);
+  const [spouseSlipParsing, setSpouseSlipParsing] = useState(false);
+  const [spouseSlipResults, setSpouseSlipResults] = useState([]);
+  const [spouseSlipError, setSpouseSlipError] = useState('');
 
   // ── Year navigation ──────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear();
@@ -243,9 +253,63 @@ export default function PersonalPage() {
     setSlipResults([]);
   }
 
+  async function parseSpouseSlips() {
+    if (spouseSlipFiles.length === 0) return;
+    setSpouseSlipParsing(true);
+    setSpouseSlipError('');
+    setSpouseSlipResults([]);
+    try {
+      const token = await user.getIdToken();
+      const fd = new FormData();
+      for (const f of spouseSlipFiles) fd.append('file', f);
+      const res = await fetch('/api/ai-parse-pdf', {
+        method: 'POST',
+        body: fd,
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSpouseSlipResults(data.results || []);
+    } catch (err) {
+      setSpouseSlipError(err.message || 'Failed to parse slips');
+    } finally {
+      setSpouseSlipParsing(false);
+    }
+  }
+
+  function applySpouseSlipResults() {
+    const updates = {};
+    for (const r of spouseSlipResults) {
+      if (!r.parsed || r.error) continue;
+      const { t4, t5 } = r.parsed;
+      if (t4) {
+        if (t4.box14 != null) updates.spouseEmploymentIncome = (updates.spouseEmploymentIncome ?? 0) + t4.box14;
+        if (t4.box22 != null) updates.spouseTaxWithheld      = (updates.spouseTaxWithheld      ?? 0) + t4.box22;
+      }
+      if (t5) {
+        if (t5.box10 != null) updates.spouseEligibleDivs    = (updates.spouseEligibleDivs    ?? 0) + t5.box10;
+        if (t5.box24 != null) updates.spouseNonEligibleDivs = (updates.spouseNonEligibleDivs ?? 0) + t5.box24;
+      }
+    }
+    if (Object.keys(updates).length === 0) return;
+    setPyForm(f => ({ ...f, ...updates }));
+    toast({ message: 'Spouse slip data applied', detail: 'Review the values then click Save.' });
+    setSpouseSlipOpen(false);
+    setSpouseSlipFiles([]);
+    setSpouseSlipResults([]);
+  }
+
   const savePY = e => {
     e.preventDefault();
-    dispatch({ type: 'UPDATE_PERSONAL', payload: pyForm });
+    let formToSave = { ...pyForm };
+    if (hasSpouse) {
+      const spouseGrossed = (formToSave.spouseNonEligibleDivs ?? 0) * 1.15 + (formToSave.spouseEligibleDivs ?? 0) * 1.38;
+      const spouseTotal = (formToSave.spouseEmploymentIncome ?? 0) + (formToSave.spouseOtherIncome ?? 0) + spouseGrossed;
+      formToSave.spouseNetIncome = Math.max(0, spouseTotal - (formToSave.spouseRrspDeduction ?? 0));
+    } else {
+      formToSave.spouseNetIncome = null;
+    }
+    dispatch({ type: 'UPDATE_PERSONAL', payload: formToSave });
     setPySaved(true);
     setTimeout(() => setPySaved(false), 2500);
   };
@@ -327,6 +391,19 @@ export default function PersonalPage() {
 
   const hasSyncable = Object.keys(suggestions).some(k => (suggestions[k] || 0) > 0);
 
+  // Dynamic tabs — show Spouse and Dependants only if they exist
+  const deps = userProfile?.dependants ?? [];
+  const hasDeps = deps.length > 0;
+  const pageTabs = [
+    'Personal Income',
+    'Dividends Paid',
+    'T1 Estimate',
+    ...(hasSpouse ? [`${spouseName}'s Income`] : []),
+    ...(hasDeps ? ['Dependants'] : []),
+  ];
+  const TAB_SPOUSE = hasSpouse ? 3 : -1;
+  const TAB_DEPS = hasDeps ? (hasSpouse ? 4 : 3) : -1;
+
   return (
     <div className={styles.page}>
       {/* ── Year picker ── */}
@@ -362,7 +439,7 @@ export default function PersonalPage() {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {TABS.map((t, i) => (
+        {pageTabs.map((t, i) => (
           <button key={t} className={`${styles.tab} ${tab === i ? styles.tabActive : ''}`} onClick={() => setTab(i)}>
             {t}
           </button>
@@ -390,8 +467,7 @@ export default function PersonalPage() {
                 <polyline points="17 8 12 3 7 8"/>
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              Import CRA Slips (AI)
-              <span className={styles.slipImportBeta}>AI</span>
+              Import CRA Slips
               <svg
                 className={`${styles.slipChevron} ${slipOpen ? styles.slipChevronOpen : ''}`}
                 width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -402,12 +478,12 @@ export default function PersonalPage() {
             {slipOpen && (
               <div className={styles.slipImportBody}>
                 <p className={styles.slipImportHint}>
-                  Upload your T4, T5, or Notice of Assessment (PDF or image). AI will extract the key amounts and pre-fill the fields below.
+                  Upload your T4, T5, or Notice of Assessment as a PDF. Values are extracted locally — nothing is sent to any external service.
                 </p>
                 <FileDropzone
-                  label="Drop T4, T5, or NOA files here or click to upload"
-                  hint="PDF, PNG, JPEG — max 20 MB each"
-                  accept=".pdf,.png,.jpg,.jpeg"
+                  label="Drop T4, T5, or NOA PDF files here or click to upload"
+                  hint="PDF only — max 20 MB each"
+                  accept=".pdf"
                   onFiles={files => { setSlipFiles(files); setSlipResults([]); setSlipError(''); }}
                 />
                 {slipFiles.length > 0 && (
@@ -588,21 +664,8 @@ export default function PersonalPage() {
                 />
               </FormField>
 
-              <FormField
-                label="Spouse / Partner Net Income"
-                hint="Used to calculate the spousal amount credit (line 30300). Enter 0 if no income; leave blank if no spouse."
-              >
-                <Input
-                  type="number" min="0" step="0.01" prefix="$"
-                  value={pyForm.spouseNetIncome ?? ''}
-                  onChange={e => {
-                    const raw = e.target.value;
-                    handleField('spouseNetIncome', raw === '' ? null : parseFloat(raw) || 0);
-                  }}
-                  placeholder="Leave blank if no spouse"
-                />
-              </FormField>
             </div>
+
 
             <div className={styles.actions}>
               <Button type="submit">Save</Button>
@@ -928,6 +991,136 @@ export default function PersonalPage() {
         </div>
       )}
 
+      {/* ═══ TAB 3: Spouse Income ═══ */}
+      {tab === TAB_SPOUSE && TAB_SPOUSE >= 0 && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h3>{spouseName ? `${spouseName}'s` : "Spouse's"} Income — {activeYear}</h3>
+            <p>Income for {spouseName || 'your spouse'} — used to calculate the spousal amount credit (line 30300).</p>
+          </div>
+          {/* Spouse Slip Import */}
+          <div className={styles.slipImportPanel}>
+            <button type="button" className={styles.slipImportToggle} onClick={() => setSpouseSlipOpen(o => !o)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Import {spouseName || 'Spouse'} CRA Slips
+              <svg className={`${styles.slipChevron} ${spouseSlipOpen ? styles.slipChevronOpen : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            {spouseSlipOpen && (
+              <div className={styles.slipImportBody}>
+                <p className={styles.slipImportHint}>Upload {spouseName ? `${spouseName}'s` : "your spouse's"} T4 or T5 as a PDF. Values are extracted locally — nothing is sent to any external service.</p>
+                <FileDropzone
+                  label="Drop T4, T5 PDF files here or click to upload"
+                  hint="PDF only — max 20 MB each"
+                  accept=".pdf"
+                  onFiles={files => { setSpouseSlipFiles(files); setSpouseSlipResults([]); setSpouseSlipError(''); }}
+                />
+                {spouseSlipFiles.length > 0 && (
+                  <div className={styles.slipFileList}>
+                    {spouseSlipFiles.map((f, i) => <span key={i} className={styles.slipFileName}>{f.name}</span>)}
+                  </div>
+                )}
+                {spouseSlipError && <p className={styles.slipError}>{spouseSlipError}</p>}
+                <button type="button" className={styles.slipParseBtn} onClick={parseSpouseSlips} disabled={spouseSlipFiles.length === 0 || spouseSlipParsing}>
+                  {spouseSlipParsing ? 'Parsing…' : 'Parse Slips'}
+                </button>
+                {spouseSlipResults.length > 0 && (
+                  <div className={styles.slipResults}>
+                    {spouseSlipResults.map((r, i) => r.error ? (
+                      <div key={i} className={styles.slipResultError}><strong>{r.filename}</strong> — {r.error}</div>
+                    ) : (
+                      <div key={i} className={styles.slipResultCard}>
+                        <div className={styles.slipResultHeader}>
+                          <span className={styles.slipResultType}>{r.parsed?.slipType ?? 'Unknown'}</span>
+                          {r.parsed?.taxYear && <span className={styles.slipResultYear}>{r.parsed.taxYear}</span>}
+                          <span className={styles.slipResultFilename}>{r.filename}</span>
+                        </div>
+                        <div className={styles.slipResultFields}>
+                          {r.parsed?.t4?.box14 != null && <div className={styles.slipResultField}><span>Box 14 — Employment Income</span><strong>${r.parsed.t4.box14.toFixed(2)}</strong></div>}
+                          {r.parsed?.t4?.box22 != null && <div className={styles.slipResultField}><span>Box 22 — Tax Withheld</span><strong>${r.parsed.t4.box22.toFixed(2)}</strong></div>}
+                          {r.parsed?.t5?.box10 != null && <div className={styles.slipResultField}><span>Box 10 — Eligible Divs</span><strong>${r.parsed.t5.box10.toFixed(2)}</strong></div>}
+                          {r.parsed?.t5?.box24 != null && <div className={styles.slipResultField}><span>Box 24 — Non-Elig Divs</span><strong>${r.parsed.t5.box24.toFixed(2)}</strong></div>}
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" className={styles.slipApplyBtn} onClick={applySpouseSlipResults}>↓ Apply to spouse fields</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <form onSubmit={savePY}>
+            <div className={styles.formGrid}>
+              <FormField label="Employment Income (T4)" hint="T4 Box 14 — salary or wages">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseEmploymentIncome || ''} onChange={e => handleField('spouseEmploymentIncome', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="Other Income" hint="Rental, pension, EI, self-employment, etc.">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseOtherIncome || ''} onChange={e => handleField('spouseOtherIncome', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="Non-Eligible Dividends" hint="T5 Box 24 — actual amount, before gross-up">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseNonEligibleDivs || ''} onChange={e => handleField('spouseNonEligibleDivs', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="Eligible Dividends" hint="T5 Box 10 — actual amount, before gross-up">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseEligibleDivs || ''} onChange={e => handleField('spouseEligibleDivs', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="RRSP Deduction" hint="Reduces net income for the spousal credit calculation">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseRrspDeduction || ''} onChange={e => handleField('spouseRrspDeduction', e.target.value)} placeholder="0.00" />
+              </FormField>
+              <FormField label="Tax Withheld (T4 Box 22)" hint="Reference only — for spouse's own T1 filing">
+                <Input type="number" min="0" step="0.01" prefix="$" value={pyForm.spouseTaxWithheld || ''} onChange={e => handleField('spouseTaxWithheld', e.target.value)} placeholder="0.00" />
+              </FormField>
+            </div>
+            {(() => {
+              const grossed = (pyForm.spouseNonEligibleDivs ?? 0) * 1.15 + (pyForm.spouseEligibleDivs ?? 0) * 1.38;
+              const total = (pyForm.spouseEmploymentIncome ?? 0) + (pyForm.spouseOtherIncome ?? 0) + grossed;
+              const net = Math.max(0, total - (pyForm.spouseRrspDeduction ?? 0));
+              return (
+                <div className={styles.spouseNetDisplay}>
+                  <span>Computed net income (line 23600):</span>
+                  <strong>{formatCurrency(net)}</strong>
+                  <span className={styles.spouseNetHint}>Saved on next "Save" — used for the spousal amount credit on your return</span>
+                </div>
+              );
+            })()}
+            <div className={styles.actions}>
+              <Button type="submit">Save</Button>
+              {pySaved && <span className={styles.savedMsg}>✅ Saved!</span>}
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ═══ TAB 4: Dependants ═══ */}
+      {tab === TAB_DEPS && TAB_DEPS >= 0 && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h3>Dependants</h3>
+            <p>Your dependants for {activeYear}. DTC-eligible dependants may allow you to claim the disability amount transferred (line 31800). <a href="/settings?tab=personal" className={styles.sugLink}>Edit in Settings →</a></p>
+          </div>
+          <div className={styles.depsList}>
+            {deps.map(dep => {
+              const depAge = dep.birthYear ? new Date().getFullYear() - parseInt(dep.birthYear) : null;
+              const REL = { child: 'Child', parent: 'Parent', grandparent: 'Grandparent', sibling: 'Sibling', other: 'Dependant' };
+              return (
+                <div key={dep.id} className={styles.depCard}>
+                  <div className={styles.depCardIcon}>{dep.relationship === 'child' ? (depAge !== null && depAge <= 17 ? '🧒' : '🧑') : '👤'}</div>
+                  <div className={styles.depCardBody}>
+                    <div className={styles.depCardName}>{dep.name || REL[dep.relationship] || 'Dependant'}</div>
+                    <div className={styles.depCardSub}>
+                      {REL[dep.relationship] || 'Dependant'}
+                      {depAge !== null ? ` · age ${depAge}` : dep.birthYear ? ` · b. ${dep.birthYear}` : ''}
+                    </div>
+                    {dep.disability && <div className={styles.depCardDTC}>DTC eligible — line 31800 (disability amount transferred)</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className={styles.depNote}>
+            <strong>Note:</strong> Dependant credits (caregiver, infirm dependant) are not yet included in this estimate. Consult a tax professional or FutureTax for lines 30400, 30425, 30450, and 31800.
+          </div>
+        </div>
+      )}
+
       {/* ── Dividend Modal ── */}
       <Modal isOpen={showDivModal} onClose={() => setShowDivModal(false)} title="Record Dividend Payment" size="sm"
         footer={
@@ -1000,7 +1193,7 @@ function FamilyProfileCard({ personalProfile, dependants, styles }) {
     <div className={styles.familyCard}>
       <div className={styles.familyCardHeader}>
         <span className={styles.familyCardTitle}>👨‍👩‍👧 Family Profile</span>
-        <a href="/settings" className={styles.familyCardEdit}>Edit in Settings</a>
+        <a href="/settings?tab=personal" className={styles.familyCardEdit}>Edit in Settings</a>
       </div>
 
       <div className={styles.familyGrid}>

@@ -1129,7 +1129,7 @@ export function exportFutureTaxS141CSV(state, fyKey) {
 // Generates a plain-text cheat sheet of key T1 line numbers for quick manual
 // entry into FutureTax Personal or any other T1 tax software.
 export function exportFutureTaxT1Info(userProfile, fyKey) {
-  const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+  const year = userProfile?.activePersonalYear || new Date().getFullYear();
   const py = userProfile?.personalYears?.[year] ?? {};
   const personal = calculatePersonalTax({
     nonEligibleDivs:  py.nonEligibleDivs  ?? 0,
