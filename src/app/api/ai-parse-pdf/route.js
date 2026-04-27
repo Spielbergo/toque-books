@@ -152,7 +152,11 @@ export async function POST(request) {
     }
 
     // ── Rate limit ────────────────────────────────────────────────────
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    // x-real-ip is set by Vercel and cannot be spoofed; fall back to last
+    // entry in x-forwarded-for (appended by trusted proxy, not the client)
+    const ip = request.headers.get('x-real-ip')
+      ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
+      ?? 'unknown';
     if (!limiter.check(ip)) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }

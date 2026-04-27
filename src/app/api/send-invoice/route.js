@@ -20,7 +20,11 @@ export async function POST(request) {
     }
 
     // ── Rate limit ────────────────────────────────────────────────────
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    // x-real-ip is set by Vercel and cannot be spoofed; fall back to last
+    // entry in x-forwarded-for (appended by trusted proxy, not the client)
+    const ip = request.headers.get('x-real-ip')
+      ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
+      ?? 'unknown';
     if (!limiter.check(ip)) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -109,12 +113,22 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 function buildHtmlBody(message, invoice, settings, isReminder) {
-  const company   = settings?.companyName || 'Us';
-  const invNum    = invoice.invoiceNumber || '';
-  const dueDate   = fmtDate(invoice.dueDate);
-  const total     = fmtCurrency(invoice.total);
-  const msgHtml   = (message || '').replace(/\n/g, '<br>');
+  const company   = escapeHtml(settings?.companyName || 'Us');
+  const invNum    = escapeHtml(invoice.invoiceNumber || '');
+  const dueDate   = escapeHtml(fmtDate(invoice.dueDate));
+  const total     = fmtCurrency(invoice.total); // generated, safe
+  const msgHtml   = escapeHtml(message || '').replace(/\n/g, '<br>');
 
   return `<!DOCTYPE html>
 <html>
@@ -151,7 +165,7 @@ function buildHtmlBody(message, invoice, settings, isReminder) {
       <p style="font-size:13px;color:#6b7280;">Your invoice is attached as a PDF.</p>
     </div>
     <div class="footer">
-      ${settings?.invoiceFooterNotes || `Questions? Contact ${settings?.email || company}.`}
+      ${settings?.invoiceFooterNotes ? escapeHtml(settings.invoiceFooterNotes) : `Questions? Contact ${escapeHtml(settings?.email || '') || company}.`}
     </div>
   </div>
 </body>

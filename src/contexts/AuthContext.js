@@ -14,6 +14,15 @@ export function AuthProvider({ children }) {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser ?? null);
       setLoading(false);
+      // Set/clear a session presence cookie so the server-side middleware can
+      // redirect unauthenticated requests before serving page HTML.
+      // This cookie is NOT cryptographically verified at the edge — actual
+      // data access is protected by Firestore rules and API route auth tokens.
+      if (firebaseUser) {
+        document.cookie = 'app_session=1; path=/; SameSite=Strict; Secure';
+      } else {
+        document.cookie = 'app_session=; path=/; SameSite=Strict; Secure; Max-Age=0';
+      }
     });
     return unsub;
   }, []);

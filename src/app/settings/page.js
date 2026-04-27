@@ -494,6 +494,22 @@ export default function SettingsPage() {
         <div className={styles.section}>
           <h3 className={styles.dataTitle}>Data Management</h3>
 
+          <div className={`${styles.dataCard} ${styles.dataCardPrivacy}`}>
+            <div className={styles.dataCardInfo}>
+              <h4>🔒 Data Storage &amp; Privacy</h4>
+              <p>
+                Your financial data (invoices, expenses, dividends) is saved as <strong>unencrypted JSON in your browser&rsquo;s localStorage</strong>.
+                It never leaves your device except when you explicitly use <em>Save to Cloud</em>, which stores it in your private Firestore account.
+              </p>
+              <p style={{ marginTop: '0.4rem' }}>
+                Your personal profile (legal name, date of birth, SIN) is stored in <strong>Firestore under your account</strong> — encrypted in transit, access-controlled to your login only.
+              </p>
+              <p style={{ marginTop: '0.4rem' }}>
+                <strong>Recommendation:</strong> Lock your screen when stepping away from this device. Anyone with OS-level access to your browser profile can read the data in localStorage through the browser&rsquo;s developer tools.
+              </p>
+            </div>
+          </div>
+
           <div className={styles.dataCard}>
             <div className={styles.dataCardInfo}>
               <h4>Export Backup</h4>

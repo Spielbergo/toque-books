@@ -1407,7 +1407,10 @@ export default function InvoicesPage() {
             <>
               <Button variant="secondary" onClick={closeSendModal}>Cancel</Button>
               {sendStep === 'preview' ? (
-                <Button variant="secondary" onClick={() => setSendStep('compose')}>← Back to Compose</Button>
+                <>
+                  <Button variant="secondary" onClick={() => setSendStep('compose')}>← Back to Compose</Button>
+                  <Button onClick={() => downloadInvoicePDF(sendInvoice, state.settings)}>⬇ Download PDF</Button>
+                </>
               ) : (
                 <>
                   <Button variant="secondary" onClick={openSendPreview} loading={previewLoading === 'send'}>

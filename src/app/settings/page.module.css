@@ -238,6 +238,9 @@
 .dataCardDanger {
   border-left: 4px solid var(--danger);
 }
+.dataCardPrivacy {
+  border-left: 4px solid var(--info);
+}
 .dataCardInfo {
   flex: 1;
 }
