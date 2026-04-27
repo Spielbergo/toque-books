@@ -73,21 +73,27 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { taxData } = body;
+    const { taxData, userNotes } = body;
     if (!taxData) {
       return NextResponse.json({ error: 'Missing taxData' }, { status: 400 });
     }
 
     // ── Cache check ───────────────────────────────────────────────────
+    // Skip cache when user has added notes (personalised request)
     const cacheKey = hashTaxData(taxData);
-    const cached = getCached(cacheKey);
-    if (cached) return NextResponse.json(cached);
+    if (!userNotes) {
+      const cached = getCached(cacheKey);
+      if (cached) return NextResponse.json(cached);
+    }
 
     const prompt = `You are a Canadian tax advisor reviewing a small business owner's tax situation for their Ontario CCPC (Canadian-Controlled Private Corporation).
 
 Here is their tax data summary:
 ${JSON.stringify(taxData, null, 2)}
-
+${userNotes ? `
+The user has added the following notes and questions for you to address:
+${userNotes}
+` : ''}
 Please review this data and provide practical, specific tax tips and flags.
 
 Return ONLY a valid JSON object with this exact structure:
@@ -127,7 +133,8 @@ Guidelines:
     const jsonText = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const parsed = JSON.parse(jsonText);
 
-    setCached(cacheKey, parsed);
+    // Only cache responses without user notes (generic review)
+    if (!userNotes) setCached(cacheKey, parsed);
     return NextResponse.json(parsed);
   } catch (e) {
     console.error('tax-review route error:', e);

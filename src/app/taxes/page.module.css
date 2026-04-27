@@ -641,3 +641,5 @@
 .reviewItemTitle { font-size:0.85rem; font-weight:600; color:var(--text-primary); margin-bottom:0.3rem; }
 .reviewItemDetail { font-size:0.78rem; color:var(--text-secondary); line-height:1.55; }
 .reviewDisclaimer { font-size:0.73rem; color:var(--text-secondary); font-style:italic; padding-top:0.75rem; border-top:1px solid var(--border-color); margin:0; }
+.reviewNotesInput { width:100%; padding:0.6rem 0.75rem; font-size:0.875rem; line-height:1.5; border:1px solid var(--border-color); border-radius:var(--radius-sm,4px); background:var(--bg-primary); color:var(--text-primary); resize:vertical; font-family:inherit; box-sizing:border-box; }
+.reviewNotesInput:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(var(--accent-rgb,99,102,241),0.15); }

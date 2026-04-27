@@ -36,10 +36,12 @@ export default function TaxesPage() {
   const [prevYearError, setPrevYearError] = useState('');
 
   // ── AI Tax Review ────────────────────────────────────────────────
-  const [reviewOpen,    setReviewOpen]    = useState(false);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewData,    setReviewData]    = useState(null);
-  const [reviewError,   setReviewError]   = useState('');
+  const [reviewOpen,        setReviewOpen]        = useState(false);
+  const [reviewLoading,     setReviewLoading]     = useState(false);
+  const [reviewData,        setReviewData]        = useState(null);
+  const [reviewError,       setReviewError]       = useState('');
+  const [reviewPromptOpen,  setReviewPromptOpen]  = useState(false);
+  const [reviewNotes,       setReviewNotes]       = useState('');
   const handlePrevYearFile = e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -78,7 +80,8 @@ export default function TaxesPage() {
     setPrevYearData(null);
   };
 
-  async function runTaxReview() {
+  async function runTaxReview(notes = '') {
+    setReviewPromptOpen(false);
     setReviewOpen(true);
     setReviewLoading(true);
     setReviewError('');
@@ -125,7 +128,7 @@ export default function TaxesPage() {
       const res = await fetch('/api/tax-review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ taxData }),
+        body: JSON.stringify({ taxData, userNotes: notes.trim() || undefined }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -244,7 +247,7 @@ export default function TaxesPage() {
       </div>
 
       {/* ── AI Tax Review ── */}
-      <button className={styles.aiReviewBtn} onClick={runTaxReview}>
+      <button className={styles.aiReviewBtn} onClick={() => { setReviewNotes(''); setReviewPromptOpen(true); }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="8" x2="12" y2="12"/>
@@ -253,6 +256,31 @@ export default function TaxesPage() {
         AI Tax Review
         <span className={styles.aiReviewBeta}>AI</span>
       </button>
+
+      {/* AI Tax Review — Notes Prompt Modal */}
+      <Modal
+        isOpen={reviewPromptOpen}
+        onClose={() => setReviewPromptOpen(false)}
+        title="AI Tax Review"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setReviewPromptOpen(false)}>Cancel</Button>
+            <Button onClick={() => runTaxReview(reviewNotes)}>Start Review</Button>
+          </>
+        }
+      >
+        <p style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          Optionally add any context or specific questions for the AI to consider when reviewing your tax return.
+        </p>
+        <textarea
+          className={styles.reviewNotesInput}
+          placeholder="e.g. I started a side business this year, or should I be splitting salary and dividends differently?"
+          value={reviewNotes}
+          onChange={e => setReviewNotes(e.target.value)}
+          rows={4}
+        />
+      </Modal>
 
       {/* AI Tax Review Modal */}
       <Modal isOpen={reviewOpen} onClose={() => setReviewOpen(false)} title="AI Tax Review" size="md">
