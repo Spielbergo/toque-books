@@ -101,6 +101,7 @@ export const EXPENSE_CATEGORIES = [
   { value: 'office_supplies',       label: 'Office Supplies' },
   { value: 'software_subscriptions',label: 'Software & Subscriptions' },
   { value: 'telephone_internet',    label: 'Telephone & Internet' },
+  { value: 'training',              label: 'Training & Professional Development' },
   { value: 'travel',                label: 'Travel' },
   { value: 'vehicle',               label: 'Vehicle & Transportation' },
   { value: 'wages_salaries',        label: 'Wages & Salaries' },

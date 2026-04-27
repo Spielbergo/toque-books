@@ -125,6 +125,11 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
+.sortableTh { cursor: pointer; user-select: none; }
+.sortableTh:hover { color: var(--text-primary); }
+.sortableThActive { color: var(--text-primary); }
+.sortIndicator { opacity: 0.45; font-size: 0.7rem; }
+.sortableThActive .sortIndicator { opacity: 1; }
 
 .table td {
   padding: 0.75rem 1rem;

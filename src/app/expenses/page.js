@@ -116,6 +116,8 @@ export default function ExpensesPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [importSaveMode, setImportSaveMode] = useState(false);
   const [rateLoading, setRateLoading] = useState(false);
+  const [sortKey, setSortKey] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
 
   // Recurring modal state
   const [showRecurModal, setShowRecurModal] = useState(false);
@@ -332,6 +334,30 @@ export default function ExpensesPage() {
 
   const catLabel = v => EXPENSE_CATEGORIES.find(c => c.value === v)?.label || v;
 
+  const handleSort = key => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    let aVal, bVal;
+    switch (sortKey) {
+      case 'date':       aVal = a.date || ''; bVal = b.date || ''; break;
+      case 'vendor':     aVal = (a.vendor || '').toLowerCase(); bVal = (b.vendor || '').toLowerCase(); break;
+      case 'category':   aVal = catLabel(a.category).toLowerCase(); bVal = catLabel(b.category).toLowerCase(); break;
+      case 'amount':     aVal = expTotal(a); bVal = expTotal(b); break;
+      case 'deductible': aVal = getDeductibleAmount(expTotal(a), a.category, a.businessUsePercent); bVal = getDeductibleAmount(expTotal(b), b.category, b.businessUsePercent); break;
+      default:           aVal = 0; bVal = 0;
+    }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
   return (
     <div className={styles.page}>
       {/* Tabs */}
@@ -377,13 +403,18 @@ export default function ExpensesPage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Date</th><th>Vendor</th><th>Category</th><th>Description</th>
-                      <th className={styles.right}>Amount</th><th className={styles.right}>HST</th>
-                      <th className={styles.right}>Deductible</th><th></th>
+                      <SortTh label="Date"       colKey="date"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                      <SortTh label="Vendor"     colKey="vendor"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                      <SortTh label="Category"   colKey="category"   sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                      <th>Description</th>
+                      <SortTh label="Amount"     colKey="amount"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className={styles.right} />
+                      <th className={styles.right}>HST</th>
+                      <SortTh label="Deductible" colKey="deductible" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className={styles.right} />
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map(exp => {
+                    {sorted.map(exp => {
                       const total = expTotal(exp);
                       const deductible = getDeductibleAmount(total, exp.category, exp.businessUsePercent);
                       const isPartial = PARTIAL_DEDUCTION_CATEGORIES[exp.category];
@@ -1000,4 +1031,19 @@ function SummaryItem({ label, value, accent }) {
 
 function catLabel(v) {
   return EXPENSE_CATEGORIES.find(c => c.value === v)?.label || v;
+}
+
+function SortTh({ label, colKey, sortKey, sortDir, onSort, className }) {
+  const active = sortKey === colKey;
+  return (
+    <th
+      className={[styles.sortableTh, active ? styles.sortableThActive : '', className].filter(Boolean).join(' ')}
+      onClick={() => onSort(colKey)}
+    >
+      {label}
+      <span className={styles.sortIndicator}>
+        {active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+      </span>
+    </th>
+  );
 }
