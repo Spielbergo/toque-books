@@ -86,43 +86,43 @@ export async function POST(request) {
       if (cached) return NextResponse.json(cached);
     }
 
-    const prompt = `You are a Canadian tax advisor reviewing a small business owner's tax situation for their Ontario CCPC (Canadian-Controlled Private Corporation).
+    const prompt = `You are a Canadian tax advisor reviewing an Ontario CCPC's (Canadian-Controlled Private Corporation) fiscal year in detail.
 
-Here is their tax data summary:
+COMPANY TAX DATA:
 ${JSON.stringify(taxData, null, 2)}
-${userNotes ? `
-The user has added the following notes and questions for you to address:
-${userNotes}
-` : ''}
-Please review this data and provide practical, specific tax tips and flags.
-
-Return ONLY a valid JSON object with this exact structure:
+${userNotes ? `\nUSER NOTES / QUESTIONS:\n${userNotes}\n` : ''}
+Provide a thorough, detailed tax review. Return ONLY a valid JSON object:
 {
-  "summary": "A 1-2 sentence plain-English overview of their overall tax situation",
+  "summary": "2-3 sentence plain-English overview covering their key numbers: revenue, net income, combined tax burden, and one standout observation",
   "items": [
     {
-      "category": "good",
-      "title": "Short title (5-8 words)",
-      "detail": "1-2 sentence explanation with specific numbers or percentages where relevant"
+      "category": "good|review|tip",
+      "title": "Concise title (5-10 words)",
+      "detail": "2-3 sentences with specific dollar amounts and percentages. Be actionable and precise."
     }
   ]
 }
 
 Category meanings:
-- "good": Something they are doing well or a positive observation
-- "review": Something they should double-check or a potential issue worth examining
+- "good": Something positive or well-handled
+- "review": A flag, potential issue, or something to double-check before filing
 - "tip": An actionable optimization or planning opportunity
 
-Guidelines:
-- Provide 3-5 items total (mix of good, review, and tip)
-- Reference specific dollar amounts from the data when relevant
-- Focus on CCPC-specific rules: small business deduction, RDTOH, integration, salary vs dividend
-- Mention RRSP if there is room to optimize
-- Note if corporate tax seems high relative to revenue
-- Flag if effective personal tax rate seems high
-- Suggest dividend timing or salary mix if relevant
-- Always end with a disclaimer item with category "tip" about consulting a CPA
-- Return ONLY the JSON object, no markdown or explanation`;
+Provide 7-10 items covering as many of these as are relevant:
+1. Overall tax efficiency — compare effective corporate rate to SBD benchmark (12.2%)
+2. Salary vs. dividend mix — is the split optimal for integration?
+3. Expense analysis — are any expense categories unusually high or low relative to revenue? Flag any categories with very low spend that might be under-reported
+4. HST reconciliation — does collected HST make sense relative to revenue? Is ITC reasonable?
+5. CCA strategy — is there unclaimed CCA that could reduce tax?
+6. RRSP optimization — is there unused RRSP room that could reduce personal tax?
+7. Shareholder loan — if closing balance > 0, explain the one-year rule
+8. Retained earnings strategy — is it growing too fast (triggering RDTOH considerations)?
+9. Integration analysis — is the combined corporate + personal tax burden efficient compared to just paying salary?
+10. Invoicing completeness — flag any overdue or draft invoices that should be addressed
+
+Always include at least one "good" item. Always end with a "tip" reminding them to consult a CPA.
+Reference specific dollar amounts from the data throughout.
+Return ONLY the JSON object, no markdown fences or explanation.`;
 
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);

@@ -643,3 +643,27 @@
 .reviewDisclaimer { font-size:0.73rem; color:var(--text-secondary); font-style:italic; padding-top:0.75rem; border-top:1px solid var(--border-color); margin:0; }
 .reviewNotesInput { width:100%; padding:0.6rem 0.75rem; font-size:0.875rem; line-height:1.5; border:1px solid var(--border-color); border-radius:var(--radius-sm,4px); background:var(--bg-primary); color:var(--text-primary); resize:vertical; font-family:inherit; box-sizing:border-box; }
 .reviewNotesInput:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(var(--accent-rgb,99,102,241),0.15); }
+
+/* AI Chat */
+.chatSection { position:sticky; bottom:-22px; margin-top:1.25rem; border-top:1px solid var(--border-color); padding-top:1rem; background:var(--bg-surface-overlay); padding-bottom:0.25rem; }
+.chatHeader { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; }
+.chatTitle { font-size:0.82rem; font-weight:600; color:var(--text-primary); }
+.chatRemaining { font-size:0.72rem; color:var(--text-muted); }
+.chatMessages { display:flex; flex-direction:column; gap:0.65rem; max-height:280px; overflow-y:auto; margin-bottom:0.75rem; padding:0.75rem; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-sm,4px); scroll-behavior:smooth; }
+.chatMsg { display:flex; flex-direction:column; gap:0.2rem; }
+.chatMsgRole { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+.chatMsgUser .chatMsgRole { color:var(--accent-text,#6366f1); }
+.chatMsgAssistant .chatMsgRole { color:var(--text-muted); }
+.chatMsgContent { font-size:0.82rem; color:var(--text-primary); line-height:1.55; margin:0; white-space:pre-wrap; }
+.chatTyping { color:var(--text-muted); font-style:italic; }
+.chatForm { display:flex; gap:0.5rem; align-items:center; }
+.chatInput { flex:1; padding:0.5rem 0.75rem; font-size:0.85rem; border:1px solid var(--border-color); border-radius:var(--radius-sm,4px); background:var(--bg-primary); color:var(--text-primary); font-family:inherit; outline:none; transition:border-color var(--transition); }
+.chatInput:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(var(--accent-rgb,99,102,241),0.15); }
+.chatInput:disabled { opacity:0.6; }
+.chatExhausted { font-size:0.78rem; color:var(--text-muted); font-style:italic; text-align:center; padding:0.5rem; }
+
+/* Review footer export buttons */
+.reviewFooterActions { display:flex; justify-content:space-between; align-items:center; width:100%; gap:0.5rem; flex-wrap:wrap; }
+.reviewFooterLeft { display:flex; gap:0.5rem; flex-wrap:wrap; }
+.reviewExportBtn { padding:0.38rem 0.75rem; font-size:0.8rem; border:1px solid var(--border-color); border-radius:var(--radius-sm,4px); background:var(--bg-secondary); color:var(--text-secondary); cursor:pointer; font-family:inherit; transition:background var(--transition),color var(--transition); white-space:nowrap; line-height:1; }
+.reviewExportBtn:hover { background:var(--bg-hover); color:var(--text-primary); }
