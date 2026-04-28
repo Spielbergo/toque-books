@@ -124,6 +124,9 @@ export default function ExpensesPage() {
   const [editRecur, setEditRecur] = useState(null);
   const [recurForm, setRecurForm] = useState(makeBlankRecurring());
   const [confirmDeleteRecur, setConfirmDeleteRecur] = useState(null);
+  const [recurView, setRecurView] = useState('card');
+  const [recurSortKey, setRecurSortKey] = useState('vendor');
+  const [recurSortDir, setRecurSortDir] = useState('asc');
 
   const openCreateRecur = () => { setEditRecur(null); setRecurForm(makeBlankRecurring()); setShowRecurModal(true); };
   const openEditRecur = r => { setEditRecur(r); setRecurForm({ ...r }); setShowRecurModal(true); };
@@ -155,6 +158,22 @@ export default function ExpensesPage() {
     dispatch({ type: 'DELETE_RECURRING', payload: id });
     setConfirmDeleteRecur(null);
     toast({ message: 'Recurring expense removed', type: 'info' });
+  };
+
+  const handleDuplicateRecur = rec => {
+    const { id: _id, createdAt: _createdAt, ...rest } = rec;
+    setEditRecur(null);
+    setRecurForm({ ...rest, startDate: today(), endDate: '' });
+    setShowRecurModal(true);
+  };
+
+  const handleRecurSort = key => {
+    if (recurSortKey === key) {
+      setRecurSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setRecurSortKey(key);
+      setRecurSortDir('asc');
+    }
   };
 
   const handleRecurAmountChange = val => {
@@ -343,6 +362,29 @@ export default function ExpensesPage() {
     }
   };
 
+  const sortedRecurring = [...recurringExpenses].sort((a, b) => {
+    if (recurView === 'card') {
+      const aActive = isRecurringActive(a, todayStr) ? 0 : 1;
+      const bActive = isRecurringActive(b, todayStr) ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return (a.vendor || '').localeCompare(b.vendor || '');
+    }
+    let aVal, bVal;
+    switch (recurSortKey) {
+      case 'status':    aVal = isRecurringActive(a, todayStr) ? 0 : 1; bVal = isRecurringActive(b, todayStr) ? 0 : 1; break;
+      case 'vendor':    aVal = (a.vendor || '').toLowerCase(); bVal = (b.vendor || '').toLowerCase(); break;
+      case 'category':  aVal = catLabel(a.category).toLowerCase(); bVal = catLabel(b.category).toLowerCase(); break;
+      case 'frequency': aVal = a.frequency || ''; bVal = b.frequency || ''; break;
+      case 'amount':    aVal = parseFloat(a.amount) || 0; bVal = parseFloat(b.amount) || 0; break;
+      case 'monthly':   aVal = recurringMonthlyAmount(a); bVal = recurringMonthlyAmount(b); break;
+      case 'startDate': aVal = a.startDate || ''; bVal = b.startDate || ''; break;
+      default:          aVal = 0; bVal = 0;
+    }
+    if (aVal < bVal) return recurSortDir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return recurSortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
   const sorted = [...filtered].sort((a, b) => {
     let aVal, bVal;
     switch (sortKey) {
@@ -509,7 +551,13 @@ export default function ExpensesPage() {
             <p className={styles.recurHint}>
               Track your subscriptions and fixed recurring costs here. Active items are automatically counted in your monthly overhead.
             </p>
-            <Button size="sm" onClick={openCreateRecur}>+ Add Recurring</Button>
+            <div className={styles.recurToolbarRight}>
+              <div className={styles.recurViewToggle}>
+                <button className={`${styles.recurViewBtn} ${recurView === 'card' ? styles.recurViewBtnActive : ''}`} onClick={() => setRecurView('card')} title="Card view">⊞</button>
+                <button className={`${styles.recurViewBtn} ${recurView === 'table' ? styles.recurViewBtnActive : ''}`} onClick={() => setRecurView('table')} title="Table view">☰</button>
+              </div>
+              <Button size="sm" onClick={openCreateRecur}>+ Add Recurring</Button>
+            </div>
           </div>
 
           {recurringExpenses.length === 0 ? (
@@ -519,9 +567,9 @@ export default function ExpensesPage() {
               description="Add subscriptions, bank fees, software plans, and other fixed monthly costs."
               action={<Button onClick={openCreateRecur}>+ Add Recurring</Button>}
             />
-          ) : (
+          ) : recurView === 'card' ? (
             <div className={styles.recurList}>
-              {recurringExpenses.map(rec => {
+              {sortedRecurring.map(rec => {
                 const active = isRecurringActive(rec, todayStr);
                 const monthly = recurringMonthlyAmount(rec);
                 const freqLabel = FREQUENCIES.find(f => f.value === rec.frequency)?.label ?? rec.frequency;
@@ -557,11 +605,64 @@ export default function ExpensesPage() {
                     </div>
                     <div className={styles.recurCardActions}>
                       <Button variant="ghost" size="xs" onClick={() => openEditRecur(rec)}>Edit</Button>
+                      <Button variant="ghost" size="xs" onClick={() => handleDuplicateRecur(rec)}>Duplicate</Button>
                       <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteRecur(rec.id)}>🗑</Button>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          ) : (
+            <div className={styles.recurTableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <SortTh label="Status"    colKey="status"    sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} />
+                    <SortTh label="Vendor"    colKey="vendor"    sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} />
+                    <SortTh label="Category"  colKey="category"  sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} />
+                    <SortTh label="Frequency" colKey="frequency" sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} />
+                    <SortTh label="Amount"    colKey="amount"    sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} className={styles.right} />
+                    <SortTh label="Monthly"   colKey="monthly"   sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} className={styles.right} />
+                    <SortTh label="Started"   colKey="startDate" sortKey={recurSortKey} sortDir={recurSortDir} onSort={handleRecurSort} />
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedRecurring.map(rec => {
+                    const active = isRecurringActive(rec, todayStr);
+                    const monthly = recurringMonthlyAmount(rec);
+                    const freqLabel = FREQUENCIES.find(f => f.value === rec.frequency)?.label ?? rec.frequency;
+                    return (
+                      <tr key={rec.id} className={`${styles.tableRow} ${active ? '' : styles.recurRowInactive}`}>
+                        <td>
+                          <span className={`${styles.recurActivePill} ${active ? styles.recurActivePillOn : styles.recurActivePillOff}`}>
+                            {active ? 'Active' : 'Off'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className={styles.recurTableVendor}>{rec.vendor || rec.description || '—'}</div>
+                          {rec.description && rec.vendor && <div className={styles.recurTableDesc}>{rec.description}</div>}
+                        </td>
+                        <td><Badge color="default">{catLabel(rec.category)}</Badge></td>
+                        <td>{freqLabel}</td>
+                        <td className={styles.right}>{formatCurrency(rec.amount)}</td>
+                        <td className={styles.right}>{formatCurrency(monthly)}/mo</td>
+                        <td className={styles.recurTableDates}>
+                          {rec.startDate ? formatDate(rec.startDate) : '—'}
+                          {rec.endDate ? ` → ${formatDate(rec.endDate)}` : ''}
+                        </td>
+                        <td>
+                          <div className={styles.rowActions}>
+                            <Button variant="ghost" size="xs" onClick={() => openEditRecur(rec)}>Edit</Button>
+                            <Button variant="ghost" size="xs" onClick={() => handleDuplicateRecur(rec)}>Duplicate</Button>
+                            <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteRecur(rec.id)}>🗑</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </>

@@ -628,8 +628,8 @@
 }
 
 .recurList {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 0.75rem;
 }
 
@@ -764,4 +764,70 @@
 
 .recurCalcBox strong {
   color: var(--text-primary);
+}
+
+/* ─── Recurring view toggle ────────────────────────────────── */
+.recurToolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.recurViewToggle {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.recurViewBtn {
+  background: var(--bg-surface);
+  border: none;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: background var(--transition), color var(--transition);
+}
+
+.recurViewBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.recurViewBtnActive {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ─── Recurring table view ─────────────────────────────────── */
+.recurTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.recurRowInactive {
+  opacity: 0.55;
+}
+
+.recurTableVendor {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.recurTableDesc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.recurTableDates {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
