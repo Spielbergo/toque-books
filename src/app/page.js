@@ -119,11 +119,11 @@ export default function DashboardPage() {
 
       {/* Row 1 — Stat cards */}
       <div className={styles.statsGrid}>
-        <StatCard label="Revenue (paid)" value={formatCurrency(totalRevenue)} sub={`${invoices.filter(i => i.status === 'paid').length} paid invoices`} color="success" icon="💰" />
-        <StatCard label="Outstanding" value={formatCurrency(totalOutstanding)} sub={`${payables.length} invoices`} color={totalOutstanding > 0 ? 'warning' : 'default'} icon="⏳" />
-        <StatCard label="Deductible Expenses" value={formatCurrency(totalDeductibleExp)} sub={`${expenses.length} entries`} color="info" icon="🧾" />
-        <StatCard label="HST to Remit" value={formatCurrency(hst.netRemittance)} sub={`Collected ${formatCurrency(hst.hstCollected, { compact: true })} − ITC ${formatCurrency(hst.itcTotal, { compact: true })}`} color={hst.netRemittance > 0 ? 'warning' : 'default'} icon="🏦" />
-        <StatCard label="Est. Tax Owing" value={formatCurrency(totalTaxOwing)} sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`} color="danger" icon="🍁" />
+        <StatCard label="Revenue (paid)" value={formatCurrency(totalRevenue)} sub={`${invoices.filter(i => i.status === 'paid').length} paid invoices`} color="success" />
+        <StatCard label="Outstanding" value={formatCurrency(totalOutstanding)} sub={`${payables.length} invoices`} color={totalOutstanding > 0 ? 'warning' : 'default'} />
+        <StatCard label="Deductible Expenses" value={formatCurrency(totalDeductibleExp)} sub={`${expenses.length} entries`} color="info" />
+        <StatCard label="HST to Remit" value={formatCurrency(hst.netRemittance)} sub={`Collected ${formatCurrency(hst.hstCollected, { compact: true })} − ITC ${formatCurrency(hst.itcTotal, { compact: true })}`} color={hst.netRemittance > 0 ? 'warning' : 'default'} />
+        <StatCard label="Est. Tax Owing" value={formatCurrency(totalTaxOwing)} sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`} color="danger" />
       </div>
 
       {/* Tax Set-Aside Widget */}
@@ -134,25 +134,21 @@ export default function DashboardPage() {
         </div>
         <div className={styles.taxBreakdown}>
           <div className={styles.taxItem}>
-            <span className={styles.taxItemIcon}>🏢</span>
             <span className={styles.taxItemLabel}>Corporate Tax (T2)</span>
             <span className={styles.taxItemAmount}>{formatCurrency(corp.totalTax)}</span>
             <span className={styles.taxItemSub}>{formatPercent(corp.effectiveRate)} effective rate</span>
           </div>
           <div className={styles.taxItem}>
-            <span className={styles.taxItemIcon}>🏦</span>
             <span className={styles.taxItemLabel}>HST to Remit</span>
             <span className={styles.taxItemAmount}>{formatCurrency(Math.max(0, hst.netRemittance))}</span>
             <span className={styles.taxItemSub}>Collected minus ITCs</span>
           </div>
           <div className={styles.taxItem}>
-            <span className={styles.taxItemIcon}>🍁</span>
             <span className={styles.taxItemLabel}>Personal Tax on Dividends</span>
             <span className={styles.taxItemAmount}>{formatCurrency(personal.totalTax)}</span>
             <span className={styles.taxItemSub}>Based on dividends paid to self</span>
           </div>
           <div className={`${styles.taxItem} ${styles.taxItemTotal}`}>
-            <span className={styles.taxItemIcon}>🏦</span>
             <span className={styles.taxItemLabel}>Recommended Savings</span>
             <span className={styles.taxItemAmount}>{formatCurrency(totalSetAside)}</span>
             <span className={styles.taxItemSub}>Keep this in a separate account</span>
