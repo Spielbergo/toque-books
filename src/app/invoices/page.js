@@ -1300,13 +1300,13 @@ export default function InvoicesPage() {
                     className={styles.liQty}
                     type="number" min="0" step="0.01" placeholder="Qty"
                     value={li.quantity}
-                    onChange={e => updateLineItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                    onChange={e => updateLineItem(idx, 'quantity', e.target.value)}
                   />
                   <Input
                     className={styles.liRate}
                     type="number" min="0" step="0.01" placeholder="Rate" prefix="$"
                     value={li.rate}
-                    onChange={e => updateLineItem(idx, 'rate', parseFloat(e.target.value) || 0)}
+                    onChange={e => updateLineItem(idx, 'rate', e.target.value)}
                   />
                   <span className={styles.liAmount}>{formatCurrency(li.amount)}</span>
                   {form.lineItems.length > 1 && (
