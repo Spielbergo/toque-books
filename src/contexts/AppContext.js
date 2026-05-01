@@ -112,6 +112,7 @@ function makeInitialState() {
     recurringExpenses: [], // [{ id, vendor, description, category, businessUsePercent, amount, hst, frequency, startDate, endDate, notes }]
     recurringInvoices: [], // [{ id, clientId, subject, lineItems, notes, frequency, nextDate, hstRate, active }]
     products: [],          // [{ id, name, description, category, defaultRate, unit, notes, createdAt }]
+    personalSubs: [],      // [{ id, name, url, amount, currency, frequency, billingDay, category, notes, active }]
   };
 }
 
@@ -373,6 +374,26 @@ function reducer(state, action) {
       return {
         ...state,
         recurringExpenses: (state.recurringExpenses || []).filter(r => r.id !== action.payload),
+      };
+    }
+
+    // Personal subscriptions
+    case 'ADD_PERSONAL_SUB': {
+      const sub = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, personalSubs: [...(state.personalSubs || []), sub] };
+    }
+    case 'UPDATE_PERSONAL_SUB': {
+      return {
+        ...state,
+        personalSubs: (state.personalSubs || []).map(s =>
+          s.id === action.payload.id ? { ...s, ...action.payload } : s
+        ),
+      };
+    }
+    case 'DELETE_PERSONAL_SUB': {
+      return {
+        ...state,
+        personalSubs: (state.personalSubs || []).filter(s => s.id !== action.payload),
       };
     }
 

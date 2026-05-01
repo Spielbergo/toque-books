@@ -163,6 +163,29 @@
 }
 .deadlineBar strong { color: var(--text-primary); }
 
+.s1Btn {
+  margin-left: auto;
+  padding: 0.3rem 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.s1Btn:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.s1Btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* HST */
 .hstGrid {
   display: grid;

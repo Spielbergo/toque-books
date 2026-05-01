@@ -22,6 +22,7 @@ import {
   exportT5PDF,
   exportT4PDF,
   exportTaxWorksheetPDF,
+  exportS1PDF,
   exportGIFI,
   exportFutureTaxS100CSV,
   exportFutureTaxS125CSV,
@@ -191,6 +192,14 @@ const EXPORT_GROUPS = [
         badge: 'PDF',
         scope: 'both',
         fn: (state, fyKey, userProfile) => exportTaxWorksheetPDF(state, fyKey, userProfile),
+      },
+      {
+        id: 's1_pdf',
+        label: 'T2 Schedule 1 — Net Income Reconciliation PDF',
+        sub: 'PDF — Reconciles net income per financial statements to net income for tax purposes (CRA T2SCH1)',
+        badge: 'PDF',
+        scope: 'fy',
+        fn: (state, fyKey) => exportS1PDF(state, fyKey),
       },
     ],
   },
@@ -705,6 +714,79 @@ export default function ExportPage() {
               </div>
             ))}
           </div>
+          {(t1Py.nonEligibleDivs > 0 || t1Py.eligibleDivs > 0) && (<>
+            <p className={`${styles.corpInfoNote} ${styles.t5SlipNote}`}>
+              T5 Slip — Enter in FutureTax: <strong>T-Slips → Add → T5</strong>. Type Box 10 (and/or Box 24), then press <strong>Tab</strong> — FutureTax auto-fills Boxes 11, 12 (and 25, 26).
+            </p>
+            <div className={styles.corpInfoGrid}>
+              {[
+                ...(t1Py.nonEligibleDivs > 0 ? [
+                  { label: 'T5 Box 10 — Actual NE Dividends',  key: 't5_b10', value: t1Fmt(t1Py.nonEligibleDivs),   note: 'enter this — FutureTax fills 11 & 12' },
+                  { label: 'T5 Box 11 — Taxable NE Dividends', key: 't5_b11', value: t1Fmt(t1Personal.neGrossedUp),  note: 'auto-filled by FutureTax' },
+                  { label: 'T5 Box 12 — Federal NE DTC',       key: 't5_b12', value: t1Fmt(t1Personal.fedNeDTC),    note: 'auto-filled by FutureTax' },
+                ] : []),
+                ...(t1Py.eligibleDivs > 0 ? [
+                  { label: 'T5 Box 24 — Actual Eligible Divs',  key: 't5_b24', value: t1Fmt(t1Py.eligibleDivs),     note: 'enter this — FutureTax fills 25 & 26' },
+                  { label: 'T5 Box 25 — Taxable Eligible Divs', key: 't5_b25', value: t1Fmt(t1Personal.elGrossedUp), note: 'auto-filled by FutureTax' },
+                  { label: 'T5 Box 26 — Federal Eligible DTC',  key: 't5_b26', value: t1Fmt(t1Personal.fedElDTC),   note: 'auto-filled by FutureTax' },
+                ] : []),
+              ].map(({ label, key, value, note }) => (
+                <div key={key} className={styles.corpInfoRow}>
+                  <span className={styles.corpInfoLabel}>
+                    {label}
+                    {note && <em className={styles.t1FieldNote}> ({note})</em>}
+                  </span>
+                  <div className={styles.corpInfoValueWrap}>
+                    <span className={styles.corpInfoValue}>${value}</span>
+                    <button
+                      className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`}
+                      onClick={() => copyField(key, value)}
+                      title={`Copy ${label}`}
+                    >
+                      {copied[key] ? (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                      )}
+                      {copied[key] ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>)}
+          <div className={styles.t1UnmodeledBlock}>
+            <p className={styles.t1UnmodeledTitle}>Also check in FutureTax — not modeled in this app:</p>
+            <div className={styles.t1UnmodeledList}>
+              <div className={styles.t1UnmodeledItem}>
+                <span className={styles.t1UnmodeledLabel}>Capital Gains — Line 12700</span>
+                <span className={styles.t1UnmodeledNote}>not tracked here — enter via T-Slips → T3/T5008 or Schedule 3</span>
+              </div>
+              {(t1Py.taxWithheld || 0) > 0 && (
+                <div className={styles.t1UnmodeledItem}>
+                  <span className={styles.t1UnmodeledLabel}>T4 Box 22 — Tax Withheld (${t1Fmt(t1Py.taxWithheld)})</span>
+                  <span className={styles.t1UnmodeledNote}>already applied to Balance Owing above — in FutureTax enter via T-Slips → T4</span>
+                </div>
+              )}
+              <div className={styles.t1UnmodeledItem}>
+                <span className={styles.t1UnmodeledLabel}>Medical Expenses — Line 33200</span>
+                <span className={styles.t1UnmodeledNote}>not modeled — enter total eligible receipts manually in FutureTax</span>
+              </div>
+              <div className={styles.t1UnmodeledItem}>
+                <span className={styles.t1UnmodeledLabel}>Ontario Trillium Benefit (ON-BEN)</span>
+                <span className={styles.t1UnmodeledNote}>FutureTax calculates automatically if eligible — review the ON-BEN form</span>
+              </div>
+              <div className={styles.t1UnmodeledItem}>
+                <span className={styles.t1UnmodeledLabel}>Political Contribution Credit — Line 40900</span>
+                <span className={styles.t1UnmodeledNote}>not modeled — enter contributions manually in FutureTax</span>
+              </div>
+            </div>
+          </div>
           <button className={styles.t1DownloadLink} onClick={() => exportFutureTaxT1Info(userProfile, activeFYKey)}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -763,6 +845,52 @@ export default function ExportPage() {
               </div>
             ))}
           </div>
+          {((t1Py.spouseNonEligibleDivs ?? 0) > 0 || (t1Py.spouseEligibleDivs ?? 0) > 0) && (<>
+            <p className={`${styles.corpInfoNote} ${styles.t5SlipNote}`}>
+              T5 Slip — Enter in FutureTax: <strong>T-Slips → Add → T5</strong>. Type Box 10 (and/or Box 24), then press <strong>Tab</strong>.
+            </p>
+            <div className={styles.corpInfoGrid}>
+              {[
+                ...((t1Py.spouseNonEligibleDivs ?? 0) > 0 ? [
+                  { label: 'T5 Box 10 — Actual NE Dividends',  key: 'sp_t5_b10', value: t1Fmt(t1Py.spouseNonEligibleDivs ?? 0), note: 'enter this — FutureTax fills 11 & 12' },
+                  { label: 'T5 Box 11 — Taxable NE Dividends', key: 'sp_t5_b11', value: t1Fmt(t1SpouseCalc.neGrossedUp),         note: 'auto-filled by FutureTax' },
+                  { label: 'T5 Box 12 — Federal NE DTC',       key: 'sp_t5_b12', value: t1Fmt(t1SpouseCalc.fedNeDTC),            note: 'auto-filled by FutureTax' },
+                ] : []),
+                ...((t1Py.spouseEligibleDivs ?? 0) > 0 ? [
+                  { label: 'T5 Box 24 — Actual Eligible Divs',  key: 'sp_t5_b24', value: t1Fmt(t1Py.spouseEligibleDivs ?? 0),   note: 'enter this — FutureTax fills 25 & 26' },
+                  { label: 'T5 Box 25 — Taxable Eligible Divs', key: 'sp_t5_b25', value: t1Fmt(t1SpouseCalc.elGrossedUp),        note: 'auto-filled by FutureTax' },
+                  { label: 'T5 Box 26 — Federal Eligible DTC',  key: 'sp_t5_b26', value: t1Fmt(t1SpouseCalc.fedElDTC),           note: 'auto-filled by FutureTax' },
+                ] : []),
+              ].map(({ label, key, value, note }) => (
+                <div key={key} className={styles.corpInfoRow}>
+                  <span className={styles.corpInfoLabel}>
+                    {label}
+                    {note && <em className={styles.t1FieldNote}> ({note})</em>}
+                  </span>
+                  <div className={styles.corpInfoValueWrap}>
+                    <span className={styles.corpInfoValue}>${value}</span>
+                    <button
+                      className={`${styles.copyBtn} ${copied[key] ? styles.copyBtnDone : ''}`}
+                      onClick={() => copyField(key, value)}
+                      title={`Copy ${label}`}
+                    >
+                      {copied[key] ? (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                      )}
+                      {copied[key] ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>)}
           <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
             Note: {t1SpouseName}&apos;s CPP/EI and other credits are not tracked here. Enter them directly in their T1 software. Spousal amount credit on your return (line 30300) is based on their net income.
           </p>

@@ -29,6 +29,7 @@ export default function BankStatementsPage() {
 
   const [uploading, setUploading]       = useState(false);
   const [uploadResults, setUpload]      = useState([]);
+  const [aiLoading, setAiLoading]       = useState(new Set()); // indices being AI-enhanced
   const [viewStmt, setViewStmt]         = useState(null);
   const [confirmDelete, setConfirm]     = useState(null);   // single id or 'bulk'
   const [addExpModal, setAddExpModal]   = useState(null);
@@ -137,6 +138,45 @@ export default function BankStatementsPage() {
     const valid = uploadResults.filter(r => !r.error);
     valid.forEach(saveStatement);
   };
+
+  // ── AI Enhance ───────────────────────────────────
+  const enhanceWithAI = useCallback(async (result, idx) => {
+    if (!result.text) {
+      toast({ message: 'No extracted text to enhance', type: 'error' });
+      return;
+    }
+    setAiLoading(prev => { const n = new Set(prev); n.add(idx); return n; });
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/parse-pdf-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ text: result.text, mode: 'bank_statement', filename: result.filename }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      const txns = data.transactions || [];
+      setUpload(prev => prev.map((r, i) => i !== idx ? r : {
+        ...r,
+        aiEnhanced: true,
+        parsed: { ...r.parsed, ...data.parsed },
+        transactions: txns.length > 0 ? txns : r.transactions,
+      }));
+      toast({
+        message: 'AI parsing complete',
+        detail: `${txns.length} transaction${txns.length !== 1 ? 's' : ''} extracted from ${result.filename}`,
+      });
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.includes('GEMINI_API_KEY') || msg.includes('503')) {
+        toast({ message: 'AI not configured', detail: 'Add GEMINI_API_KEY to .env.local to use AI parsing.', type: 'error' });
+      } else {
+        toast({ message: 'AI parsing failed', detail: msg, type: 'error' });
+      }
+    } finally {
+      setAiLoading(prev => { const n = new Set(prev); n.delete(idx); return n; });
+    }
+  }, [user, toast]);
 
   // ── Delete ───────────────────────────────────────
   const deleteStatement = id => {
@@ -270,11 +310,26 @@ export default function BankStatementsPage() {
                     <span className={styles.resultFilename}>{r.filename}</span>
                     {r.parsed?.bank && <span className={styles.resultBank}>{r.parsed.bank}</span>}
                     {r.parsed?.period && <span className={styles.resultPeriod}>{r.parsed.period}</span>}
-                    {r.transactions?.length > 0 && (
-                      <span className={styles.resultTxCount}>{r.transactions.length} transactions found</span>
+                    {r.transactions?.length > 0 ? (
+                      <span className={styles.resultTxCount}>{r.transactions.length} transaction{r.transactions.length !== 1 ? 's' : ''} found</span>
+                    ) : (
+                      <span className={styles.resultTxNone}>No transactions detected</span>
                     )}
+                    {r.aiEnhanced && <span className={styles.aiBadge}>✦ AI</span>}
                   </div>
-                  <Button size="xs" onClick={() => saveStatement(r)}>Save</Button>
+                  <div className={styles.resultActions}>
+                    {!r.aiEnhanced && (
+                      <button
+                        className={styles.aiBtn}
+                        onClick={() => enhanceWithAI(r, i)}
+                        disabled={aiLoading.has(i)}
+                        title="Re-parse with AI for better transaction extraction"
+                      >
+                        {aiLoading.has(i) ? '…' : '✦ AI'}
+                      </button>
+                    )}
+                    <Button size="xs" onClick={() => saveStatement(r)}>Save</Button>
+                  </div>
                 </>
               )}
             </div>

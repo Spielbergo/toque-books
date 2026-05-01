@@ -766,6 +766,94 @@ export async function exportTaxWorksheetPDF(state, fyKey, userProfile) {
   downloadBlob(blob, `Tax-Worksheet-${year}-${(s?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 }
 
+// ─── Schedule 1 PDF ──────────────────────────────────────────────────────────
+
+export async function exportS1PDF(state, fyKey) {
+  const { default: S1Document } = await import('@/components/S1Document');
+  const data = resolveFYData(state, fyKey);
+  if (!data) return;
+  const { fy, invoices, expenses } = data;
+  const settings = state.settings;
+
+  // Revenue from all non-void invoices (paid + sent — same as "books" perspective)
+  const grossRevenue = invoices
+    .filter(i => i.status === 'paid' || i.status === 'sent')
+    .reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
+  // ── Expense totals per category (book vs deductible) ─────────────────────
+  const hoResult  = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
+  const ccaClasses = fy.ccaClasses || [];
+  const totalCCA  = ccaClasses.reduce((acc, c) => acc + (parseFloat(c.claimedAmount) || 0), 0);
+
+  // Annotate each expense with its deductible portion for the detail table
+  const annotatedExpenses = expenses.map(exp => ({
+    ...exp,
+    _deductible: getDeductibleAmount(exp.amount || 0, exp.category, exp.businessUsePercent ?? 100),
+  }));
+
+  // ── Add-backs ─────────────────────────────────────────────────────────────
+  // Meals: non-deductible 50% portion
+  const mealsAddBack = expenses
+    .filter(e => e.category === 'business_meals')
+    .reduce((sum, e) => sum + (e.amount || 0) * 0.5, 0);
+
+  // Personal-use portion of mixed-use expenses (non-meals only — meals handled above)
+  const personalUseAddBack = expenses
+    .filter(e => e.category !== 'business_meals' && (e.businessUsePercent ?? 100) < 100)
+    .reduce((sum, e) => sum + (e.amount || 0) * (1 - (e.businessUsePercent ?? 100) / 100), 0);
+
+  // Home office personal portion
+  const homeOfficePersonal = Math.max(0, (hoResult.annualTotal || 0) - (hoResult.deductible || 0));
+
+  // ── Net income per books ──────────────────────────────────────────────────
+  // Sum of ALL expense amounts (at full book value, before deductibility)
+  const totalExpensesBook = expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+    + (hoResult.annualTotal || 0);
+  const netIncomeBooks = grossRevenue - totalExpensesBook;
+
+  // ── Corp calc for the reconciliation note ────────────────────────────────
+  const totalDeductible = annotatedExpenses.reduce((sum, e) => sum + (e._deductible || 0), 0)
+    + (hoResult.deductible || 0) + totalCCA;
+  const corp = calculateCorporateTax(grossRevenue, totalDeductible);
+
+  // ── Build period label ────────────────────────────────────────────────────
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtISO = iso => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${MON[+m - 1]} ${+d}, ${y}`;
+  };
+  const fyPeriod = fy.startDate && fy.endDate
+    ? `${fmtISO(fy.startDate)} – ${fmtISO(fy.endDate)}`
+    : '';
+  const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
+
+  const blob = await createPdfBlob(S1Document, {
+    settings,
+    fyLabel: String(fyKey || year),
+    fyPeriod,
+    netIncomeBooks,
+    addBacks: {
+      meals: mealsAddBack,
+      personalUse: personalUseAddBack,
+      homeOfficePersonal,
+      amortization: 0,  // user must enter
+      other: 0,         // user must enter
+    },
+    deductions: {
+      cca: totalCCA,
+      reserves: 0,  // user must enter
+      other: 0,     // user must enter
+    },
+    expenses: annotatedExpenses,
+    ccaClasses,
+    corp,
+  });
+
+  const safeName = (settings?.companyName ?? 'corp').replace(/[^a-zA-Z0-9]/g, '_');
+  downloadBlob(blob, `T2-Schedule1-${year}-${safeName}.pdf`);
+}
+
 // ─── GIFI Financial Statements ───────────────────────────────────────────────
 // CRA RC4088 — General Index of Financial Information
 // Produces a tab-delimited CODE\tAMOUNT file for import into UFile T2,

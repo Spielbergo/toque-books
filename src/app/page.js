@@ -75,10 +75,15 @@ export default function DashboardPage() {
     ? activePY
     : (userProfile.personalYears?.[fyPersonalYear] ?? { nonEligibleDivs: 0, eligibleDivs: 0, otherIncome: 0, rrspDeduction: 0 });
   const personal = calculatePersonalTax({
-    nonEligibleDivs: fyPY.nonEligibleDivs || 0,
-    eligibleDivs:    fyPY.eligibleDivs    || 0,
-    otherIncome:     fyPY.otherIncome     || 0,
-    rrspDeduction:   fyPY.rrspDeduction   || 0,
+    nonEligibleDivs:  fyPY.nonEligibleDivs  || 0,
+    eligibleDivs:     fyPY.eligibleDivs     || 0,
+    employmentIncome: fyPY.employmentIncome || 0,
+    otherIncome:      fyPY.otherIncome      || 0,
+    rrspDeduction:    fyPY.rrspDeduction    || 0,
+    taxWithheld:      fyPY.taxWithheld      || 0,
+    cppContributions: fyPY.cppContributions || 0,
+    eiPremiums:       fyPY.eiPremiums       || 0,
+    spouseNetIncome:  fyPY.spouseNetIncome  ?? null,
   });
   const totalTaxOwing = corp.totalTax + personal.totalTax;
 

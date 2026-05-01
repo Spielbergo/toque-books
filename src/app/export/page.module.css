@@ -364,6 +364,62 @@
   font-family: inherit;
 }
 
+/* ─── T5 slip section note ──────────────────────────────────── */
+.t5SlipNote {
+  margin-top: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-hover, rgba(0,0,0,0.03));
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+}
+
+/* ─── T1 "not modeled" checklist block ──────────────────────── */
+.t1UnmodeledBlock {
+  margin-top: 1.25rem;
+  padding: 0.65rem 0.875rem;
+  background: var(--bg-hover, rgba(0,0,0,0.03));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.t1UnmodeledTitle {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.t1UnmodeledList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.t1UnmodeledItem {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.t1UnmodeledLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.t1UnmodeledNote {
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.t1UnmodeledNote::before {
+  content: '— ';
+}
+
 /* ─── T1 modal download link ─────────────────────────────────── */
 .t1DownloadLink {
   display: inline-flex;

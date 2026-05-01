@@ -19,6 +19,7 @@ import { expandRecurringForFY } from '@/lib/recurringUtils';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { FormField, Input, Select } from '@/components/ui/FormField';
+import { exportS1PDF } from '@/lib/exportHelpers';
 
 // ── Review export helpers ────────────────────────────────────────────────────
 function buildReviewText(rd, msgs) {
@@ -104,6 +105,7 @@ export default function TaxesPage() {
   const { state, dispatch, activeFY, activePY, activePersonalYear } = useApp();
   const { user } = useAuth();
 
+  const [s1Exporting, setS1Exporting] = useState(false);
   const [showCCAModal, setShowCCAModal] = useState(false);
   const [ccaEditId,    setCCAEditId]    = useState(null);
   const [ccaForm,      setCCAForm]      = useState({ classNumber: '', description: '', rate: '', openingUCC: '0', additions: '0', disposals: '0', claimedAmount: '0' });
@@ -403,10 +405,15 @@ export default function TaxesPage() {
 
   // Personal tax
   const personal = calculatePersonalTax({
-    nonEligibleDivs: activePY.nonEligibleDivs || 0,
-    eligibleDivs: activePY.eligibleDivs || 0,
-    otherIncome: activePY.otherIncome || 0,
-    rrspDeduction: activePY.rrspDeduction || 0,
+    nonEligibleDivs:  activePY.nonEligibleDivs  || 0,
+    eligibleDivs:     activePY.eligibleDivs     || 0,
+    employmentIncome: activePY.employmentIncome || 0,
+    otherIncome:      activePY.otherIncome      || 0,
+    rrspDeduction:    activePY.rrspDeduction    || 0,
+    taxWithheld:      activePY.taxWithheld      || 0,
+    cppContributions: activePY.cppContributions || 0,
+    eiPremiums:       activePY.eiPremiums       || 0,
+    spouseNetIncome:  activePY.spouseNetIncome  ?? null,
   });
 
   // Integration analysis
@@ -669,6 +676,17 @@ export default function TaxesPage() {
           <span>📅 T2 filing deadline:</span>
           <strong>{formatDate(t2Deadline)}</strong>
           <span>(6 months after fiscal year end)</span>
+          <button
+            className={styles.s1Btn}
+            disabled={s1Exporting}
+            onClick={async () => {
+              setS1Exporting(true);
+              try { await exportS1PDF(state, state.activeFiscalYear); }
+              finally { setS1Exporting(false); }
+            }}
+          >
+            {s1Exporting ? 'Generating…' : '↓ Schedule 1 PDF'}
+          </button>
         </div>
       </Section>
 

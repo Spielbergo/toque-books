@@ -137,6 +137,7 @@ export default function InvoicesPage() {
   const [importResults, setImportResults] = useState([]);
   const [importIdx, setImportIdx]   = useState(0);
   const [importSaveMode, setImportSaveMode] = useState(false);
+  const [aiEnhancing, setAiEnhancing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [zipLoading, setZipLoading] = useState(false);
@@ -617,6 +618,63 @@ export default function InvoicesPage() {
   const handleSkipImport = () => {
     setImportIdx(i => Math.min(importResults.length - 1, i + 1));
   };
+
+  // ── AI Enhance (invoice import) ───────────────────────────
+  const enhanceImportWithAI = useCallback(async () => {
+    const current = importResults[importIdx];
+    if (!current || current.error || !current.text) {
+      toast({ message: 'No text to enhance', type: 'error' });
+      return;
+    }
+    setAiEnhancing(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/parse-pdf-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ text: current.text, mode: 'invoice', filename: current.filename }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      const p = data.parsed || {};
+      const parsedItems = Array.isArray(p.lineItems) && p.lineItems.length > 0
+        ? p.lineItems.map(li => ({
+            id: uuidv4(),
+            description: li.description || 'Services rendered',
+            quantity: li.quantity ?? 1,
+            rate: li.rate ?? 0,
+            amount: li.amount ?? 0,
+          }))
+        : current.formData.lineItems; // keep existing if AI found nothing
+      const enhanced = {
+        ...current,
+        aiEnhanced: true,
+        parsed: { ...current.parsed, ...p },
+        formData: {
+          ...current.formData,
+          invoiceNumber: p.documentNumber || current.formData.invoiceNumber,
+          issueDate: p.date || current.formData.issueDate,
+          dueDate: p.dueDate || current.formData.dueDate,
+          client: { ...current.formData.client, name: p.client || current.formData.client.name },
+          subtotal: p.subtotal ?? current.formData.subtotal,
+          hstAmount: p.hst ?? current.formData.hstAmount,
+          total: p.total ?? current.formData.total,
+          lineItems: parsedItems,
+        },
+      };
+      setImportResults(prev => prev.map((r, i) => i === importIdx ? enhanced : r));
+      toast({ message: 'AI enhancement complete', detail: `${parsedItems.length} line item${parsedItems.length !== 1 ? 's' : ''} extracted` });
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.includes('GEMINI_API_KEY') || msg.includes('503')) {
+        toast({ message: 'AI not configured', detail: 'Add GEMINI_API_KEY to .env.local.', type: 'error' });
+      } else {
+        toast({ message: 'AI parsing failed', detail: msg, type: 'error' });
+      }
+    } finally {
+      setAiEnhancing(false);
+    }
+  }, [importResults, importIdx, user, toast, hstRate]);
 
   // ── Bulk status change ────────────────────────────
   const handleBulkStatus = newStatus => {
@@ -1386,6 +1444,19 @@ export default function InvoicesPage() {
                       {currentImport?.saved ? '✅ Saved: ' : '📄 Extracted from: '}
                       <strong>{currentImport?.filename}</strong>
                     </p>
+                    <div className={styles.importPreviewActions}>
+                      {currentImport?.aiEnhanced && <span className={styles.aiBadge}>✦ AI Enhanced</span>}
+                      {!currentImport?.saved && (
+                        <button
+                          className={styles.aiBtn}
+                          onClick={enhanceImportWithAI}
+                          disabled={aiEnhancing}
+                          title="Re-parse this invoice with AI for better field extraction"
+                        >
+                          {aiEnhancing ? '…' : '✦ Enhance with AI'}
+                        </button>
+                      )}
+                    </div>
                     {importTotalValid > 1 && (
                       <p className={styles.importProgress}>{importSavedCount} of {importTotalValid} saved</p>
                     )}
