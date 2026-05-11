@@ -4,7 +4,10 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import ConditionalShell from '@/components/ConditionalShell';
 
 export const metadata = {
-  title: 'CanBooks — Canadian Tax & Bookkeeping',
+  title: {
+    default: 'CanBooks — Canadian Tax & Bookkeeping',
+    template: '%s — CanBooks',
+  },
   description: 'Track invoices, expenses, and calculate Canadian corporate and personal taxes for Ontario CCPCs.',
 };
 

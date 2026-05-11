@@ -806,13 +806,27 @@ export default function InvoicesPage() {
       )}
 
       {/* Tabs */}
-      <div className={styles.tabs}>
-        <button className={tab === 'invoices' ? styles.tabActive : styles.tab} onClick={() => setTab('invoices')}>Invoices</button>
-        <button className={tab === 'recurring' ? styles.tabActive : styles.tab} onClick={() => setTab('recurring')}>Recurring <span className={styles.tabBadge}>{recurringInvoices.length}</span></button>
+      <div className={styles.tabs} role="tablist" aria-label="Invoices view">
+        <button
+          role="tab"
+          id="tab-invoices"
+          aria-selected={tab === 'invoices'}
+          aria-controls="panel-invoices"
+          className={tab === 'invoices' ? styles.tabActive : styles.tab}
+          onClick={() => setTab('invoices')}
+        >Invoices</button>
+        <button
+          role="tab"
+          id="tab-recurring"
+          aria-selected={tab === 'recurring'}
+          aria-controls="panel-recurring"
+          className={tab === 'recurring' ? styles.tabActive : styles.tab}
+          onClick={() => setTab('recurring')}
+        >Recurring <span className={styles.tabBadge}>{recurringInvoices.length}</span></button>
       </div>
 
       {tab === 'recurring' && (
-        <div className={styles.recurringPanel}>
+        <div className={styles.recurringPanel} role="tabpanel" id="panel-recurring" aria-labelledby="tab-recurring" tabIndex={0}>
           <div className={styles.toolbar}>
             <div className={styles.filterRow}>
               <span className={styles.recurringTitle}>Recurring Invoice Templates</span>
@@ -907,7 +921,7 @@ export default function InvoicesPage() {
       )}
 
       {tab === 'invoices' && (
-      <>
+      <div role="tabpanel" id="panel-invoices" aria-labelledby="tab-invoices" tabIndex={0}>
 
       {/* Aging Report */}
       {showAging && (
@@ -960,6 +974,7 @@ export default function InvoicesPage() {
             type="search"
             className={styles.search}
             placeholder="Search invoices…"
+            aria-label="Search invoices"
             value={search}
             onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
           />
@@ -1035,7 +1050,7 @@ export default function InvoicesPage() {
               <thead>
                 <tr>
                   <th className={styles.checkCell}>
-                    <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
+                    <input type="checkbox" aria-label="Select all invoices" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                   </th>
                   <SortTh label="Invoice #" colKey="invoiceNumber" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <SortTh label="Client"    colKey="client"        sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1052,7 +1067,7 @@ export default function InvoicesPage() {
                 {paginated.map(inv => (
                   <tr key={inv.id} className={`${styles.tableRow} ${selected.has(inv.id) ? styles.rowSelected : ''}`}>
                     <td className={styles.checkCell}>
-                      <input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggleSelect(inv.id)} />
+                      <input type="checkbox" aria-label={`Select invoice #${inv.invoiceNumber}`} checked={selected.has(inv.id)} onChange={() => toggleSelect(inv.id)} />
                     </td>
                     <td className={styles.invNum}>{inv.invoiceNumber}</td>
                     <td>{inv.client?.name || '—'}</td>
@@ -1251,6 +1266,7 @@ export default function InvoicesPage() {
                     <input
                       className={styles.liDesc}
                       placeholder="Description"
+                      aria-label={`Line ${idx + 1} description`}
                       value={li.description}
                       autoComplete="off"
                       onChange={e => {
@@ -1299,12 +1315,14 @@ export default function InvoicesPage() {
                   <Input
                     className={styles.liQty}
                     type="number" min="0" step="0.01" placeholder="Qty"
+                    aria-label={`Line ${idx + 1} quantity`}
                     value={li.quantity}
                     onChange={e => updateLineItem(idx, 'quantity', e.target.value)}
                   />
                   <Input
                     className={styles.liRate}
                     type="number" min="0" step="0.01" placeholder="Rate" prefix="$"
+                    aria-label={`Line ${idx + 1} rate`}
                     value={li.rate}
                     onChange={e => updateLineItem(idx, 'rate', e.target.value)}
                   />
@@ -1611,12 +1629,12 @@ export default function InvoicesPage() {
                 onChange={e => setSendForm(f => ({ ...f, message: e.target.value }))}
               />
             </FormField>
-            {sendError && <p className={styles.sendError}>{sendError}</p>}
+            {sendError && <p role="alert" className={styles.sendError}>{sendError}</p>}
             <p className={styles.sendNote}>The invoice PDF will be attached automatically.</p>
           </div>
         )}
       </Modal>
-      </>
+      </div>
       )}
     </div>
   );
@@ -1624,13 +1642,17 @@ export default function InvoicesPage() {
 
 function SortTh({ label, colKey, sortKey, sortDir, onSort, className }) {
   const active = sortKey === colKey;
+  const ariaSort = active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
   return (
     <th
       className={[styles.sortableTh, active ? styles.sortableThActive : '', className].filter(Boolean).join(' ')}
       onClick={() => onSort(colKey)}
+      tabIndex={0}
+      aria-sort={ariaSort}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort(colKey); } }}
     >
       {label}
-      <span className={styles.sortIndicator}>
+      <span className={styles.sortIndicator} aria-hidden="true">
         {active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
       </span>
     </th>

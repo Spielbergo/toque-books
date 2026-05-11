@@ -140,7 +140,7 @@ export default function Header({ onMenuClick }) {
             aria-label={`User menu for ${user?.displayName || user?.email || 'account'}`}
           >
             {user?.photoURL ? (
-              <img src={user.photoURL} alt="avatar" className={styles.avatarImg} />
+              <img src={user.photoURL} alt="" className={styles.avatarImg} />
             ) : (
               <span className={styles.avatarInitials}>{userInitials}</span>
             )}

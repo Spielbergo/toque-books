@@ -381,6 +381,7 @@ export default function BankStatementsPage() {
               className={styles.tableSearch}
               type="search"
               placeholder="Search statements…"
+              aria-label="Search bank statements"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />

@@ -777,13 +777,17 @@ function BizCard({ rec }) {
 
 function SortTh({ label, colKey, sortKey, sortDir, onSort, className }) {
   const active = sortKey === colKey;
+  const ariaSort = active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
   return (
     <th
       className={[styles.sortableTh, active ? styles.sortableThActive : '', className].filter(Boolean).join(' ')}
       onClick={() => onSort(colKey)}
+      tabIndex={0}
+      aria-sort={ariaSort}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort(colKey); } }}
     >
       {label}
-      <span className={styles.sortIndicator}>
+      <span className={styles.sortIndicator} aria-hidden="true">
         {active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
       </span>
     </th>

@@ -507,8 +507,8 @@ a,
 input[type="checkbox"],
 input[type="radio"],
 select {
-  min-height: 24px;
-  min-width: 24px;
+  min-height: 14px;
+  min-width: 14px;
 }
 
 /* ===== REDUCED MOTION ===== */

@@ -520,7 +520,7 @@ export default function ExpensesPage() {
           })()}
 
           <div className={styles.toolbar}>
-            <input className={styles.search} type="search" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} />
+            <input className={styles.search} type="search" placeholder="Search expenses…" aria-label="Search expenses" value={search} onChange={e => setSearch(e.target.value)} />
             <Select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={styles.filterSelect}>
               <option value="all">All categories</option>
               {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -1292,13 +1292,17 @@ function catLabel(v) {
 
 function SortTh({ label, colKey, sortKey, sortDir, onSort, className }) {
   const active = sortKey === colKey;
+  const ariaSort = active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
   return (
     <th
       className={[styles.sortableTh, active ? styles.sortableThActive : '', className].filter(Boolean).join(' ')}
       onClick={() => onSort(colKey)}
+      tabIndex={0}
+      aria-sort={ariaSort}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort(colKey); } }}
     >
       {label}
-      <span className={styles.sortIndicator}>
+      <span className={styles.sortIndicator} aria-hidden="true">
         {active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
       </span>
     </th>

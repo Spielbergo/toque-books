@@ -73,6 +73,7 @@ export default function ClientsPage() {
           type="search"
           className={styles.search}
           placeholder="Search clients…"
+          aria-label="Search clients"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />

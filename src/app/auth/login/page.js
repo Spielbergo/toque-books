@@ -99,7 +99,7 @@ export default function LoginPage() {
         </div>
 
         {/* Alerts */}
-        {error && <div className={styles.alertError}>{error}</div>}
+        {error && <div role="alert" className={styles.alertError}>{error}</div>}
         {info  && <div className={styles.alertInfo}>{info}</div>}
 
         {/* Google */}

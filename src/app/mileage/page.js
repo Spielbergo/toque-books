@@ -128,6 +128,7 @@ export default function MileagePage() {
           type="search"
           className={styles.search}
           placeholder="Search purpose or client…"
+          aria-label="Search mileage entries"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />

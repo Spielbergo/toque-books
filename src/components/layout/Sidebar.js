@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
@@ -163,6 +164,34 @@ export default function Sidebar({ isOpen, onClose }) {
   const companyName = activeCompany?.name || state.settings.companyName || 'NorthBooks';
   const badgeLogo = state.settings.badgeLogo || null;
 
+  const asideRef    = useRef(null);
+  const onCloseRef  = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  // Focus trap while sidebar is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = asideRef.current;
+    if (!el) return;
+    const focusable = Array.from(
+      el.querySelectorAll('a[href],button:not([disabled]),input,select,[tabindex]:not([tabindex="-1"])')
+    );
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    first?.focus();
+    const trap = e => {
+      if (e.key === 'Escape') { onCloseRef.current(); return; }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener('keydown', trap);
+    return () => document.removeEventListener('keydown', trap);
+  }, [isOpen]);
+
   const userInitials = (user?.displayName || user?.email || '?')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -173,7 +202,13 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   return (
-    <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
+    <aside
+      ref={asideRef}
+      role={isOpen ? 'dialog' : undefined}
+      aria-modal={isOpen ? 'true' : undefined}
+      aria-label="Navigation menu"
+      className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}
+    >
       <div className={styles.logo}>
         {badgeLogo ? (
           <img src={badgeLogo} alt="" className={styles.badgeLogoImg} />

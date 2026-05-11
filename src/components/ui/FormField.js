@@ -1,17 +1,30 @@
+import { useId, cloneElement, isValidElement } from 'react';
 import styles from './FormField.module.css';
 
 export function FormField({ label, error, hint, extra, required, children, className = '' }) {
+  const inputId = useId();
+  const errorId = useId();
+
+  // Pass id + aria attributes to the direct child input/select element
+  const childWithId = isValidElement(children)
+    ? cloneElement(children, {
+        id: inputId,
+        ...(error    && { 'aria-describedby': errorId, 'aria-invalid': 'true' }),
+        ...(required && { 'aria-required': 'true' }),
+      })
+    : children;
+
   return (
     <div className={`${styles.field} ${className}`}>
       {label && (
-        <label className={styles.label}>
+        <label htmlFor={inputId} className={styles.label}>
           {label}
-          {required && <span className={styles.required}>*</span>}
+          {required && <span className={styles.required} aria-hidden="true">*</span>}
         </label>
       )}
-      {children}
+      {childWithId}
       {hint && !error && <p className={styles.hint}>{hint}</p>}
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <p id={errorId} role="alert" className={styles.error}>{error}</p>}
       {extra}
     </div>
   );
