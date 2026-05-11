@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/supabase/server';
+import { verifyToken, getAdminDb } from '@/lib/supabase/server';
 import { createRateLimiter } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
@@ -145,10 +145,30 @@ export async function POST(request) {
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    let user;
     try {
-      await verifyToken(token);
+      user = await verifyToken(token);
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ── Pro gate ──────────────────────────────────────────────────────
+    const supabase = getAdminDb();
+    const { data: sub } = await supabase
+      .from('user_subscriptions')
+      .select('plan, status, current_period_end')
+      .eq('user_id', user.id)
+      .single();
+    const isPro =
+      sub?.plan === 'pro' &&
+      sub?.status === 'active' &&
+      sub?.current_period_end != null &&
+      new Date(sub.current_period_end) > new Date();
+    if (!isPro) {
+      return NextResponse.json(
+        { error: 'AI receipt parsing requires a Pro subscription.' },
+        { status: 403 }
+      );
     }
 
     // ── Rate limit ────────────────────────────────────────────────────

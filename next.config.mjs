@@ -15,13 +15,13 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://helcimcdn.net https://js.helcim.com",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://suprdoldpnlifdzithzj.supabase.co wss://suprdoldpnlifdzithzj.supabase.co https://*.googleapis.com",
-      // Allow blob: for PDF preview and Google accounts OAuth iframe
-      "frame-src blob: 'self' https://accounts.google.com",
+      "connect-src 'self' https://suprdoldpnlifdzithzj.supabase.co wss://suprdoldpnlifdzithzj.supabase.co https://*.googleapis.com https://api.helcim.com",
+      // Allow blob: for PDF preview and Google accounts OAuth iframe; Helcim for payment modal
+      "frame-src blob: 'self' https://accounts.google.com https://*.helcim.com https://helcimcdn.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

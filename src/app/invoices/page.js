@@ -17,6 +17,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import FileDropzone from '@/components/ui/FileDropzone';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import styles from './page.module.css';
+import { useSubscription, PLAN_LIMITS } from '@/contexts/SubscriptionContext';
 
 const STATUS_COLORS = { paid: 'success', sent: 'info', overdue: 'danger', draft: 'muted', void: 'muted' };
 
@@ -121,6 +122,7 @@ export default function InvoicesPage() {
 
   const clients = state.clients || [];
 
+  const { isPro } = useSubscription();
   const [search, setSearch]         = useState('');
   const [statusFilter, setStatus]   = useState('all');
   const [yearFilter, setYearFilter]  = useState('all');
@@ -345,6 +347,25 @@ export default function InvoicesPage() {
       dispatch({ type: 'UPDATE_INVOICE', payload: { ...form, id: editInv.id } });
       toast({ message: `Invoice #${form.invoiceNumber} updated` });
     } else {
+      // Free plan: cap at 10 invoices per calendar month
+      if (!isPro) {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const thisMonthCount = invoices.filter(inv => {
+          const d = new Date(inv.issueDate);
+          return d >= monthStart && d <= monthEnd;
+        }).length;
+        if (thisMonthCount >= PLAN_LIMITS.free.invoicesPerMonth) {
+          toast({
+            message: 'Free plan limit reached',
+            detail: 'You\'ve used 10 invoices this month. Upgrade to Pro for unlimited invoices.',
+            type: 'error',
+            action: { label: 'Upgrade', href: '/settings?tab=billing' },
+          });
+          return;
+        }
+      }
       dispatch({ type: 'ADD_INVOICE', payload: form });
       const dateFy = fyLabelForDate(form.issueDate, state.fiscalYears);
       if (dateFy && state.activeFiscalYear !== 'all' && dateFy !== state.activeFiscalYear) {

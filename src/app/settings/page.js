@@ -13,6 +13,7 @@ import Modal from '@/components/ui/Modal';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import Link from 'next/link';
 import styles from './page.module.css';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const PROVINCES = [
   { value: 'ON', label: 'Ontario' },
@@ -27,7 +28,7 @@ const PROVINCES = [
   { value: 'NL', label: 'Newfoundland & Labrador' },
 ];
 
-const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data', 'Personal Profile', 'Access'];
+const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data', 'Personal Profile', 'Access', 'Billing'];
 
 const MARITAL_STATUSES = [
   { value: '', label: 'Select…' },
@@ -59,12 +60,19 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { userProfile, userDispatch } = useUserProfile();
   const { toast } = useToast();
+  const { subscription, isPro, loading: subLoading, refresh: refreshSub } = useSubscription();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState(0);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [checkoutReady, setCheckoutReady] = useState(false);
+  const [checkoutToken, setCheckoutToken] = useState(null);
+  const [secretToken, setSecretToken] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('tab') === 'personal') setTab(4);
     if (searchParams.get('tab') === 'access') setTab(5);
+    if (searchParams.get('tab') === 'billing') setTab(6);
   }, [searchParams]);
 
   // Access tab state
@@ -864,6 +872,110 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* ══ Billing ══ */}
+      {tab === 6 && (
+        <div className={styles.section}>
+          <h3>Billing</h3>
+          {subLoading ? (
+            <p className={styles.sectionDesc}>Loading subscription…</p>
+          ) : (
+            <>
+              <div className={styles.billingCard}>
+                <div className={styles.billingPlan}>
+                  <span className={styles.billingPlanLabel}>Current plan</span>
+                  <span className={`${styles.billingPlanBadge} ${isPro ? styles.billingPlanPro : styles.billingPlanFree}`}>
+                    {isPro ? 'Pro' : 'Free'}
+                  </span>
+                </div>
+                {subscription?.current_period_end && (
+                  <p className={styles.billingPeriod}>
+                    {subscription.status === 'cancelled'
+                      ? `Pro access until ${new Date(subscription.current_period_end).toLocaleDateString('en-CA')}`
+                      : `Next billing date: ${new Date(subscription.current_period_end).toLocaleDateString('en-CA')}`}
+                  </p>
+                )}
+              </div>
+
+              {!isPro && subscription?.status !== 'cancelled' && (
+                <div className={styles.billingUpgrade}>
+                  <p className={styles.billingUpgradeText}>
+                    Upgrade to <strong>Pro — $7/mo CAD</strong> to unlock unlimited invoices, multiple companies, PDF exports, AI receipt parsing, and the mileage log.
+                  </p>
+                  <Button
+                    onClick={async () => {
+                      setBillingLoading(true);
+                      try {
+                        const { data: { session } } = await (await import('@/lib/supabase/client')).supabase.auth.getSession();
+                        const res = await fetch('/api/helcim/checkout-init', {
+                          method: 'POST',
+                          headers: { authorization: `Bearer ${session?.access_token}` },
+                        });
+                        const json = await res.json();
+                        if (!res.ok) throw new Error(json.error || 'Failed to initialize checkout');
+                        setCheckoutToken(json.checkoutToken);
+                        setSecretToken(json.secretToken);
+                        setCheckoutReady(true);
+                      } catch (err) {
+                        toast({ message: 'Could not start checkout', detail: err.message, type: 'error' });
+                      } finally {
+                        setBillingLoading(false);
+                      }
+                    }}
+                    disabled={billingLoading}
+                  >
+                    {billingLoading ? 'Loading…' : 'Upgrade to Pro'}
+                  </Button>
+                </div>
+              )}
+
+              {isPro && subscription?.status !== 'cancelled' && (
+                <div className={styles.billingCancel}>
+                  <p className={styles.billingCancelText}>
+                    You can cancel at any time. Your Pro access continues until the end of your current billing period.
+                  </p>
+                  <Button variant="danger" onClick={() => setShowCancelConfirm(true)}>
+                    Cancel Subscription
+                  </Button>
+                </div>
+              )}
+
+              {subscription?.status === 'cancelled' && (
+                <p className={styles.sectionDesc}>
+                  Your subscription was cancelled. You can reactivate it at any time.
+                </p>
+              )}
+
+              {checkoutReady && checkoutToken && (
+                <BillingCheckout
+                  checkoutToken={checkoutToken}
+                  secretToken={secretToken}
+                  onSuccess={async () => {
+                    setCheckoutReady(false);
+                    setCheckoutToken(null);
+                    setSecretToken(null);
+                    await refreshSub();
+                    toast({ message: 'Welcome to Pro! 🎉', type: 'success' });
+                  }}
+                  onClose={() => {
+                    setCheckoutReady(false);
+                    setCheckoutToken(null);
+                    setSecretToken(null);
+                  }}
+                />
+              )}
+
+              <p className={styles.accessNote} style={{ marginTop: '2rem' }}>
+                Payments processed by{' '}
+                <a href="https://www.helcim.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+                  Helcim Inc.
+                </a>{' '}
+                — a Canadian payment company. PCI compliant.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── Add Fiscal Year Modal ── */}
       <Modal isOpen={showFYModal} onClose={() => setShowFYModal(false)} title="Add Fiscal Year" size="sm"
         footer={
@@ -909,6 +1021,109 @@ export default function SettingsPage() {
       >
         <p>This will overwrite all current data with your cloud backup. This cannot be undone.</p>
       </Modal>
+
+      {/* ── Cancel Subscription Confirm ── */}
+      <Modal
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        title="Cancel Subscription?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCancelConfirm(false)}>Keep Pro</Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                setBillingLoading(true);
+                setShowCancelConfirm(false);
+                try {
+                  const { data: { session } } = await (await import('@/lib/supabase/client')).supabase.auth.getSession();
+                  const res = await fetch('/api/helcim/cancel', {
+                    method: 'POST',
+                    headers: { authorization: `Bearer ${session?.access_token}` },
+                  });
+                  const json = await res.json();
+                  if (!res.ok) throw new Error(json.error || 'Failed to cancel');
+                  await refreshSub();
+                  toast({ message: 'Subscription cancelled. Access continues until period end.', type: 'success' });
+                } catch (err) {
+                  toast({ message: 'Could not cancel subscription', detail: err.message, type: 'error' });
+                } finally {
+                  setBillingLoading(false);
+                }
+              }}
+            >
+              Yes, Cancel
+            </Button>
+          </>
+        }
+      >
+        <p>Your Pro access will continue until the end of the current billing period. After that, your account will revert to the Free plan.</p>
+      </Modal>
     </div>
   );
+}
+
+// ─── HelcimPay.js checkout widget ────────────────────────────────────────────
+
+function BillingCheckout({ checkoutToken, secretToken, onSuccess, onClose }) {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!checkoutToken) return;
+
+    // Load the HelcimPay.js script dynamically
+    const script = document.createElement('script');
+    script.src = 'https://helcimcdn.net/helcim-js/v1/static/helcim-pay.js';
+    script.async = true;
+    script.onload = () => {
+      if (typeof window.appendHelcimPayIframe === 'function') {
+        window.appendHelcimPayIframe(checkoutToken);
+      }
+    };
+    document.body.appendChild(script);
+
+    // Listen for the payment result
+    function handleMessage(e) {
+      const msgKey = `helcim-pay-js-${checkoutToken}`;
+      if (e.data?.eventName !== msgKey) return;
+
+      if (e.data?.eventStatus === 'SUCCESS' && e.data?.eventMessage) {
+        const { data: txData, hash } = e.data.eventMessage;
+        completeSubscription({ ...txData, hash });
+      } else if (e.data?.eventStatus === 'CLOSED') {
+        onClose?.();
+      }
+    }
+
+    async function completeSubscription(transactionData) {
+      try {
+        const { supabase } = await import('@/lib/supabase/client');
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/helcim/subscribe', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ transactionData, secretToken }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Subscription failed');
+        onSuccess?.();
+      } catch (err) {
+        console.error('BillingCheckout subscribe error:', err);
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      script.remove();
+      // Remove the iframe if HelcimPay injected one
+      document.querySelector('iframe[id^="helcim"]')?.remove();
+    };
+  }, [checkoutToken, secretToken, onSuccess, onClose]);
+
+  return null;
 }

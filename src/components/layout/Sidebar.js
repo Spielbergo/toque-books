@@ -7,6 +7,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import styles from './Sidebar.module.css';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const NAV_ITEMS = [
   {
@@ -161,6 +162,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const router   = useRouter();
   const { state, dispatch, activeCompany } = useApp();
   const { user, signOut } = useAuth();
+  const { isPro, loading: subLoading } = useSubscription();
   const companyName = activeCompany?.name || state.settings.companyName || 'NorthBooks';
   const badgeLogo = state.settings.badgeLogo || null;
 
@@ -264,6 +266,19 @@ export default function Sidebar({ isOpen, onClose }) {
       </nav>
 
       <div className={styles.footer}>
+        {/* Upgrade CTA for free users */}
+        {!subLoading && !isPro && (
+          <Link
+            href="/settings?tab=billing"
+            className={styles.upgradeCta}
+            onClick={onClose}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            Upgrade to Pro
+          </Link>
+        )}
         {/* User info */}
         <div className={styles.footerUser}>
           <div className={styles.footerAvatar}>{userInitials}</div>

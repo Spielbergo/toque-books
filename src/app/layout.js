@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import ConditionalShell from '@/components/ConditionalShell';
 
 export const metadata = {
@@ -17,7 +18,9 @@ export default function RootLayout({ children }) {
       <body suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
-            <ConditionalShell>{children}</ConditionalShell>
+            <SubscriptionProvider>
+              <ConditionalShell>{children}</ConditionalShell>
+            </SubscriptionProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

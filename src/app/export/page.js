@@ -40,6 +40,7 @@ import {
 } from '@/lib/taxCalculations';
 import Modal from '@/components/ui/Modal';
 import styles from './page.module.css';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 // ─── Export catalogue ────────────────────────────────────────────────────────
 
@@ -319,6 +320,7 @@ export default function ExportPage() {
   const { state } = useApp();
   const { userProfile } = useUserProfile();
   const { toast } = useToast();
+  const { isPro } = useSubscription();
   const [done, setDone] = useState({});
   const [zipLoading, setZipLoading] = useState(false);
   const [corpInfoOpen, setCorpInfoOpen] = useState(false);
@@ -473,6 +475,16 @@ export default function ExportPage() {
   }) : null;
 
   function handleExport(item) {
+    // Gate PDF exports to Pro plan
+    if (item.badge === 'PDF' && !isPro) {
+      toast({
+        message: 'Pro feature',
+        detail: 'PDF exports require a Pro subscription. Upgrade to unlock.',
+        type: 'error',
+        action: { label: 'Upgrade', href: '/settings?tab=billing' },
+      });
+      return;
+    }
     try {
       const result = item.fn(state, activeFYKey, userProfile);
       if (result instanceof Promise) {

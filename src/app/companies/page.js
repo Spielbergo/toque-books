@@ -9,12 +9,14 @@ import CanBooksLogo from '@/components/CanBooksLogo';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import styles from './page.module.css';
+import { useSubscription, PLAN_LIMITS } from '@/contexts/SubscriptionContext';
 
 export default function CompaniesPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { companies, activeCompanyId, createCompany, selectCompany, updateCompanyName, deleteCompany, appLoading, activeCompany } = useApp();
   const { toast } = useToast();
+  const { isPro } = useSubscription();
 
   const [showCreate, setShowCreate]   = useState(false);
   const [newName, setNewName]         = useState('');
@@ -31,6 +33,17 @@ export default function CompaniesPage() {
   const handleCreate = async e => {
     e.preventDefault();
     if (!newName.trim()) return;
+    // Free plan: only 1 company allowed
+    if (!isPro && companies.length >= PLAN_LIMITS.free.companies) {
+      toast({
+        message: 'Free plan limit reached',
+        detail: 'Upgrade to Pro to manage multiple companies.',
+        type: 'error',
+        action: { label: 'Upgrade', href: '/settings?tab=billing' },
+      });
+      setShowCreate(false);
+      return;
+    }
     setCreating(true);
     setCreateError('');
     try {

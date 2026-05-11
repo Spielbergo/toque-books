@@ -9,6 +9,8 @@ import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
 import styles from './page.module.css';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import Link from 'next/link';
 
 // CRA 2025 automobile allowance rate: first 5,000 km = $0.72/km, balance = $0.66/km
 const CRA_RATE_1 = 0.72;
@@ -25,6 +27,7 @@ const BLANK = { date: '', startOdo: '', endOdo: '', km: '', purpose: '', client:
 export default function MileagePage() {
   const { state, dispatch, activeFY } = useApp();
   const { toast } = useToast();
+  const { isPro, loading: subLoading } = useSubscription();
 
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -105,6 +108,20 @@ export default function MileagePage() {
 
   return (
     <div className={styles.page}>
+      {!subLoading && !isPro ? (
+        <div className={styles.proGate}>
+          <div className={styles.proGateInner}>
+            <span className={styles.proGateIcon}>&#128663;</span>
+            <h2 className={styles.proGateTitle}>Mileage Log is a Pro feature</h2>
+            <p className={styles.proGateDesc}>
+              Track CRA-compliant vehicle trips and calculate your automobile allowance.
+              Upgrade to Pro to unlock the mileage log.
+            </p>
+            <Link href="/settings?tab=billing" className={styles.proGateBtn}>Upgrade to Pro — $7/mo</Link>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Summary */}
       <div className={styles.summaryBar}>
         <div className={styles.summaryItem}>
@@ -249,6 +266,8 @@ export default function MileagePage() {
           <Button variant="danger" onClick={() => handleDelete(confirmDelete)}>Delete</Button>
         </div>
       </Modal>
+        </>
+      )}
     </div>
   );
 }

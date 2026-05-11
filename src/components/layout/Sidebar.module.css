@@ -226,6 +226,27 @@
   color: var(--danger-text, #ef4444);
 }
 
+.upgradeCta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent, #4f8ef7);
+  background: rgba(79, 142, 247, 0.08);
+  border: 1px solid rgba(79, 142, 247, 0.25);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background var(--transition), border-color var(--transition);
+  width: 100%;
+}
+.upgradeCta:hover {
+  background: rgba(79, 142, 247, 0.15);
+  border-color: rgba(79, 142, 247, 0.5);
+}
+
 @media (min-width: 1024px) {
   .sidebar {
     transform: translateX(0);
