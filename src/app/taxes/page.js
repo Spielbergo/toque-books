@@ -22,7 +22,36 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { FormField, Input, Select } from '@/components/ui/FormField';
 import { exportS1PDF } from '@/lib/exportHelpers';
+import Explain from '@/components/ui/Explain';
 import Link from 'next/link';
+
+// ── Quarterly instalment helpers ─────────────────────────────────────────────
+function addMonths(dateStr, months) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + months);
+  // Clamp to last day of result month
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  if (d.getDate() > lastDay.getDate()) d.setDate(lastDay.getDate());
+  return d.toISOString().slice(0, 10);
+}
+
+function lastDayOfMonth(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+}
+
+function getInstalmentDates(startDate, endDate) {
+  if (!startDate) return null;
+  // Q1=3mo after start, Q2=6mo, Q3=9mo, Q4=fiscal year end (last day of 12th month)
+  return [
+    { quarter: 'Q1', due: lastDayOfMonth(addMonths(startDate, 2)) },
+    { quarter: 'Q2', due: lastDayOfMonth(addMonths(startDate, 5)) },
+    { quarter: 'Q3', due: lastDayOfMonth(addMonths(startDate, 8)) },
+    { quarter: 'Q4', due: endDate || lastDayOfMonth(addMonths(startDate, 11)) },
+  ];
+}
 
 // ── Review export helpers ────────────────────────────────────────────────────
 function buildReviewText(rd, msgs) {
@@ -619,8 +648,8 @@ export default function TaxesPage() {
             </SubSection>
 
             <SubSection title="Income Classification">
-              <Row label={`SBD income (≤ ${formatCurrency(CORPORATE_RATES_2025.sbd_limit)})`} value={formatCurrency(corp.sbdIncome)} />
-              <Row label="General rate income" value={formatCurrency(corp.generalIncome)} />
+              <Row label={<>SBD income (≤ {formatCurrency(CORPORATE_RATES_2025.sbd_limit)})<Explain text="Income eligible for the Small Business Deduction (SBD). The first $500,000 of active business income for a qualifying CCPC is taxed at the lower combined rate (~12.2% in Ontario)." /></>} value={formatCurrency(corp.sbdIncome)} />
+              <Row label={<>General rate income<Explain text="Active business income above the $500,000 SBD limit is taxed at the higher combined corporate rate (~26.5% in Ontario)." /></>} value={formatCurrency(corp.generalIncome)} />
             </SubSection>
           </div>
           <div>
@@ -633,8 +662,9 @@ export default function TaxesPage() {
               <Row label={`${corp.provLabel} general tax (${(corp.provGeneralRate * 100).toFixed(1)}%)`} value={formatCurrency(corp.provTaxGeneral)} />
               <Row label={`${corp.provLabel} tax total`} value={formatCurrency(corp.provTax)} bold />
               <div className={styles.dividerRow} />
-              <Row label="Total corporate tax" value={formatCurrency(corp.totalTax)} bold />
+              <Row label={<>Total corporate tax<Explain text="Combined federal + provincial corporate income tax owing for the fiscal year. This is an estimate — file your T2 return with a CPA for the final amount." /></>} value={formatCurrency(corp.totalTax)} bold />
               <Row label="After-tax income" value={formatCurrency(corp.afterTaxIncome)} />
+              <Row label={<>Effective tax rate<Explain text="Total corporate tax divided by net income before tax. A lower effective rate indicates more income is being taxed at the Small Business Deduction rate." /></>} value={formatPercent(corp.effectiveRate)} />
               <div className={styles.dividerRow} />
               <RowEditable
                 label="Opening retained earnings"
@@ -643,7 +673,7 @@ export default function TaxesPage() {
               />
               <Row label="+ After-tax income" value={`+ ${formatCurrency(corp.afterTaxIncome)}`} />
               <Row label="− Dividends paid (this FY)" value={`− ${formatCurrency(totalDivsPaid)}`} />
-              <Row label="Closing retained earnings" value={formatCurrency(closingRE)} bold />
+              <Row label={<>Closing retained earnings<Explain text="Cumulative after-tax profit remaining in the corporation after dividends paid. This carries forward as the opening retained earnings for the next fiscal year." /></>} value={formatCurrency(closingRE)} bold />
               {nextFYKey && (
                 <div className={styles.carryRow}>
                   <button
@@ -716,6 +746,48 @@ export default function TaxesPage() {
           </button>
         </div>
       </Section>
+
+      {/* ── Corporate Tax Instalments ── */}
+      {corp.totalTax >= 3000 && (
+        <Section title="Corporate Tax Instalments" badge="CRA Quarterly">
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Because your estimated corporate tax exceeds $3,000, CRA requires quarterly instalment payments during the fiscal year.
+            The table below shows estimated amounts based on the <strong>current-year method</strong>. You may also use the prior-year or no-calculation methods — consult your CPA.
+          </p>
+          {(() => {
+            const quarterlyAmt = corp.totalTax / 4;
+            const dates = getInstalmentDates(activeFY.startDate, activeFY.endDate);
+            if (!dates) return <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Set fiscal year start/end dates to see instalment due dates.</p>;
+            return (
+              <table className={styles.slTable} style={{ maxWidth: 520 }}>
+                <thead>
+                  <tr>
+                    <th>Quarter</th>
+                    <th>Due Date</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dates.map(({ quarter, due }) => (
+                    <tr key={quarter}>
+                      <td><strong>{quarter}</strong></td>
+                      <td>{due ? formatDate(due) : '—'}</td>
+                      <td className={styles.slAmt}>{formatCurrency(quarterlyAmt)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: '2px solid var(--border-color)' }}>
+                    <td colSpan={2}><strong>Total</strong></td>
+                    <td className={styles.slAmt}><strong>{formatCurrency(corp.totalTax)}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            );
+          })()}
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+            ℹ️ Instalments are due on the last day of the 3rd, 6th, 9th, and 12th months of your taxation year. Interest accrues on late instalments. Always verify with CRA or a CPA.
+          </p>
+        </Section>
+      )}
 
       {/* ── CCA Schedule 8 ── */}
       <Section title="Capital Cost Allowance — Schedule 8" badge={state.activeFiscalYear}>
@@ -803,8 +875,8 @@ export default function TaxesPage() {
             <SubSection title="Federal Tax">
               <Row label="Gross federal income tax" value={formatCurrency(personal.fedGrossIncomeTax)} />
               <Row label="Basic personal amount credit" value={`− ${formatCurrency(personal.fedBPA_credit)}`} />
-              <Row label="Non-eligible DTC" value={`− ${formatCurrency(personal.fedNeDTC)}`} />
-              <Row label="Eligible DTC" value={`− ${formatCurrency(personal.fedElDTC)}`} />
+              <Row label={<>Non-eligible DTC<Explain text="Dividend Tax Credit for non-eligible dividends (paid from small business income taxed at the SBD rate). The federal DTC is approximately 9.03% of the grossed-up dividend amount." /></>} value={`− ${formatCurrency(personal.fedNeDTC)}`} />
+              <Row label={<>Eligible DTC<Explain text="Dividend Tax Credit for eligible dividends (paid from income taxed at the general corporate rate). The federal DTC is approximately 15.02% of the grossed-up amount." /></>} value={`− ${formatCurrency(personal.fedElDTC)}`} />
               <Row label="Federal tax" value={formatCurrency(personal.fedTax)} bold />
             </SubSection>
             <SubSection title="Ontario Tax">
@@ -813,7 +885,7 @@ export default function TaxesPage() {
               <Row label="Non-eligible DTC (Ontario)" value={`− ${formatCurrency(personal.onNeDTC)}`} />
               <Row label="Eligible DTC (Ontario)" value={`− ${formatCurrency(personal.onElDTC)}`} />
               <Row label="Ontario basic tax" value={formatCurrency(personal.onBasicTax)} />
-              <Row label="Ontario surtax" value={formatCurrency(personal.onSurtax)} />
+              <Row label={<>Ontario surtax<Explain text="An additional Ontario tax that applies when your provincial income tax exceeds $5,654 (20% surtax) and again above $7,246 (an additional 36% surtax) for 2025." /></>} value={formatCurrency(personal.onSurtax)} />
               <Row label="Ontario Health Premium" value={formatCurrency(personal.ohp)} />
               <Row label="Ontario tax total" value={formatCurrency(personal.onTax)} bold />
             </SubSection>

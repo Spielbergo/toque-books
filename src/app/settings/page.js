@@ -457,6 +457,35 @@ export default function SettingsPage() {
               <p className={styles.toggleHint}>Mandatory when annual revenue exceeds $30,000.</p>
             </div>
 
+            {form.hstRegistered && (
+              <>
+                <div className={styles.toggleRow}>
+                  <label className={styles.toggleLabel}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={!!form.hstQuickMethod}
+                      className={`${styles.toggle} ${form.hstQuickMethod ? styles.toggleOn : ''}`}
+                      onClick={() => setForm(f => ({ ...f, hstQuickMethod: !f.hstQuickMethod }))}
+                    />
+                    <span>GST/HST Quick Method</span>
+                  </label>
+                  <p className={styles.toggleHint}>Remit a flat rate on gross sales instead of tracking every ITC. Only available to businesses with annual revenue under $400,000. See the HST Tracker for a comparison.</p>
+                </div>
+                {form.hstQuickMethod && (
+                  <div className={styles.formGrid} style={{ marginTop: '0.5rem' }}>
+                    <FormField label="Quick Method Business Type" hint="Determines your remittance rate — verify with CRA RC4058">
+                      <Select value={form.hstQuickMethodType || 'services'} onChange={e => setForm(f => ({ ...f, hstQuickMethodType: e.target.value }))}>
+                        <option value="services">Services (most consulting, professional services)</option>
+                        <option value="goods">Goods (retail, wholesale)</option>
+                        <option value="food_accom">Food, beverages &amp; accommodation</option>
+                      </Select>
+                    </FormField>
+                  </div>
+                )}
+              </>
+            )}
+
             <div className={styles.toggleRow}>
               <label className={styles.toggleLabel}>
                 <button

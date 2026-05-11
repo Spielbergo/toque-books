@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useToast } from '@/contexts/ToastContext';
-import { calculateHSTSummary, checkHSTThreshold } from '@/lib/taxCalculations';
+import { calculateHSTSummary, calculateGSTQuickMethod, checkHSTThreshold } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, today } from '@/lib/formatters';
 import { expandRecurringForFY } from '@/lib/recurringUtils';
 import Button from '@/components/ui/Button';
@@ -49,6 +49,21 @@ export default function HSTTrackerPage() {
 
   const allInvoices = Object.values(state.fiscalYears || {}).flatMap(f => f.invoices || []);
   const hstAlert = !state.settings?.hstRegistered ? checkHSTThreshold(allInvoices) : null;
+
+  const grossRevenue = invoices
+    .filter(inv => ['sent', 'paid'].includes(inv.status))
+    .reduce((s, inv) => s + (inv.subtotal || 0), 0);
+
+  const quickMethodEnabled = state.settings?.hstRegistered && state.settings?.hstQuickMethod;
+  const quickMethod = quickMethodEnabled
+    ? calculateGSTQuickMethod(
+        grossRevenue,
+        hst.hstCollected,
+        hst.itcTotal,
+        state.settings?.province || 'ON',
+        state.settings?.hstQuickMethodType || 'services',
+      )
+    : null;
 
   const openCreate = () => {
     setEditId(null);
@@ -123,13 +138,43 @@ export default function HSTTrackerPage() {
         </div>
       </div>
 
+      {/* GST Quick Method comparison */}
+      {quickMethod && (
+        <div className={styles.quickMethodPanel}>
+          <div className={styles.quickMethodHeader}>
+            <span>⚡ GST/HST Quick Method — Comparison</span>
+            <span className={styles.quickMethodRate}>Remittance rate: {(quickMethod.rate * 100).toFixed(1)}%</span>
+          </div>
+          <div className={styles.quickMethodRow}>
+            <span>Standard method (collected − ITC)</span>
+            <strong>{formatCurrency(quickMethod.standardRemittance)}</strong>
+          </div>
+          <div className={styles.quickMethodRow}>
+            <span>Quick Method estimate (incl. 1% credit)</span>
+            <strong>{formatCurrency(quickMethod.quickMethodRemittance)}</strong>
+          </div>
+          <div className={`${styles.quickMethodRow} ${styles.quickMethodSavings}`}>
+            <span>{quickMethod.isAdvantageous ? '💰 Estimated savings with Quick Method' : '⚠️ Quick Method costs more in this scenario'}</span>
+            <strong style={{ color: quickMethod.isAdvantageous ? 'var(--success)' : 'var(--danger)' }}>
+              {quickMethod.isAdvantageous ? '+' : '−'}{formatCurrency(Math.abs(quickMethod.savings))}
+            </strong>
+          </div>
+          <p className={styles.quickMethodNote}>
+            This is an estimate. Quick Method eligibility and rates vary. Consult your CPA before electing. Update your type in <a href="/settings">Settings → Company</a>.
+          </p>
+        </div>
+      )}
+      {state.settings?.hstRegistered && !state.settings?.hstQuickMethod && hst.hstCollected > 0 && (
+        <div className={styles.quickMethodHint}>
+          💡 <strong>Tip:</strong> Enable <strong>GST/HST Quick Method</strong> in <a href="/settings">Settings → Company</a> to see if you could pay less HST with a flat remittance rate.
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <h2 className={styles.tableTitle}>Remittance History — {state.activeFiscalYear}</h2>
         <Button size="sm" onClick={openCreate}>+ Record Remittance</Button>
       </div>
-
-      {/* Table */}
       {remittances.length === 0 ? (
         <EmptyState
           icon="🏦"

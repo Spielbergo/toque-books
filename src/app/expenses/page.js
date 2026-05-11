@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -69,7 +69,47 @@ function makeBlankExpense() {
     months: 12,
     currency: 'CAD',
     exchangeRateToCAD: 1,
+    sred: false,
+    receiptDataUrl: '',
   };
+}
+
+/**
+ * Compress an image File to a JPEG data URL under ~120 KB.
+ * Returns a Promise<string> (data URL).
+ */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_PX = 900;
+        let { width, height } = img;
+        if (width > MAX_PX || height > MAX_PX) {
+          if (width > height) { height = Math.round(height * MAX_PX / width); width = MAX_PX; }
+          else { width = Math.round(width * MAX_PX / height); height = MAX_PX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        // Try quality levels until under 120 KB
+        let quality = 0.75;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > 160000 && quality > 0.3) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // Total pre-tax cost (monthly x months for recurring, else just amount)
@@ -118,6 +158,27 @@ export default function ExpensesPage() {
   const [rateLoading, setRateLoading] = useState(false);
   const [sortKey, setSortKey] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
+
+  // Receipt lightbox
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const receiptInputRef = useRef(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+
+  const handleReceiptFile = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast({ message: 'Please select an image file', type: 'error' }); return; }
+    setReceiptLoading(true);
+    try {
+      const dataUrl = await compressImage(file);
+      setForm(f => ({ ...f, receiptDataUrl: dataUrl }));
+    } catch {
+      toast({ message: 'Could not process image', type: 'error' });
+    } finally {
+      setReceiptLoading(false);
+      if (receiptInputRef.current) receiptInputRef.current.value = '';
+    }
+  };
 
   // Recurring modal state
   const [showRecurModal, setShowRecurModal] = useState(false);
@@ -421,6 +482,43 @@ export default function ExpensesPage() {
             <SummaryItem label="Combined Deductions" value={formatCurrency(totalDeductible + hoCalc.deductible)} accent />
           </div>
 
+          {/* SR&ED awareness */}
+          {(() => {
+            const SRED_CATS = ['software_subscriptions', 'equipment', 'wages_salaries', 'legal_professional', 'education', 'training'];
+            const flagged = expenses.filter(e => e.sred);
+            const potential = expenses.filter(e => !e.sred && SRED_CATS.includes(e.category));
+            const flaggedTotal = flagged.reduce((s, e) => s + expTotal(e), 0);
+            const potentialTotal = potential.reduce((s, e) => s + expTotal(e), 0);
+            const fedCredit = flaggedTotal * 0.15; // 15% for general CCPC (35% for qualifying Canadian-controlled)
+            if (flaggedTotal === 0 && potentialTotal < 500) return null;
+            return (
+              <div className={styles.sredBanner}>
+                <div className={styles.sredTitle}>🔬 SR&amp;ED Tax Credit Awareness</div>
+                {flaggedTotal > 0 && (
+                  <div className={styles.sredRow}>
+                    <span>Flagged SR&amp;ED expenses</span>
+                    <strong>{formatCurrency(flaggedTotal)}</strong>
+                  </div>
+                )}
+                {flaggedTotal > 0 && (
+                  <div className={styles.sredRow}>
+                    <span>Estimated federal investment tax credit (~15%)</span>
+                    <strong style={{ color: 'var(--success)' }}>{formatCurrency(fedCredit)}</strong>
+                  </div>
+                )}
+                {potentialTotal > 0 && (
+                  <div className={styles.sredRow} style={{ opacity: 0.75 }}>
+                    <span>Potentially qualifying expenses not yet flagged (software, equipment, wages, legal, training)</span>
+                    <strong>{formatCurrency(potentialTotal)}</strong>
+                  </div>
+                )}
+                <p className={styles.sredNote}>
+                  SR&amp;ED credits can offset 15–35% of eligible R&amp;D costs. Flag individual expenses using the SR&amp;ED checkbox in the edit form. Always confirm eligibility with a CPA or SR&amp;ED specialist.
+                </p>
+              </div>
+            );
+          })()}
+
           <div className={styles.toolbar}>
             <input className={styles.search} type="search" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} />
             <Select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={styles.filterSelect}>
@@ -468,6 +566,7 @@ export default function ExpensesPage() {
                             <Badge color="default">{catLabel(exp.category)}</Badge>
                             {isPartial && <span className={styles.partial}> (50%)</span>}
                             {exp.isRecurring && <span className={styles.recurBadge}>↻ ×{exp.months}mo</span>}
+                            {exp.sred && <span className={styles.sredBadge}>SR&amp;ED</span>}
                           </td>
                           <td className={styles.descCell} title={exp.description || undefined}>{exp.description || '—'}</td>
                           <td className={styles.right}>
@@ -483,6 +582,9 @@ export default function ExpensesPage() {
                           <td className={styles.right}>{formatCurrency(deductible)}</td>
                           <td>
                             <div className={styles.rowActions}>
+                              {exp.receiptDataUrl && (
+                                <button type="button" className={styles.receiptBtn} title="View receipt" onClick={() => setLightboxUrl(exp.receiptDataUrl)}>📎</button>
+                              )}
                               <Button variant="ghost" size="xs" onClick={() => openEdit(exp)}>Edit</Button>
                               <Button variant="ghost" size="xs" onClick={() => setConfirmDelete(exp.id)}>🗑</Button>
                             </div>
@@ -892,6 +994,47 @@ export default function ExpensesPage() {
             <FormField label="Notes" className={styles.colSpan2}>
               <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reference number, receipt details…" rows={2} />
             </FormField>
+            <div className={`${styles.colSpan2} ${styles.recurRow}`}>
+              <label className={styles.recurToggle}>
+                <input
+                  type="checkbox"
+                  checked={!!form.sred}
+                  onChange={e => setForm(f => ({ ...f, sred: e.target.checked }))}
+                />
+                <span>Flag as SR&amp;ED eligible</span>
+              </label>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 1.5rem' }}>
+                Scientific Research &amp; Experimental Development. Flag expenses that relate to R&amp;D activities for credit tracking.
+              </p>
+            </div>
+
+            {/* Receipt attachment */}
+            <div className={styles.colSpan2}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Receipt Image</div>
+              {form.receiptDataUrl ? (
+                <div className={styles.receiptPreviewWrap}>
+                  <img src={form.receiptDataUrl} alt="Receipt" className={styles.receiptPreview} />
+                  <button type="button" className={styles.receiptRemoveBtn} onClick={() => setForm(f => ({ ...f, receiptDataUrl: '' }))} aria-label="Remove receipt">✕</button>
+                </div>
+              ) : (
+                <div
+                  className={styles.receiptDropArea}
+                  onClick={() => receiptInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => e.key === 'Enter' && receiptInputRef.current?.click()}
+                >
+                  {receiptLoading ? 'Processing…' : '📎 Click to attach a receipt image (JPEG, PNG, WebP)'}
+                </div>
+              )}
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleReceiptFile}
+              />
+            </div>
           </div>
         </form>
       </Modal>
@@ -1117,6 +1260,19 @@ export default function ExpensesPage() {
       >
         <p className={styles.confirmText}>This recurring expense will be removed from your registry.</p>
       </Modal>
+
+      {/* Receipt Lightbox */}
+      {lightboxUrl && (
+        <div className={styles.receiptLightbox} onClick={() => setLightboxUrl(null)} role="dialog" aria-label="Receipt image">
+          <button className={styles.receiptLightboxClose} onClick={() => setLightboxUrl(null)} aria-label="Close">✕</button>
+          <img
+            src={lightboxUrl}
+            alt="Receipt"
+            className={styles.receiptLightboxImg}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -224,6 +224,54 @@ export function calculateQSTSummary(invoices, expenses) {
   return { qstCollected, qstITC, netQSTRemittance };
 }
 
+// ─── GST/HST QUICK METHOD ───────────────────────────────────────────────────
+
+/**
+ * 2025 GST/HST Quick Method remittance rates by province and business type.
+ * Businesses using the Quick Method remit a flat rate × (taxable revenue including GST/HST).
+ * The 1% credit applies on the first $30,000 of taxable revenue for eligible registrants.
+ * Source: CRA RC4058 — GST/HST Quick Method of Accounting
+ */
+export const QUICK_METHOD_RATES = {
+  // Services: [general rate, food/beverages/accommodation rate]
+  services:        { ON: 0.088, BC: 0.036, AB: 0.000, QC: 0.036, MB: 0.036, SK: 0.036, NB: 0.100, NS: 0.100, NL: 0.100, PE: 0.100 },
+  goods:           { ON: 0.018, BC: 0.036, AB: 0.000, QC: 0.036, MB: 0.036, SK: 0.036, NB: 0.057, NS: 0.057, NL: 0.057, PE: 0.057 },
+  food_accom:      { ON: 0.036, BC: 0.036, AB: 0.000, QC: 0.036, MB: 0.036, SK: 0.036, NB: 0.057, NS: 0.057, NL: 0.057, PE: 0.057 },
+};
+
+/**
+ * Calculate GST/HST Quick Method vs Standard comparison.
+ * @param {number} grossRevenue         - Revenue before HST (subtotals from invoices)
+ * @param {number} hstCollected         - HST collected from invoices
+ * @param {number} itcTotal             - ITC from expenses (standard method)
+ * @param {string} province             - 2-letter province code
+ * @param {string} businessType         - 'services' | 'goods' | 'food_accom'
+ * @returns {object}
+ */
+export function calculateGSTQuickMethod(grossRevenue, hstCollected, itcTotal, province = 'ON', businessType = 'services') {
+  const rates = QUICK_METHOD_RATES[businessType] ?? QUICK_METHOD_RATES.services;
+  const rate = rates[province] ?? rates['ON'];
+
+  const taxableRevenue = grossRevenue + hstCollected; // revenue including HST
+  // 1% credit on first $30,000 of taxable revenue
+  const creditBase = Math.min(taxableRevenue, 30000);
+  const onePercentCredit = creditBase * 0.01;
+
+  const quickMethodRemittance = Math.max(0, taxableRevenue * rate - onePercentCredit);
+  const standardRemittance = Math.max(0, hstCollected - itcTotal);
+  const savings = standardRemittance - quickMethodRemittance;
+
+  return {
+    rate,
+    taxableRevenue,
+    onePercentCredit,
+    quickMethodRemittance,
+    standardRemittance,
+    savings,
+    isAdvantageous: savings > 0,
+  };
+}
+
 // ─── MILEAGE DEDUCTION ──────────────────────────────────────────────────────
 
 // CRA 2025 automobile allowance rates
