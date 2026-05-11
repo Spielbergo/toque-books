@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import Explain from '@/components/ui/Explain';
 import styles from './page.module.css';
 
 const BLANK = { period: '', amtCollected: '', itc: '', netRemittance: '', remittedDate: '', confirmationNo: '', notes: '' };
@@ -117,12 +118,12 @@ export default function HSTTrackerPage() {
           <span className={styles.summarySub}>From invoices this FY</span>
         </div>
         <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Input Tax Credits</span>
+          <span className={styles.summaryLabel}>Input Tax Credits<Explain text="ITCs are the HST you paid on business expenses. You deduct these from HST collected to reduce what you remit to CRA. Only registered businesses can claim ITCs." /></span>
           <span className={styles.summaryValue} style={{ color: 'var(--success)' }}>{formatCurrency(hst.itcTotal)}</span>
           <span className={styles.summarySub}>HST paid on expenses</span>
         </div>
         <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Net Owing to CRA</span>
+          <span className={styles.summaryLabel}>Net Owing to CRA<Explain text="HST Collected minus Input Tax Credits. This is the amount you remit to CRA (or receive as a refund if negative)." /></span>
           <span className={styles.summaryValue} style={{ color: hst.netRemittance < 0 ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(hst.netRemittance)}</span>
           <span className={styles.summarySub}>{hst.netRemittance < 0 ? 'Refund owed to you' : 'Amount to remit'}</span>
         </div>

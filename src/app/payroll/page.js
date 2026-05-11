@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { FormField, Input, Select } from '@/components/ui/FormField';
+import Explain from '@/components/ui/Explain';
 import styles from './page.module.css';
 
 // ─── Dynamic PDF import (react-pdf/renderer not SSR-safe) ────────────────────
@@ -436,16 +437,16 @@ export default function PayrollPage() {
               <Input type="text" value={t4aForm.city} onChange={e => setT4AForm(f => ({ ...f, city: e.target.value }))} />
             </FormField>
             <FormField label="" />
-            <FormField label="Box 048 — Fees for Services" hint="Most common for contractors">
+            <FormField label={<>Box 048 — Fees for Services<Explain text="The most common T4A box for independent contractors. Report fees paid for services rendered — but NOT if you withheld CPP/EI (use a T4 instead). Required when total payments to one contractor exceed $500/year." /></>} hint="Most common for contractors">
               <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box048} onChange={e => setT4AForm(f => ({ ...f, box048: e.target.value }))} placeholder="0.00" />
             </FormField>
-            <FormField label="Box 020 — Self-employment Commissions">
+            <FormField label={<>Box 020 — Self-employment Commissions<Explain text="Report commission income earned by self-employed agents or brokers. Do not use this box for salaried employees who also earn commissions — those go on a T4." /></>}>
               <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box020} onChange={e => setT4AForm(f => ({ ...f, box020: e.target.value }))} placeholder="0.00" />
             </FormField>
-            <FormField label="Box 028 — Other Income">
+            <FormField label={<>Box 028 — Other Income<Explain text="Miscellaneous income paid to the recipient that doesn't fit another T4A box — such as research grants, prizes, or payments to non-residents." /></>}>
               <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box028} onChange={e => setT4AForm(f => ({ ...f, box028: e.target.value }))} placeholder="0.00" />
             </FormField>
-            <FormField label="Box 022 — Income Tax Deducted">
+            <FormField label={<>Box 022 — Income Tax Deducted<Explain text="Only fill this if you voluntarily withheld income tax from the contractor's payment. Most contractors manage their own taxes, so this is usually left blank." /></>}>
               <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box022} onChange={e => setT4AForm(f => ({ ...f, box022: e.target.value }))} placeholder="0.00" />
             </FormField>
             <FormField label="Notes" className={styles.colSpan2}>

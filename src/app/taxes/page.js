@@ -642,8 +642,8 @@ export default function TaxesPage() {
               <Row label="Gross revenue" value={formatCurrency(corp.grossRevenue)} />
               <Row label="Total deductible expenses" value={`− ${formatCurrency(totalDeductibleExp)}`} />
               <Row label="Home office deduction" value={`− ${formatCurrency(hoResult.deductible)}`} />
-              {mileageResult.totalKm > 0 && <Row label={`Mileage deduction (${mileageResult.totalKm.toFixed(0)} km)`} value={`− ${formatCurrency(mileageResult.deductible)}`} />}
-              {totalCCA > 0 && <Row label="CCA — Schedule 8" value={`− ${formatCurrency(totalCCA)}`} />}
+              {mileageResult.totalKm > 0 && <Row label={<>Mileage deduction ({mileageResult.totalKm.toFixed(0)} km)<Explain text="CRA allows $0.72/km for the first 5,000 business km and $0.66/km thereafter (2025 rates). Calculated automatically from your Mileage log." /></>} value={`− ${formatCurrency(mileageResult.deductible)}`} />}
+              {totalCCA > 0 && <Row label={<>CCA — Schedule 8<Explain text="Capital Cost Allowance: the tax system's method of deducting the cost of business assets over several years. Each asset class has a CRA-defined annual depreciation rate." /></>} value={`− ${formatCurrency(totalCCA)}`} />}
               <Row label="Net income before tax" value={formatCurrency(corp.netIncome)} bold />
             </SubSection>
 
@@ -687,7 +687,7 @@ export default function TaxesPage() {
             </SubSection>
           </div>
         </div>
-        <SubSection title="Shareholder Loans — s.15(2)">
+        <SubSection title={<>Shareholder Loans — s.15(2)<Explain text="Under ITA s.15(2), a loan from your corporation to you (the shareholder) must be repaid by the end of the fiscal year following the year it was made — or the entire amount is included in your personal income." /></>}>
           <div className={styles.slBody}>
             <div className={styles.slBalRow}>
               <span>Opening balance (shareholder owes corp)</span>
@@ -797,7 +797,7 @@ export default function TaxesPage() {
           <div className={styles.ccaScroll}>
             <table className={styles.ccaTable}>
               <thead>
-                <tr><th>Class</th><th>Description</th><th>Rate</th><th>Opening UCC</th><th>Additions</th><th>Disposals</th><th>CCA Claimed</th><th>Closing UCC</th><th></th></tr>
+                <tr><th>Class</th><th>Description</th><th>Rate</th><th>Opening UCC<Explain text="Undepreciated Capital Cost: the asset's original cost minus all CCA claimed in prior years. This is the balance you can continue to depreciate." /></th><th>Additions</th><th>Disposals</th><th>CCA Claimed</th><th>Closing UCC<Explain text="Opening UCC plus additions, minus disposals and the CCA claimed this year. This amount becomes next year's Opening UCC." /></th><th></th></tr>
               </thead>
               <tbody>
                 {ccaClasses.map(c => {
