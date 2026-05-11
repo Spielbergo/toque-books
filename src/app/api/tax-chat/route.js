@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/firebase/admin';
+import { verifyToken } from '@/lib/supabase/server';
 import { createRateLimiter } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
@@ -20,7 +20,7 @@ export async function POST(request) {
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     try {
-      await verifyIdToken(token);
+      await verifyToken(token);
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

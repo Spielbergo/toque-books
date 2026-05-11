@@ -57,7 +57,7 @@ export default function Header({ onMenuClick }) {
     router.push('/dashboard');
   };
 
-  const userInitials = (user?.displayName || user?.email || '?')
+  const userInitials = (user?.user_metadata?.full_name || user?.email || '?')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
@@ -137,10 +137,10 @@ export default function Header({ onMenuClick }) {
             title={user?.email}
             aria-haspopup="menu"
             aria-expanded={userOpen}
-            aria-label={`User menu for ${user?.displayName || user?.email || 'account'}`}
+            aria-label={`User menu for ${user?.user_metadata?.full_name || user?.email || 'account'}`}
           >
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="" className={styles.avatarImg} />
+            {user?.user_metadata?.avatar_url ? (
+              <img src={user.user_metadata.avatar_url} alt="" className={styles.avatarImg} />
             ) : (
               <span className={styles.avatarInitials}>{userInitials}</span>
             )}
@@ -149,7 +149,7 @@ export default function Header({ onMenuClick }) {
           {userOpen && (
             <div className={`${styles.dropdownMenu} ${styles.dropdownMenuRight}`}>
               <div className={styles.userInfo}>
-                <span className={styles.userName}>{user?.displayName || 'Account'}</span>
+                <span className={styles.userName}>{user?.user_metadata?.full_name || 'Account'}</span>
                 <span className={styles.userEmail}>{user?.email}</span>
               </div>
               <div className={styles.dropdownSep} />

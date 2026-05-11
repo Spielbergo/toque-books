@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut as firebaseSignOut } from 'firebase/auth';
+import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth, db } from '@/lib/firebase/client';
 import CanBooksLogo from '@/components/CanBooksLogo';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/formatters';
 import { calculateCorporateTax, calculateHSTSummary, getDeductibleAmount } from '@/lib/taxCalculations';
 import styles from './page.module.css';
@@ -38,24 +36,26 @@ export default function AccountantPage() {
     if (!user?.email) { setLoading(false); return; }
     setLoading(true);
     const email = user.email.toLowerCase().trim();
-    getDocs(
-      query(collection(db, 'companies'), where('accountantEmails', 'array-contains', email))
-    ).then(snap => {
-      const list = snap.docs.map(doc => {
-        const d = doc.data();
-        return { id: doc.id, name: d.name, ownerUid: d.userId, updatedAt: d.updatedAt, data: d.data };
-      });
-      setCompanies(list);
-      if (list.length) setSelectedId(list[0].id);
-    }).catch(e => setError(e.message))
-    .finally(() => setLoading(false));
+    supabase
+      .from('companies')
+      .select('id, name, user_id, updated_at, data')
+      .contains('accountant_emails', [email])
+      .then(({ data, error: err }) => {
+        if (err) throw err;
+        const list = (data || []).map(r => ({
+          id: r.id, name: r.name, ownerUid: r.user_id, updatedAt: r.updated_at, data: r.data,
+        }));
+        setCompanies(list);
+        if (list.length) setSelectedId(list[0].id);
+      }).catch(e => setError(e.message))
+      .finally(() => setLoading(false));
   }, [user, authLoading]);
 
   const selected = companies.find(c => c.id === selectedId);
 
   const handleSignOut = () => {
     window.localStorage.removeItem('accountant_mode');
-    firebaseSignOut(auth)
+    supabase.auth.signOut()
       .then(() => { window.location.href = '/accountant/login'; })
       .catch(() => { window.location.href = '/accountant/login'; });
   };

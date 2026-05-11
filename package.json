@@ -11,8 +11,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@react-pdf/renderer": "^4.3.2",
-    "firebase": "^12.11.0",
-    "firebase-admin": "^13.8.0",
+    "@supabase/supabase-js": "^2.105.4",
     "jszip": "^3.10.1",
     "next": "16.2.2",
     "nodemailer": "^8.0.4",

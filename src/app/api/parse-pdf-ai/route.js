@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/firebase/admin';
+import { verifyToken } from '@/lib/supabase/server';
 import { createRateLimiter } from '@/lib/rateLimit';
 import { createHash } from 'crypto';
 
@@ -106,7 +106,7 @@ export async function POST(request) {
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    try { await verifyIdToken(token); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
+    try { await verifyToken(token); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     // ── Rate limit ────────────────────────────────────────────────────
     const ip = request.headers.get('x-real-ip')

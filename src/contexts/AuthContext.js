@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
+import { supabase } from '@/lib/supabase/client';
 
 const AuthContext = createContext(null);
 
@@ -11,32 +10,42 @@ export function AuthProvider({ children }) {
   const [authLoading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser ?? null);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
-      // Set/clear a session presence cookie so the server-side middleware can
-      // redirect unauthenticated requests before serving page HTML.
-      // This cookie is NOT cryptographically verified at the edge — actual
-      // data access is protected by Firestore rules and API route auth tokens.
-      if (firebaseUser) {
-        document.cookie = 'app_session=1; path=/; SameSite=Strict; Secure';
-      } else {
-        document.cookie = 'app_session=; path=/; SameSite=Strict; Secure; Max-Age=0';
-      }
+      _syncCookie(session?.user);
     });
-    return unsub;
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      _syncCookie(session?.user);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    await supabase.auth.signOut();
     window.location.href = '/auth/login';
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, auth, signOut }}>
+    <AuthContext.Provider value={{ user, authLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+function _syncCookie(user) {
+  // Presence cookie for middleware — not cryptographically trusted,
+  // real access is protected by Supabase RLS.
+  if (user) {
+    document.cookie = 'app_session=1; path=/; SameSite=Strict; Secure';
+  } else {
+    document.cookie = 'app_session=; path=/; SameSite=Strict; Secure; Max-Age=0';
+  }
 }
 
 export function useAuth() {

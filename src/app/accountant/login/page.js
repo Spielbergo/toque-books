@@ -1,34 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-  updateProfile,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
+import { supabase } from '@/lib/supabase/client';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import styles from '../../auth/login/page.module.css';
 import portalStyles from './portal.module.css';
 
 function friendlyAuthError(err) {
-  const code = err?.code || '';
-  if (code === 'auth/invalid-action-code')  return 'This invite link has already been used or has expired. Ask your client to send a new invite.';
-  if (code === 'auth/expired-action-code')  return 'This invite link has expired. Ask your client to send a new invite.';
-  if (code === 'auth/invalid-email')        return 'That email address doesn\'t match the one this invite was sent to.';
-  if (code === 'auth/user-disabled')        return 'This account has been disabled.';
-  if (code === 'auth/wrong-password')       return 'Incorrect password.';
-  if (code === 'auth/user-not-found')       return 'No account found with that email.';
-  if (code === 'auth/email-already-in-use') return 'An account with this email already exists. Try signing in instead.';
-  if (code === 'auth/weak-password')        return 'Password must be at least 8 characters.';
-  if (code === 'auth/popup-closed-by-user') return 'Sign-in popup was closed before completing.';
-  if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
-  return err?.message?.replace(/^Firebase:\s*/i, '').replace(/\s*\(auth\/[^)]+\)\.?$/, '') || 'An error occurred. Please try again.';
+  const msg = err?.message || '';
+  if (msg.includes('Invalid login credentials'))  return 'Incorrect email or password.';
+  if (msg.includes('Email not confirmed'))         return 'Please confirm your email before signing in.';
+  if (msg.includes('User already registered'))     return 'An account with this email already exists. Try signing in instead.';
+  if (msg.includes('Password should be'))          return 'Password must be at least 8 characters.';
+  if (msg.includes('otp_expired') || msg.includes('Token has expired')) return 'This invite link has expired. Ask your client to send a new invite.';
+  if (msg.includes('otp_disabled') || msg.includes('invalid'))          return 'This invite link has already been used or is invalid. Ask your client to send a new one.';
+  return msg || 'An error occurred. Please try again.';
 }
 
 export default function AccountantLoginPage() {
@@ -44,41 +30,31 @@ export default function AccountantLoginPage() {
   // Magic link state
   const [magicLinkPending, setMagicLinkPending] = useState(false);
   const [magicEmail, setMagicEmail] = useState('');
-  const [magicLinkUrl, setMagicLinkUrl] = useState('');
 
   const reset = () => { setError(''); setInfo(''); };
 
-  // Detect magic link on page load
+  // Detect magic link (OTP token_hash) on page load
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const currentUrl = window.location.href;
-    if (!isSignInWithEmailLink(auth, currentUrl)) return;
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+    if (!tokenHash || type !== 'magiclink') return;
 
-    // Capture the URL now — Next.js router may strip query params later
-    setMagicLinkUrl(currentUrl);
-
-    // Check if email is already saved (same device)
-    const saved = window.localStorage.getItem('accountantInviteEmail');
-    if (saved) {
-      // Complete sign-in automatically
-      setLoading(true);
-      setInfo('Signing you in…');
-      signInWithEmailLink(auth, saved, currentUrl)
-        .then(() => {
-          window.localStorage.removeItem('accountantInviteEmail');
-          window.localStorage.setItem('accountant_mode', '1');
-          window.location.href = '/accountant';
-        })
-        .catch(err => {
-          setError(friendlyAuthError(err) + ' Enter your email below.');
-          setMagicLinkPending(true);
-          setLoading(false);
-          setInfo('');
-        });
-    } else {
-      // Different device — show email confirmation form
-      setMagicLinkPending(true);
-    }
+    setLoading(true);
+    setInfo('Signing you in…');
+    supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' })
+      .then(({ error }) => {
+        if (error) throw error;
+        window.localStorage.setItem('accountant_mode', '1');
+        window.location.href = '/accountant';
+      })
+      .catch(err => {
+        setError(friendlyAuthError(err) + ' Enter your email below.');
+        setMagicLinkPending(true);
+        setLoading(false);
+        setInfo('');
+      });
   }, []);
 
   const completeMagicLink = async e => {
@@ -87,13 +63,13 @@ export default function AccountantLoginPage() {
     setLoading(true);
     setError('');
     try {
-      const url = magicLinkUrl || window.location.href;
-      await signInWithEmailLink(auth, magicEmail.trim(), url);
-      window.localStorage.removeItem('accountantInviteEmail');
-      window.localStorage.setItem('accountant_mode', '1');
-      window.location.href = '/accountant';
+      const { error } = await supabase.auth.signInWithOtp({ email: magicEmail.trim() });
+      if (error) throw error;
+      setInfo('Magic link sent! Check your email.');
+      setMagicLinkPending(false);
     } catch (err) {
       setError(friendlyAuthError(err));
+    } finally {
       setLoading(false);
     }
   };
@@ -108,10 +84,14 @@ export default function AccountantLoginPage() {
     setLoading(true);
     try {
       if (tab === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
       } else {
-        const { user } = await createUserWithEmailAndPassword(auth, email, password);
-        if (name) await updateProfile(user, { displayName: name });
+        const { error } = await supabase.auth.signUp({
+          email, password,
+          options: { data: { full_name: name } },
+        });
+        if (error) throw error;
       }
       window.localStorage.setItem('accountant_mode', '1');
       window.location.href = '/accountant';
@@ -126,9 +106,11 @@ export default function AccountantLoginPage() {
     reset();
     setGoogleLoading(true);
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      window.localStorage.setItem('accountant_mode', '1');
-      window.location.href = '/accountant';
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback?accountant=1` },
+      });
+      if (error) throw error;
     } catch (err) {
       setError(friendlyAuthError(err));
       setGoogleLoading(false);

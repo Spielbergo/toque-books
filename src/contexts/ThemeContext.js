@@ -1,9 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export const THEMES = [
   { id: 'light',         label: 'Light',          description: 'Clean white interface' },
@@ -60,30 +58,33 @@ export function ThemeProvider({ children }) {
     setMounted(true);
   }, []);
 
-  // Sync with Firestore when user logs in/out
+  // Sync with Supabase when user logs in/out
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async firebaseUser => {
-      if (firebaseUser) {
-        userUidRef.current = firebaseUser.uid;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user ?? null;
+      if (user) {
+        userUidRef.current = user.id;
         try {
-          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (snap.exists()) {
-            const appearance = snap.data()?.appearance;
-            if (appearance?.theme && VALID_THEMES.includes(appearance.theme)) {
-              setThemeState(appearance.theme);
-            }
-            if (appearance?.accent && VALID_ACCENTS.includes(appearance.accent)) {
-              setAccentState(appearance.accent);
-            }
+          const { data } = await supabase
+            .from('users')
+            .select('appearance')
+            .eq('id', user.id)
+            .single();
+          const appearance = data?.appearance;
+          if (appearance?.theme && VALID_THEMES.includes(appearance.theme)) {
+            setThemeState(appearance.theme);
+          }
+          if (appearance?.accent && VALID_ACCENTS.includes(appearance.accent)) {
+            setAccentState(appearance.accent);
           }
         } catch {
-          // Firestore unavailable — keep localStorage values
+          // DB unavailable — keep localStorage values
         }
       } else {
         userUidRef.current = null;
       }
     });
-    return unsub;
+    return () => subscription.unsubscribe();
   }, []);
 
   // Apply theme to <html> and persist
@@ -105,16 +106,15 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('canbooks-accent', accent);
   }, [accent, mounted]);
 
-  // Save appearance to Firestore (1 s debounce so rapid cycling doesn't spam writes)
+  // Save appearance to Supabase (1 s debounce so rapid cycling doesn't spam writes)
   useEffect(() => {
     if (!mounted || !userUidRef.current) return;
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      setDoc(
-        doc(db, 'users', userUidRef.current),
-        { appearance: { theme, accent } },
-        { merge: true },
-      ).catch(() => {/* non-critical — localStorage already saved */});
+      supabase
+        .from('users')
+        .upsert({ id: userUidRef.current, appearance: { theme, accent } })
+        .then(({ error }) => { if (error) console.error('ThemeContext: save error', error); });
     }, 1000);
     return () => clearTimeout(saveTimerRef.current);
   }, [theme, accent, mounted]);

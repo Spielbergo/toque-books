@@ -192,7 +192,7 @@ export default function Sidebar({ isOpen, onClose }) {
     return () => document.removeEventListener('keydown', trap);
   }, [isOpen]);
 
-  const userInitials = (user?.displayName || user?.email || '?')
+  const userInitials = (user?.user_metadata?.full_name || user?.email || '?')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   const fiscalYearKeys = Object.keys(state.fiscalYears || {}).sort().reverse();
@@ -268,7 +268,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className={styles.footerUser}>
           <div className={styles.footerAvatar}>{userInitials}</div>
           <div className={styles.footerUserInfo}>
-            <span className={styles.footerUserName}>{user?.displayName || 'Account'}</span>
+            <span className={styles.footerUserName}>{user?.user_metadata?.full_name || 'Account'}</span>
             <span className={styles.footerUserEmail}>{user?.email}</span>
           </div>
         </div>

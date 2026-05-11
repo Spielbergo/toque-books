@@ -1,30 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  updateProfile,
-  sendPasswordResetEmail,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
+import { supabase } from '@/lib/supabase/client';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import styles from './page.module.css';
 
 function friendlyAuthError(err) {
-  const code = err?.code || '';
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found')
-    return 'Incorrect email or password.';
-  if (code === 'auth/email-already-in-use') return 'An account with this email already exists. Try signing in instead.';
-  if (code === 'auth/weak-password')        return 'Password must be at least 6 characters.';
-  if (code === 'auth/invalid-email')        return 'Please enter a valid email address.';
-  if (code === 'auth/user-disabled')        return 'This account has been disabled.';
-  if (code === 'auth/popup-closed-by-user') return 'Sign-in popup was closed. Please try again.';
-  if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
-  if (code === 'auth/too-many-requests')    return 'Too many failed attempts. Please wait a moment and try again.';
-  return err?.message?.replace(/^Firebase:\s*/i, '').replace(/\s*\(auth\/[^)]+\)\.?$/, '') || 'An error occurred. Please try again.';
+  const msg = err?.message || '';
+  if (msg.includes('Invalid login credentials'))  return 'Incorrect email or password.';
+  if (msg.includes('Email not confirmed'))         return 'Please confirm your email address before signing in.';
+  if (msg.includes('User already registered'))     return 'An account with this email already exists. Try signing in instead.';
+  if (msg.includes('Password should be'))          return 'Password must be at least 6 characters.';
+  if (msg.includes('Unable to validate'))          return 'Please enter a valid email address.';
+  if (msg.includes('Network'))                     return 'Network error. Check your connection and try again.';
+  if (msg.includes('Too many requests'))           return 'Too many attempts. Please wait a moment and try again.';
+  return msg || 'An error occurred. Please try again.';
 }
 
 export default function LoginPage() {
@@ -50,11 +40,15 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (tab === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
         window.location.href = '/dashboard';
       } else {
-        const { user } = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(user, { displayName: name });
+        const { error } = await supabase.auth.signUp({
+          email, password,
+          options: { data: { full_name: name } },
+        });
+        if (error) throw error;
         window.location.href = '/dashboard';
       }
     } catch (err) {
@@ -68,8 +62,12 @@ export default function LoginPage() {
     reset();
     setGoogleLoading(true);
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      window.location.href = '/dashboard';
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) throw error;
+      // Page will redirect — no need to set loading false
     } catch (err) {
       setError(friendlyAuthError(err));
       setGoogleLoading(false);
@@ -155,7 +153,10 @@ export default function LoginPage() {
                   if (!email) { setError('Enter your email first.'); return; }
                   setLoading(true);
                   try {
-                    await sendPasswordResetEmail(auth, email);
+                    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+                    });
+                    if (error) throw error;
                     setInfo('Password reset email sent.');
                   } catch (err) {
                     setError(err.message);

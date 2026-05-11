@@ -83,13 +83,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (tab !== 5 || !companyId) return;
-    // Read accountant emails directly from Firestore (client SDK — no service account needed)
-    import('@/lib/firebase/client').then(({ db }) =>
-      import('firebase/firestore').then(({ doc, getDoc }) =>
-        getDoc(doc(db, 'companies', companyId))
-      )
-    ).then(snap => {
-      setAccountantEmails(snap.data()?.accountantEmails || []);
+    // Read accountant emails directly from Supabase (client SDK)
+    import('@/lib/supabase/client').then(({ supabase }) =>
+      supabase.from('companies').select('accountant_emails').eq('id', companyId).single()
+    ).then(({ data }) => {
+      setAccountantEmails(data?.accountant_emails || []);
     }).catch(() => {});
   }, [tab, companyId]);
 
@@ -101,12 +99,12 @@ export default function SettingsPage() {
     const email = newEmail.trim().toLowerCase();
     setAccessLoading(true);
     try {
-      const { db } = await import('@/lib/firebase/client');
-      const { doc, updateDoc, arrayUnion } = await import('firebase/firestore');
-      await updateDoc(doc(db, 'companies', companyId), {
-        accountantEmails: arrayUnion(email),
-        updatedAt: new Date().toISOString(),
-      });
+      const { supabase } = await import('@/lib/supabase/client');
+      const { data: row } = await supabase.from('companies').select('accountant_emails').eq('id', companyId).single();
+      const current = row?.accountant_emails || [];
+      if (!current.includes(email)) {
+        await supabase.from('companies').update({ accountant_emails: [...current, email], updated_at: new Date().toISOString() }).eq('id', companyId);
+      }
       setAccountantEmails(prev => [...new Set([...prev, email])]);
       setNewEmail('');
       toast({ message: 'Accountant access granted', type: 'success' });
@@ -120,12 +118,10 @@ export default function SettingsPage() {
   const removeAccountant = async (email) => {
     setAccessLoading(true);
     try {
-      const { db } = await import('@/lib/firebase/client');
-      const { doc, updateDoc, arrayRemove } = await import('firebase/firestore');
-      await updateDoc(doc(db, 'companies', companyId), {
-        accountantEmails: arrayRemove(email),
-        updatedAt: new Date().toISOString(),
-      });
+      const { supabase } = await import('@/lib/supabase/client');
+      const { data: row } = await supabase.from('companies').select('accountant_emails').eq('id', companyId).single();
+      const filtered = (row?.accountant_emails || []).filter(e => e !== email);
+      await supabase.from('companies').update({ accountant_emails: filtered, updated_at: new Date().toISOString() }).eq('id', companyId);
       setAccountantEmails(prev => prev.filter(e => e !== email));
       toast({ message: 'Access removed', type: 'success' });
     } catch (e) {
@@ -138,13 +134,11 @@ export default function SettingsPage() {
   const sendInvite = async (email) => {
     setAccessLoading(true);
     try {
-      const { auth } = await import('@/lib/firebase/client');
-      const { sendSignInLinkToEmail } = await import('firebase/auth');
-      const actionCodeSettings = {
-        url: `${window.location.origin}/accountant/login`,
-        handleCodeInApp: true,
-      };
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      const { supabase } = await import('@/lib/supabase/client');
+      await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/accountant/login` },
+      });
       toast({ message: `Invite sent to ${email}`, type: 'success' });
     } catch (e) {
       toast({ message: 'Failed to send invite', detail: e.message, type: 'error' });
@@ -302,7 +296,7 @@ export default function SettingsPage() {
     window.location.reload();
   };
 
-  // ── Firebase cloud backup ─────────────────────────
+  // ── Supabase cloud backup ─────────────────────────
   const [cloudStatus, setCloudStatus] = useState('idle'); // 'idle' | 'saving' | 'restoring' | 'done' | 'error'
   const [cloudMsg, setCloudMsg] = useState('');
 
@@ -311,11 +305,10 @@ export default function SettingsPage() {
     setCloudStatus('saving');
     setCloudMsg('');
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('@/lib/firebase/client');
-      await setDoc(doc(db, 'users', user.uid, 'data', 'backup'), {
-        state: JSON.stringify(state),
-        savedAt: new Date().toISOString(),
+      const { supabase } = await import('@/lib/supabase/client');
+      await supabase.from('users').upsert({
+        id: user.id,
+        backup: { state: JSON.stringify(state), savedAt: new Date().toISOString() },
       });
       setCloudStatus('done');
       setCloudMsg('Backup saved to cloud.');
@@ -335,18 +328,17 @@ export default function SettingsPage() {
     setCloudStatus('restoring');
     setCloudMsg('');
     try {
-      const { doc, getDoc } = await import('firebase/firestore');
-      const { db } = await import('@/lib/firebase/client');
-      const snap = await getDoc(doc(db, 'users', user.uid, 'data', 'backup'));
-      if (!snap.exists()) {
+      const { supabase } = await import('@/lib/supabase/client');
+      const { data, error } = await supabase.from('users').select('backup').eq('id', user.id).single();
+      if (error || !data?.backup?.state) {
         setCloudStatus('error');
         setCloudMsg('No cloud backup found.');
         return;
       }
-      const data = JSON.parse(snap.data().state);
-      dispatch({ type: 'RESTORE', payload: data });
+      const parsed = JSON.parse(data.backup.state);
+      dispatch({ type: 'RESTORE', payload: parsed });
       setCloudStatus('done');
-      setCloudMsg(`Restored from ${snap.data().savedAt ? new Date(snap.data().savedAt).toLocaleString('en-CA') : 'cloud'}.`);
+      setCloudMsg(`Restored from ${data.backup.savedAt ? new Date(data.backup.savedAt).toLocaleString('en-CA') : 'cloud'}.`);
     } catch (err) {
       setCloudStatus('error');
       setCloudMsg(err.message || 'Cloud restore failed.');

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { verifyIdToken } from '@/lib/firebase/admin';
+import { verifyToken } from '@/lib/supabase/server';
 import { createRateLimiter } from '@/lib/rateLimit';
 
 const limiter = createRateLimiter({ windowMs: 60_000, max: 10 }); // 10 emails/min per IP
@@ -14,7 +14,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     try {
-      await verifyIdToken(token);
+      await verifyToken(token);
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

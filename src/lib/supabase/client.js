@@ -1,6 +1,23 @@
-// This file is no longer used — the app has migrated to Firebase.
-// Kept to avoid breaking any stale imports during the transition.
-export function createClient() {
-  throw new Error('Supabase has been replaced by Firebase. Use src/lib/firebase/client.js instead.');
+import { createClient } from '@supabase/supabase-js';
+
+let _client = null;
+
+/**
+ * Returns a singleton Supabase browser client.
+ * Safe to call from any client component — reuses the same instance.
+ */
+export function getSupabaseClient() {
+  if (!_client) {
+    _client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    );
+  }
+  return _client;
 }
+
+// Convenience named export so callers can do:
+//   import { supabase } from '@/lib/supabase/client';
+export const supabase = getSupabaseClient();
+
 

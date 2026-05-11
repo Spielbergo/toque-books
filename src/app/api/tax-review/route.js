@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/firebase/admin';
+import { verifyToken } from '@/lib/supabase/server';
 import { createRateLimiter } from '@/lib/rateLimit';
 import { createHash } from 'crypto';
 
@@ -48,7 +48,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     try {
-      await verifyIdToken(token);
+      await verifyToken(token);
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

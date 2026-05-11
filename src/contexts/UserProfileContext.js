@@ -1,9 +1,8 @@
 'use client';
 
 import { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase/client';
+import { supabase } from '@/lib/supabase/client';
 
 // ─── DEFAULT STATE ───────────────────────────────────────────────────────────
 
@@ -175,29 +174,31 @@ export function UserProfileProvider({ children }) {
   const profileRef  = useRef(userProfile);
   profileRef.current = userProfile;
 
-  // ── Load user profile from Firestore when user signs in ───────────────
+  // ── Load user profile from Supabase when user signs in ───────────────
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.id) return;
 
     (async () => {
-      const ref = doc(db, 'users', user.uid);
-      const snap = await getDoc(ref);
+      const { data, error } = await supabase
+        .from('users')
+        .select('personal')
+        .eq('id', user.id)
+        .single();
 
-      if (snap.exists() && snap.data().personal) {
-        const data = snap.data().personal;
-        const merged = { ...makeDefaultUserProfile(), ...data };
+      if (!error && data?.personal) {
+        const merged = { ...makeDefaultUserProfile(), ...data.personal };
         lastLoaded.current = merged;
         userDispatch({ type: 'RESTORE_USER_PROFILE', payload: merged });
-        migrated.current = snap.data().migrated ?? true;
+        migrated.current = true;
       } else {
-        // New user — create doc with defaults
+        // New user — create row with defaults
         const defaults = makeDefaultUserProfile();
         lastLoaded.current = defaults;
-        await setDoc(ref, { personal: defaults, migrated: false }, { merge: true });
+        await supabase.from('users').upsert({ id: user.id, personal: defaults });
         migrated.current = false;
       }
     })();
-  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clear state on sign-out
   useEffect(() => {
@@ -208,18 +209,19 @@ export function UserProfileProvider({ children }) {
     }
   }, [user]);
 
-  // ── Debounced sync back to Firestore ──────────────────────────────────
+  // ── Debounced sync back to Supabase ──────────────────────────────────
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.id) return;
     if (userProfile === lastLoaded.current) return;
 
     clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
-      if (!user?.uid) return;
-      updateDoc(doc(db, 'users', user.uid), {
-        personal: profileRef.current,
-        updatedAt: serverTimestamp(),
-      }).catch(err => console.error('UserProfile sync error:', err));
+      if (!user?.id) return;
+      supabase
+        .from('users')
+        .update({ personal: profileRef.current, updated_at: new Date().toISOString() })
+        .eq('id', user.id)
+        .then(({ error }) => { if (error) console.error('UserProfile sync error:', error); });
     }, 1500);
 
     return () => clearTimeout(syncTimer.current);
@@ -229,7 +231,7 @@ export function UserProfileProvider({ children }) {
   // Called by AppContext after loading a company that has personal data
   const migrateFromCompany = useCallback(async (companyPersonalData) => {
     if (migrated.current) return; // already migrated
-    if (!user?.uid) return;
+    if (!user?.id) return;
     if (!companyPersonalData) return;
 
     const merged = {
@@ -243,15 +245,11 @@ export function UserProfileProvider({ children }) {
     lastLoaded.current = merged;
     userDispatch({ type: 'RESTORE_USER_PROFILE', payload: merged });
 
-    // Persist to Firestore and mark as migrated
-    await setDoc(doc(db, 'users', user.uid), {
-      personal:    merged,
-      migrated:    true,
-      migratedAt:  serverTimestamp(),
-    }, { merge: true });
+    // Persist to Supabase and mark as migrated
+    await supabase.from('users').upsert({ id: user.id, personal: merged });
 
     migrated.current = true;
-  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived values ────────────────────────────────────────────────────
   const activePersonalYear = userProfile.activePersonalYear;

@@ -2,12 +2,11 @@
 
 import { createContext, useContext, useReducer, useEffect, useRef, useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase/client';
 import { loadData } from '@/lib/storage';
 import { today, addDays } from '@/lib/formatters';
 import { HST_RATES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase/client';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 
 // ─── DEFAULT STATE ───────────────────────────────────────────────────────────
@@ -724,10 +723,14 @@ export function AppProvider({ children }) {
   // ── Load company data by ID ────────────────────────────────────────────
   const loadCompanyData = useCallback(async (companyId) => {
     setAppLoading(true);
-    const snap = await getDoc(doc(db, 'companies', companyId));
+    const { data: row } = await supabase
+      .from('companies')
+      .select('data')
+      .eq('id', companyId)
+      .single();
 
-    if (snap.exists() && snap.data().data && Object.keys(snap.data().data).length > 0) {
-      const rawData = snap.data().data;
+    if (row?.data && Object.keys(row.data).length > 0) {
+      const rawData = row.data;
       // Extract personal fields for migration (legacy — will be absent on new saves)
       const { personalProfile, dependants, personalYears, activePersonalYear: aPY,
               otherIncomeSources, ...companyOnlyData } = rawData;
@@ -762,10 +765,6 @@ export function AppProvider({ children }) {
       setCompanies([]);
       setActiveId(null);
       activeIdRef.current = null;
-      // Only stop the loading spinner once we know auth has fully resolved
-      // with no user. If authLoading is still true, Firebase hasn't checked
-      // yet — keep showing the loader so the redirect guard in AppShell
-      // doesn't fire prematurely.
       if (!authLoading) setAppLoading(false);
       return;
     }
@@ -773,14 +772,20 @@ export function AppProvider({ children }) {
     (async () => {
       setAppLoading(true);
       try {
-        const q = query(
-          collection(db, 'companies'),
-          where('userId', '==', user.uid)
-        );
-        const snap = await getDocs(q);
-        const list = snap.docs
-          .map(d => ({ id: d.id, name: d.data().name, createdAt: d.data().createdAt, badgeLogo: d.data().data?.settings?.badgeLogo || null }))
-          .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+        const { data: rows, error } = await supabase
+          .from('companies')
+          .select('id, name, created_at, data')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        const list = (rows || []).map(r => ({
+          id: r.id,
+          name: r.name,
+          createdAt: r.created_at,
+          badgeLogo: r.data?.settings?.badgeLogo || null,
+        }));
         setCompanies(list);
 
         if (list.length === 0) { setAppLoading(false); return; }
@@ -794,7 +799,7 @@ export function AppProvider({ children }) {
         setAppLoading(false);
       }
     })();
-  }, [user?.uid, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Keep active company's badgeLogo in sync in the companies list ────
   useEffect(() => {
@@ -814,10 +819,11 @@ export function AppProvider({ children }) {
     syncTimer.current = setTimeout(() => {
       const id = activeIdRef.current;
       if (!id) return;
-      updateDoc(doc(db, 'companies', id), {
-        data: state,
-        updatedAt: serverTimestamp(),
-      }).catch(err => console.error('Sync error:', err));
+      supabase
+        .from('companies')
+        .update({ data: state, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .then(({ error }) => { if (error) console.error('Sync error:', error); });
     }, 1500);
 
     return () => clearTimeout(syncTimer.current);
@@ -831,19 +837,19 @@ export function AppProvider({ children }) {
       initialData.settings = { ...initialData.settings, companyName: name };
     }
 
-    const ref = await addDoc(collection(db, 'companies'), {
-      userId: user.uid,
-      name,
-      data: initialData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    const { data: row, error } = await supabase
+      .from('companies')
+      .insert({ user_id: user.id, name, data: initialData })
+      .select('id')
+      .single();
 
-    const newCompany = { id: ref.id, name };
+    if (error) throw error;
+
+    const newCompany = { id: row.id, name };
     setCompanies(prev => [...prev, newCompany]);
-    await loadCompanyData(ref.id);
+    await loadCompanyData(row.id);
     return newCompany;
-  }, [companies.length, user?.uid, loadCompanyData]);
+  }, [companies.length, user?.id, loadCompanyData]);
 
   const selectCompany = useCallback(async (companyId) => {
     if (companyId === activeIdRef.current) return;
@@ -852,12 +858,12 @@ export function AppProvider({ children }) {
   }, [loadCompanyData]);
 
   const updateCompanyName = useCallback(async (companyId, name) => {
-    await updateDoc(doc(db, 'companies', companyId), { name });
+    await supabase.from('companies').update({ name }).eq('id', companyId);
     setCompanies(prev => prev.map(c => c.id === companyId ? { ...c, name } : c));
   }, []);
 
   const deleteCompany = useCallback(async (companyId) => {
-    await deleteDoc(doc(db, 'companies', companyId));
+    await supabase.from('companies').delete().eq('id', companyId);
     const remaining = companies.filter(c => c.id !== companyId);
     setCompanies(remaining);
 
