@@ -10,7 +10,7 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
   // Force HTTPS for 1 year (enable after you have HTTPS confirmed)
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-  // Basic CSP: block mixed content; allow Firebase, Google, Resend CDN origins
+  // Basic CSP: block mixed content; allow Supabase and Google OAuth origins
   {
     key: 'Content-Security-Policy',
     value: [
@@ -19,9 +19,9 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
-      // Allow blob: for PDF preview, Firebase auth iframe, and Google accounts iframe
-      "frame-src blob: 'self' https://*.firebaseapp.com https://accounts.google.com",
+      "connect-src 'self' https://suprdoldpnlifdzithzj.supabase.co wss://suprdoldpnlifdzithzj.supabase.co https://*.googleapis.com",
+      // Allow blob: for PDF preview and Google accounts OAuth iframe
+      "frame-src blob: 'self' https://accounts.google.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -9,6 +9,7 @@ import { useToast } from '@/contexts/ToastContext';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import Button from '@/components/ui/Button';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import { importDataFromJSON } from '@/lib/storage';
 import styles from './page.module.css';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -132,10 +133,12 @@ export default function OnboardingPage() {
   const { toast } = useToast();
   const logoInputRef      = useRef(null);
   const badgeLogoInputRef = useRef(null);
+  const importRef         = useRef(null);
 
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [importError, setImportError] = useState('');
 
   const [wiz, setWiz] = useState({
     // Step 1 — Business Type
@@ -328,6 +331,20 @@ export default function OnboardingPage() {
 
   const goToDashboard = () => router.replace('/dashboard');
 
+  const handleImportBackup = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError('');
+    try {
+      const data = await importDataFromJSON(file);
+      dispatch({ type: 'RESTORE', payload: { ...data, onboardingCompleted: true } });
+      router.replace('/dashboard');
+    } catch (err) {
+      setImportError(err.message || 'Failed to read backup file. Make sure it is a valid NorthBooks JSON export.');
+    }
+    e.target.value = '';
+  };
+
   // ── Logo uploads ────────────────────────────────────────────────────────────
   const handleLogoUpload = e => {
     const file = e.target.files?.[0];
@@ -400,6 +417,24 @@ export default function OnboardingPage() {
               Takes about 3–5 minutes &middot; You can update everything later in Settings
             </p>
             <Button onClick={() => setStep(1)} size="lg">Get Started →</Button>
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', width: '100%', textAlign: 'center' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                Already have a NorthBooks backup? Restore it instead of going through setup.
+              </p>
+              {importError && (
+                <p style={{ color: 'var(--color-danger)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>{importError}</p>
+              )}
+              <Button variant="secondary" size="sm" onClick={() => importRef.current?.click()}>
+                Import Backup (.json)
+              </Button>
+              <input
+                ref={importRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: 'none' }}
+                onChange={handleImportBackup}
+              />
+            </div>
           </div>
         );
 

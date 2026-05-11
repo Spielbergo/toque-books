@@ -5,33 +5,35 @@ import { supabase } from '@/lib/supabase/client';
 import CanBooksLogo from '@/components/CanBooksLogo';
 
 /**
- * OAuth callback handler — Supabase redirects here after Google sign-in.
- * Exchanges the URL code for a session, then redirects to the app.
+ * Auth callback handler — handles both:
+ *   1. OAuth (Google) — session in URL hash, picked up by getSession()
+ *   2. Email confirmation / magic link — 'code' query param (PKCE flow)
  */
 export default function AuthCallbackPage() {
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params      = new URLSearchParams(window.location.search);
+    const code        = params.get('code');
     const isAccountant = params.get('accountant') === '1';
     const isRecovery   = params.get('type') === 'recovery';
 
-    // Supabase injects the session into the URL hash automatically.
-    // getSession() picks it up after the page loads.
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error || !session) {
-        window.location.href = '/auth/login';
-        return;
-      }
-      if (isRecovery) {
-        window.location.href = '/settings?tab=security';
-        return;
-      }
-      if (isAccountant) {
-        window.localStorage.setItem('accountant_mode', '1');
-        window.location.href = '/accountant';
-        return;
-      }
+    const redirect = (session) => {
+      if (!session) { window.location.href = '/auth/login'; return; }
+      if (isRecovery)   { window.location.href = '/settings?tab=security'; return; }
+      if (isAccountant) { window.localStorage.setItem('accountant_mode', '1'); window.location.href = '/accountant'; return; }
       window.location.href = '/dashboard';
-    });
+    };
+
+    if (code) {
+      // Email confirmation / magic link (PKCE): exchange code for session
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        redirect(error ? null : data.session);
+      });
+    } else {
+      // OAuth (Google): session already in URL hash, getSession() picks it up
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        redirect(error ? null : session);
+      });
+    }
   }, []);
 
   return (

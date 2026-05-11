@@ -219,7 +219,7 @@ export function UserProfileProvider({ children }) {
       if (!user?.id) return;
       supabase
         .from('users')
-        .update({ personal: profileRef.current, updated_at: new Date().toISOString() })
+        .update({ personal: profileRef.current })
         .eq('id', user.id)
         .then(({ error }) => { if (error) console.error('UserProfile sync error:', error); });
     }, 1500);
@@ -228,9 +228,10 @@ export function UserProfileProvider({ children }) {
   }, [userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── One-time migration: seed from company state on first use ──────────
-  // Called by AppContext after loading a company that has personal data
-  const migrateFromCompany = useCallback(async (companyPersonalData) => {
-    if (migrated.current) return; // already migrated
+  // Called by AppContext after loading a company that has personal data.
+  // Pass force=true to bypass the already-migrated guard (e.g. after a backup import).
+  const migrateFromCompany = useCallback(async (companyPersonalData, force = false) => {
+    if (!force && migrated.current) return; // already migrated
     if (!user?.id) return;
     if (!companyPersonalData) return;
 

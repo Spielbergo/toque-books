@@ -44,12 +44,20 @@ export default function LoginPage() {
         if (error) throw error;
         window.location.href = '/dashboard';
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
-          options: { data: { full_name: name } },
+          options: {
+            data: { full_name: name },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
         });
         if (error) throw error;
-        window.location.href = '/dashboard';
+        // If email confirmation is required, session will be null
+        if (data.session) {
+          window.location.href = '/dashboard';
+        } else {
+          setInfo('Account created! Check your email for a confirmation link — clicking it will sign you in automatically.');
+        }
       }
     } catch (err) {
       setError(friendlyAuthError(err));

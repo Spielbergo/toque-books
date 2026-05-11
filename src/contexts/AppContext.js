@@ -7,7 +7,7 @@ import { loadData } from '@/lib/storage';
 import { today, addDays } from '@/lib/formatters';
 import { HST_RATES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useUserProfile, makeDefaultUserProfile } from '@/contexts/UserProfileContext';
 
 // ─── DEFAULT STATE ───────────────────────────────────────────────────────────
 
@@ -717,6 +717,24 @@ export function AppProvider({ children }) {
       dispatch({ type: 'COMPLETE_ONBOARDING', payload: companyPayload });
       return;
     }
+    if (action.type === 'RESTORE') {
+      const { personalProfile, dependants, personalYears, activePersonalYear: aPY,
+              otherIncomeSources, ...companyPayload } = action.payload;
+      const hasPersonalData = personalProfile || (dependants && dependants.length > 0) || personalYears;
+      if (hasPersonalData) {
+        const profileMerge = {
+          ...makeDefaultUserProfile(),
+          ...(personalProfile     && { personalProfile }),
+          ...(dependants          && { dependants }),
+          ...(personalYears       && { personalYears }),
+          ...(aPY                 && { activePersonalYear: aPY }),
+          ...(otherIncomeSources  && { otherIncomeSources }),
+        };
+        userDispatch({ type: 'RESTORE_USER_PROFILE', payload: profileMerge });
+      }
+      dispatch({ type: 'RESTORE', payload: companyPayload });
+      return;
+    }
     dispatch(action);
   }, [dispatch, userDispatch]);
 
@@ -736,8 +754,18 @@ export function AppProvider({ children }) {
               otherIncomeSources, ...companyOnlyData } = rawData;
       const hasPersonalData = personalProfile || dependants?.length || personalYears;
       if (hasPersonalData) {
+        // force=true: bypass migrated guard so a backup-import that embedded personal
+        // fields gets correctly promoted to users.personal on every load until cleaned up.
         migrateFromCompany({ personalProfile, dependants, personalYears,
-          activePersonalYear: aPY, otherIncomeSources });
+          activePersonalYear: aPY, otherIncomeSources }, true);
+        // Clean the personal fields out of the company row so this branch is never
+        // triggered again for this company.
+        const cleaned = {
+          ...companyOnlyData,
+          onboardingCompleted: companyOnlyData.onboardingCompleted ?? true,
+        };
+        supabase.from('companies').update({ data: cleaned }).eq('id', companyId)
+          .then(({ error }) => { if (error) console.error('Company data cleanup error:', error); });
       }
       // Back-fill onboardingCompleted for accounts created before this flag existed.
       // undefined (absent) → treat as completed; explicit false → still in onboarding.
