@@ -53,7 +53,7 @@ export const BPA_ONTARIO_2025 = 11865;
 export const ON_SURTAX_1_THRESHOLD = 5315;   // 20% surtax on ON tax above this
 export const ON_SURTAX_2_THRESHOLD = 6802;   // additional 36% on ON tax above this
 
-// 2025 Corporate tax rates
+// 2025 Corporate tax rates — Federal (same for all provinces)
 export const CORPORATE_RATES_2025 = {
   // Federal
   fed_base: 0.38,
@@ -63,12 +63,31 @@ export const CORPORATE_RATES_2025 = {
   fed_sbd_net: 0.09,             // Effective federal rate on SBD income
   fed_general_net: 0.15,         // Effective federal rate on general income
   sbd_limit: 500000,             // Small Business Deduction limit
-  // Ontario
+  // Ontario (default — use PROVINCIAL_CORP_RATES_2025 for province-specific)
   on_small: 0.032,               // Ontario small business rate (3.2%)
   on_general: 0.115,             // Ontario general rate (11.5%)
   // Combined
   combined_small: 0.122,         // 9% + 3.2%
   combined_general: 0.265,       // 15% + 11.5%
+};
+
+/**
+ * 2025 Provincial corporate income tax rates by province (CCPC).
+ * prov_small: small business rate (on SBD income ≤ $500k)
+ * prov_general: general rate (on income above SBD limit)
+ * sbd_limit: some provinces have lower SBD limits
+ */
+export const PROVINCIAL_CORP_RATES_2025 = {
+  ON: { prov_small: 0.032,  prov_general: 0.115, label: 'Ontario' },
+  BC: { prov_small: 0.02,   prov_general: 0.12,  label: 'British Columbia' },
+  AB: { prov_small: 0.02,   prov_general: 0.08,  label: 'Alberta' },        // AB general = 8% (no GRR surtax)
+  QC: { prov_small: 0.03,   prov_general: 0.115, label: 'Quebec' },          // QC has its own abatement — approximated
+  MB: { prov_small: 0.0,    prov_general: 0.12,  label: 'Manitoba' },        // MB has $0 SBD (full rate on all income)
+  SK: { prov_small: 0.02,   prov_general: 0.12,  label: 'Saskatchewan' },
+  NS: { prov_small: 0.025,  prov_general: 0.14,  label: 'Nova Scotia' },
+  NB: { prov_small: 0.025,  prov_general: 0.14,  label: 'New Brunswick' },
+  NL: { prov_small: 0.03,   prov_general: 0.15,  label: 'Newfoundland & Labrador' },
+  PE: { prov_small: 0.01,   prov_general: 0.16,  label: 'Prince Edward Island' },
 };
 
 // Dividend gross-up and DTC rates 2025

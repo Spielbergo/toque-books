@@ -98,6 +98,7 @@ function makeInitialState() {
     },
     clients: [],
     employees: [],             // [{ id, name, sin, address, city, province, postalCode, birthDate, startDate }]
+    t4aRecipients: [],         // [{ id, name, sin, address, city, province, postalCode, taxYear, box048, box020, box028, notes }]
     onboardingCompleted: false,
     businessType: 'ccpc', // 'ccpc' | 'sole_prop' | 'partnership' | 'pc' | 'other'
     businessOps: {
@@ -551,6 +552,23 @@ function reducer(state, action) {
     }
     case 'DELETE_EMPLOYEE': {
       return { ...state, employees: (state.employees || []).filter(e => e.id !== action.payload) };
+    }
+
+    // T4A recipients (contractors)
+    case 'ADD_T4A_RECIPIENT': {
+      const rec = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, t4aRecipients: [...(state.t4aRecipients || []), rec] };
+    }
+    case 'UPDATE_T4A_RECIPIENT': {
+      return {
+        ...state,
+        t4aRecipients: (state.t4aRecipients || []).map(r =>
+          r.id === action.payload.id ? { ...r, ...action.payload } : r
+        ),
+      };
+    }
+    case 'DELETE_T4A_RECIPIENT': {
+      return { ...state, t4aRecipients: (state.t4aRecipients || []).filter(r => r.id !== action.payload) };
     }
 
     // Payroll runs (per FY)

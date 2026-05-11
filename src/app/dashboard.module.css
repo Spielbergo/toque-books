@@ -4,6 +4,22 @@
   gap: 1.5rem;
 }
 
+/* ── Alert banner ─────────────────────────────────────────────────────────── */
+.alertBanner {
+  padding: 0.875rem 1.125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+.alertLink {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.alertLink:hover { text-decoration: underline; }
+
 /* ── Tax Set-Aside Widget ─────────────────────────────────────────────────── */
 .taxBreakdown {
   display: grid;

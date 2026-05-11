@@ -7,19 +7,22 @@ import {
   calculateCorporateTax,
   calculatePersonalTax,
   calculateHSTSummary,
+  calculateQSTSummary,
   calculateIntegration,
   getDeductibleAmount,
   calculateHomeOfficeDeduction,
   calculateMileageDeduction,
+  calculateSoleProprietorCPP,
 } from '@/lib/taxCalculations';
 import { formatCurrency, formatPercent, formatDate, today } from '@/lib/formatters';
-import { CORPORATE_RATES_2025 } from '@/lib/constants';
+import { CORPORATE_RATES_2025, PROVINCIAL_CORP_RATES_2025 } from '@/lib/constants';
 import styles from './page.module.css';
 import { expandRecurringForFY } from '@/lib/recurringUtils';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { FormField, Input, Select } from '@/components/ui/FormField';
 import { exportS1PDF } from '@/lib/exportHelpers';
+import Link from 'next/link';
 
 // ── Review export helpers ────────────────────────────────────────────────────
 function buildReviewText(rd, msgs) {
@@ -375,6 +378,11 @@ export default function TaxesPage() {
   const openingRE  = activeFY.openingRetainedEarnings ?? 0;
   const totalCCA   = ccaClasses.reduce((s, c) => s + (c.claimedAmount || 0), 0);
 
+  const province    = state.settings?.province || 'ON';
+  const businessType = state.businessType || 'ccpc';
+  const isSoleProp  = businessType === 'sole_prop';
+  const isQuebec    = province === 'QC';
+
   // Revenue
   const grossRevenue = invoices
     .filter(inv => ['sent', 'paid'].includes(inv.status))
@@ -389,11 +397,19 @@ export default function TaxesPage() {
   const hoResult = calculateHomeOfficeDeduction(homeOffice);
   const totalDeductionsWithHO = totalDeductibleExp + hoResult.deductible + totalCCA + mileageResult.deductible;
 
-  // Corporate tax
-  const corp = calculateCorporateTax(grossRevenue, totalDeductionsWithHO);
+  // Corporate tax (province-aware)
+  const corp = calculateCorporateTax(grossRevenue, totalDeductionsWithHO, province);
 
   // HST
   const hst = calculateHSTSummary(invoices, expenses);
+
+  // QST — Quebec only
+  const qst = isQuebec ? calculateQSTSummary(invoices, expenses) : null;
+
+  // Sole proprietor CPP (only for sole_prop business type)
+  const soleProprietorCPP = isSoleProp
+    ? calculateSoleProprietorCPP(Math.max(0, corp.netIncome))
+    : null;
 
   // Dividends paid total
   const totalDivsPaid = dividendsPaid.reduce((s, d) => s + (d.amount || 0), 0);
@@ -447,10 +463,21 @@ export default function TaxesPage() {
       {/* Header summary */}
       <div className={styles.summaryRow}>
         <SummaryCard label="Corporate Tax Owing" value={formatCurrency(corp.totalTax)} color="danger" sub={`Effective rate: ${formatPercent(corp.effectiveRate)}`} />
-        <SummaryCard label="HST Net Remittance" value={formatCurrency(hst.netRemittance)} color={hst.netRemittance >= 0 ? 'warning' : 'success'} sub={hst.netRemittance < 0 ? 'You have a refund' : 'Amount to remit'} />
+        <SummaryCard label={isQuebec ? 'GST Net Remittance' : 'HST Net Remittance'} value={formatCurrency(hst.netRemittance)} color={hst.netRemittance >= 0 ? 'warning' : 'success'} sub={hst.netRemittance < 0 ? 'You have a refund' : 'Amount to remit'} />
+        {isQuebec && qst && (
+          <SummaryCard label="QST Net Remittance" value={formatCurrency(qst.netQSTRemittance)} color={qst.netQSTRemittance >= 0 ? 'warning' : 'success'} sub={qst.netQSTRemittance < 0 ? 'Revenu Québec owes you' : 'Remit to Revenu Québec'} />
+        )}
         <SummaryCard label="Personal Tax Owing" value={formatCurrency(personal.totalTax)} color="danger" sub={`Effective rate: ${formatPercent(personal.effectiveRate)}`} />
-        <SummaryCard label="Total Combined Tax" value={formatCurrency(corp.totalTax + personal.totalTax)} color="info" sub="Corporate + Personal" />
+        {isSoleProp && soleProprietorCPP && (
+          <SummaryCard label="CPP Contributions Owing" value={formatCurrency(soleProprietorCPP.totalCPP)} color="warning" sub="Self-employed CPP (both shares)" />
+        )}
+        <SummaryCard label="Total Combined Tax" value={formatCurrency(corp.totalTax + personal.totalTax + (soleProprietorCPP?.totalCPP ?? 0))} color="info" sub={isSoleProp ? 'Corporate + Personal + CPP' : 'Corporate + Personal'} />
       </div>
+
+      {/* ── Tax Deadlines shortcut ── */}
+      <Link href="/deadlines" style={{ alignSelf: 'flex-end', fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+        📅 Tax Deadlines →
+      </Link>
 
       {/* ── AI Tax Review ── */}
       <button className={styles.aiReviewBtn} onClick={() => { setReviewNotes(''); setReviewPromptOpen(true); }}>
@@ -602,9 +629,9 @@ export default function TaxesPage() {
               <Row label={`Federal general tax`} value={formatCurrency(corp.fedTaxGeneral)} />
               <Row label="Federal tax total" value={formatCurrency(corp.fedTax)} bold />
               <div className={styles.dividerRow} />
-              <Row label={`Ontario SBD tax (${(CORPORATE_RATES_2025.on_small * 100).toFixed(1)}%)`} value={formatCurrency(corp.onTaxSBD)} />
-              <Row label="Ontario general tax" value={formatCurrency(corp.onTaxGeneral)} />
-              <Row label="Ontario tax total" value={formatCurrency(corp.onTax)} bold />
+              <Row label={`${corp.provLabel} SBD tax (${(corp.provSmallRate * 100).toFixed(2)}%)`} value={formatCurrency(corp.provTaxSBD)} />
+              <Row label={`${corp.provLabel} general tax (${(corp.provGeneralRate * 100).toFixed(1)}%)`} value={formatCurrency(corp.provTaxGeneral)} />
+              <Row label={`${corp.provLabel} tax total`} value={formatCurrency(corp.provTax)} bold />
               <div className={styles.dividerRow} />
               <Row label="Total corporate tax" value={formatCurrency(corp.totalTax)} bold />
               <Row label="After-tax income" value={formatCurrency(corp.afterTaxIncome)} />
@@ -803,18 +830,46 @@ export default function TaxesPage() {
         </div>
       </Section>
 
-      {/* ── HST ── */}
-      <Section title="HST Summary" badge="Ontario 13%">
+      {/* ── Sole Proprietor CPP ── */}
+      {isSoleProp && soleProprietorCPP && (
+        <Section title="Self-Employment CPP Contributions" badge="Schedule 8 / Line 22200">
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            As a sole proprietor, you pay <strong>both</strong> the employee and employer CPP shares on your net self-employment income.
+            The employer half is deductible on line 22200, reducing your taxable income.
+          </p>
+          <div className={styles.twoCol}>
+            <SubSection title="CPP Calculation">
+              <Row label="Net self-employment income" value={formatCurrency(soleProprietorCPP.netSelfEmployedIncome)} />
+              <Row label="Basic exemption" value={`− ${formatCurrency(soleProprietorCPP.exemption)}`} />
+              <Row label="Year's Maximum Pensionable Earnings cap" value={formatCurrency(soleProprietorCPP.maxEarnings)} />
+              <Row label="Earnable CPP income" value={formatCurrency(soleProprietorCPP.earnableIncome)} bold />
+            </SubSection>
+            <SubSection title="Contributions Owing">
+              <Row label={`Employee share (${(soleProprietorCPP.cppRate * 100).toFixed(2)}%)`} value={formatCurrency(soleProprietorCPP.employeeShare)} />
+              <Row label={`Employer share (${(soleProprietorCPP.cppRate * 100).toFixed(2)}%)`} value={formatCurrency(soleProprietorCPP.employerShare)} />
+              <Row label="Total CPP owing" value={formatCurrency(soleProprietorCPP.totalCPP)} bold />
+              <div className={styles.dividerRow} />
+              <Row label="Employer half deductible (line 22200)" value={`− ${formatCurrency(soleProprietorCPP.deductibleAmount)}`} />
+              <Row label="Net CPP cost after deduction" value={formatCurrency(soleProprietorCPP.totalCPP - soleProprietorCPP.deductibleAmount)} />
+            </SubSection>
+          </div>
+          <div className={styles.alertBox} style={{ marginTop: '0.75rem', borderColor: 'var(--warning)', background: 'var(--warning-bg, #fffbeb)' }}>
+            💡 Add {formatCurrency(soleProprietorCPP.totalCPP)} CPP to your tax set-aside.
+            The employer half ({formatCurrency(soleProprietorCPP.deductibleAmount)}) reduces your T1 line 22200.
+          </div>
+        </Section>
+      )}
+      <Section title={isQuebec ? 'GST Summary' : 'HST Summary'} badge={isQuebec ? 'Quebec 5% GST' : `${corp.provLabel} HST`}>
         <div className={styles.hstGrid}>
           <div className={styles.hstCard}>
-            <span className={styles.hstLabel}>HST Collected</span>
+            <span className={styles.hstLabel}>{isQuebec ? 'GST Collected' : 'HST Collected'}</span>
             <strong className={styles.hstValue}>{formatCurrency(hst.hstCollected)}</strong>
             <span className={styles.hstSub}>From invoices (sent + paid)</span>
           </div>
           <div className={styles.hstCard}>
             <span className={styles.hstLabel}>Input Tax Credits (ITCs)</span>
             <strong className={styles.hstValue} style={{ color: 'var(--success)' }}>{formatCurrency(hst.itcTotal)}</strong>
-            <span className={styles.hstSub}>HST paid on business expenses</span>
+            <span className={styles.hstSub}>{isQuebec ? 'GST' : 'HST'} paid on business expenses</span>
           </div>
           <div className={`${styles.hstCard} ${styles.hstCardTotal}`}>
             <span className={styles.hstLabel}>Net Remittance</span>
@@ -823,7 +878,7 @@ export default function TaxesPage() {
           </div>
         </div>
         <div className={styles.deadlineBar}>
-          <span>📅 HST remittance:</span>
+          <span>📅 {isQuebec ? 'GST' : 'HST'} remittance:</span>
           <strong>Quarterly</strong>
           <span>— check your CRA account for exact due dates</span>
         </div>
@@ -831,6 +886,42 @@ export default function TaxesPage() {
           <div className={styles.alertBox}>⚠️ You are marked as not HST registered. Update in Settings if your revenue exceeds $30,000.</div>
         )}
       </Section>
+
+      {/* ── QST (Quebec only) ── */}
+      {isQuebec && qst && (
+        <Section title="QST Summary" badge="Quebec 9.975%">
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Quebec businesses file GST with the CRA <em>and</em> QST separately with Revenu Québec. Both are tracked independently.
+          </p>
+          <div className={styles.hstGrid}>
+            <div className={styles.hstCard}>
+              <span className={styles.hstLabel}>QST Collected</span>
+              <strong className={styles.hstValue}>{formatCurrency(qst.qstCollected)}</strong>
+              <span className={styles.hstSub}>From invoices (QST amount field)</span>
+            </div>
+            <div className={styles.hstCard}>
+              <span className={styles.hstLabel}>QST Input Tax Refunds</span>
+              <strong className={styles.hstValue} style={{ color: 'var(--success)' }}>{formatCurrency(qst.qstITC)}</strong>
+              <span className={styles.hstSub}>QST paid on business expenses</span>
+            </div>
+            <div className={`${styles.hstCard} ${styles.hstCardTotal}`}>
+              <span className={styles.hstLabel}>Net QST Remittance</span>
+              <strong className={`${styles.hstValue} ${qst.netQSTRemittance < 0 ? styles.hstCredit : ''}`}>{formatCurrency(Math.abs(qst.netQSTRemittance))}</strong>
+              <span className={styles.hstSub}>{qst.netQSTRemittance < 0 ? 'Revenu Québec owes you' : 'Remit to Revenu Québec'}</span>
+            </div>
+          </div>
+          <div className={styles.deadlineBar}>
+            <span>📅 QST remittance:</span>
+            <strong>Quarterly</strong>
+            <span>— check your Revenu Québec account for exact due dates</span>
+          </div>
+          {qst.qstCollected === 0 && (
+            <div className={styles.alertBox}>
+              ℹ️ No QST collected. Add a <strong>qst</strong> amount field to your invoices to track QST. Rate: 9.975% on the pre-GST price.
+            </div>
+          )}
+        </Section>
+      )}
 
       {/* ── Integration Analysis ── */}
       <Section title="Tax Integration Analysis" badge="Corp + Personal">

@@ -1,4 +1,13 @@
 .page { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.alertBanner {
+  padding: 0.875rem 1.125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
 .empty { padding: 3rem; text-align: center; color: var(--text-muted); }
 
 .summaryBar {

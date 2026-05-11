@@ -1,6 +1,6 @@
 /**
  * Canadian Tax Calculation Library
- * Ontario CCPC - 2025 tax year
+ * Multi-province CCPC + Sole Proprietor - 2025 tax year
  */
 
 import {
@@ -11,12 +11,20 @@ import {
   ON_SURTAX_1_THRESHOLD,
   ON_SURTAX_2_THRESHOLD,
   CORPORATE_RATES_2025,
+  PROVINCIAL_CORP_RATES_2025,
   DIVIDEND_RATES_2025,
   PARTIAL_DEDUCTION_CATEGORIES,
   CPP_MAX_EMPLOYEE_CONTRIBUTION_2025,
   EI_MAX_PREMIUM_2025,
   CANADA_EMPLOYMENT_AMOUNT_2025,
 } from './constants.js';
+
+// 2025 QST rate (Quebec Sales Tax)
+export const QST_RATE = 0.09975;
+// 2025 CPP constants for self-employment (pay both employee + employer shares)
+const SELF_EMPL_CPP_RATE      = 0.0595;  // 5.95% each share
+const SELF_EMPL_CPP_EXEMPTION = 3500;    // basic annual exemption
+const SELF_EMPL_CPP_MAX_EARN  = 71300;   // YMPE 2025
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -35,33 +43,36 @@ function calcBracketedTax(income, brackets) {
 // ─── CORPORATE TAX ──────────────────────────────────────────────────────────
 
 /**
- * Calculate Ontario CCPC corporate tax.
+ * Calculate CCPC corporate tax for any Canadian province.
  * @param {number} grossRevenue        - Total revenue (before expenses)
  * @param {number} totalDeductibleExp  - Total deductible expenses
+ * @param {string} [province='ON']     - 2-letter province code
  * @returns {object} Corporate tax breakdown
  */
-export function calculateCorporateTax(grossRevenue, totalDeductibleExp) {
-  const rates = CORPORATE_RATES_2025;
+export function calculateCorporateTax(grossRevenue, totalDeductibleExp, province = 'ON') {
+  const fedRates = CORPORATE_RATES_2025;
+  const provRates = PROVINCIAL_CORP_RATES_2025[province] ?? PROVINCIAL_CORP_RATES_2025['ON'];
+
   const netIncome = Math.max(0, grossRevenue - totalDeductibleExp);
-  
-  // SBD applies to lessor of active business income or $500K
-  const sbdIncome = Math.min(netIncome, rates.sbd_limit);
+
+  // SBD applies to lesser of active business income or $500K
+  const sbdIncome = Math.min(netIncome, fedRates.sbd_limit);
   const generalIncome = Math.max(0, netIncome - sbdIncome);
 
   // Federal tax
-  const fedTaxSBD = sbdIncome * rates.fed_sbd_net;
-  const fedTaxGeneral = generalIncome * rates.fed_general_net;
+  const fedTaxSBD = sbdIncome * fedRates.fed_sbd_net;
+  const fedTaxGeneral = generalIncome * fedRates.fed_general_net;
   const fedTax = fedTaxSBD + fedTaxGeneral;
 
-  // Ontario tax
-  const onTaxSBD = sbdIncome * rates.on_small;
-  const onTaxGeneral = generalIncome * rates.on_general;
-  const onTax = onTaxSBD + onTaxGeneral;
+  // Provincial tax
+  const provTaxSBD = sbdIncome * provRates.prov_small;
+  const provTaxGeneral = generalIncome * provRates.prov_general;
+  const provTax = provTaxSBD + provTaxGeneral;
 
-  const totalTax = fedTax + onTax;
+  const totalTax = fedTax + provTax;
   const effectiveRate = netIncome > 0 ? totalTax / netIncome : 0;
   const afterTaxIncome = netIncome - totalTax;
-  const retainedEarnings = afterTaxIncome; // before dividends
+  const retainedEarnings = afterTaxIncome;
 
   return {
     grossRevenue,
@@ -72,13 +83,21 @@ export function calculateCorporateTax(grossRevenue, totalDeductibleExp) {
     fedTaxSBD,
     fedTaxGeneral,
     fedTax,
-    onTaxSBD,
-    onTaxGeneral,
-    onTax,
+    provTaxSBD,
+    provTaxGeneral,
+    provTax,
+    // Legacy aliases so existing UI references don't break
+    onTaxSBD: provTaxSBD,
+    onTaxGeneral: provTaxGeneral,
+    onTax: provTax,
     totalTax,
     effectiveRate,
     afterTaxIncome,
     retainedEarnings,
+    province,
+    provLabel: provRates.label,
+    provSmallRate: provRates.prov_small,
+    provGeneralRate: provRates.prov_general,
   };
 }
 
@@ -179,6 +198,32 @@ export function calculateHSTSummary(invoices, expenses) {
   };
 }
 
+// ─── QST SUMMARY (Quebec only) ───────────────────────────────────────────────
+
+/**
+ * Calculate Quebec Sales Tax (QST) collected and ITCs.
+ * QST is charged on the pre-GST price at 9.975%.
+ * Only applies when province === 'QC'.
+ * @param {Array} invoices
+ * @param {Array} expenses  - each expense must have qst and businessUsePercent fields
+ */
+export function calculateQSTSummary(invoices, expenses) {
+  const qstCollected = invoices
+    .filter(inv => ['sent', 'paid'].includes(inv.status))
+    .reduce((sum, inv) => sum + (inv.qstAmount || 0), 0);
+
+  const qstITC = expenses
+    .filter(exp => exp.qst && exp.qst > 0)
+    .reduce((sum, exp) => {
+      const businessPct = (exp.businessUsePercent ?? 100) / 100;
+      return sum + exp.qst * businessPct;
+    }, 0);
+
+  const netQSTRemittance = qstCollected - qstITC;
+
+  return { qstCollected, qstITC, netQSTRemittance };
+}
+
 // ─── MILEAGE DEDUCTION ──────────────────────────────────────────────────────
 
 // CRA 2025 automobile allowance rates
@@ -197,6 +242,74 @@ export function calculateMileageDeduction(mileageLogs = []) {
     ? totalKm * MILEAGE_RATE_1
     : MILEAGE_THRESHOLD * MILEAGE_RATE_1 + (totalKm - MILEAGE_THRESHOLD) * MILEAGE_RATE_2;
   return { totalKm, deductible, rate1: MILEAGE_RATE_1, rate2: MILEAGE_RATE_2, threshold: MILEAGE_THRESHOLD };
+}
+
+// ─── HST SMALL SUPPLIER THRESHOLD ────────────────────────────────────────────
+
+const HST_THRESHOLD     = 30000;
+const HST_WARN_THRESHOLD = 25000; // start warning at 83% of limit
+
+/**
+ * Check whether a business is approaching or has exceeded the $30,000 CRA
+ * small supplier threshold that triggers mandatory GST/HST registration.
+ *
+ * CRA checks two windows — (a) any single calendar quarter, or (b) the trailing
+ * 4 consecutive quarters. We compute the simpler rolling-12-month window here.
+ *
+ * @param {Array}  allInvoices     - All invoices across all fiscal years
+ * @param {string} [today]         - ISO date string for reference date (default: now)
+ * @returns {{ rolling12Revenue: number, approaching: boolean, exceeded: boolean }}
+ */
+export function checkHSTThreshold(allInvoices = [], today = new Date().toISOString().slice(0, 10)) {
+  const cutoff = new Date(today);
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const rolling12Revenue = allInvoices
+    .filter(inv => ['sent', 'paid'].includes(inv.status) && (inv.issueDate || '') >= cutoffStr)
+    .reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
+
+  return {
+    rolling12Revenue,
+    approaching: rolling12Revenue >= HST_WARN_THRESHOLD && rolling12Revenue < HST_THRESHOLD,
+    exceeded: rolling12Revenue >= HST_THRESHOLD,
+    threshold: HST_THRESHOLD,
+    warningThreshold: HST_WARN_THRESHOLD,
+  };
+}
+
+// ─── SOLE PROPRIETOR CPP ─────────────────────────────────────────────────────
+
+/**
+ * Calculate CPP contributions for a self-employed sole proprietor.
+ * Sole proprietors pay BOTH the employee (5.95%) AND employer (5.95%) shares,
+ * but may deduct the employer half as a business expense (line 22200).
+ *
+ * @param {number} netSelfEmployedIncome - Net business income from T2125
+ * @returns {object} CPP breakdown
+ */
+export function calculateSoleProprietorCPP(netSelfEmployedIncome) {
+  const earnableIncome = Math.max(0, Math.min(netSelfEmployedIncome, SELF_EMPL_CPP_MAX_EARN) - SELF_EMPL_CPP_EXEMPTION);
+  // Employee share (5.95%) — added to line 30800 CPP credit
+  const employeeShare = earnableIncome * SELF_EMPL_CPP_RATE;
+  // Employer share (5.95%) — deductible on line 22200
+  const employerShare = earnableIncome * SELF_EMPL_CPP_RATE;
+  // Total CPP owing
+  const totalCPP = employeeShare + employerShare;
+  // The employer half is deductible, reducing net income
+  const deductibleAmount = employerShare;
+
+  return {
+    netSelfEmployedIncome,
+    earnableIncome,
+    employeeShare,
+    employerShare,
+    totalCPP,
+    deductibleAmount,
+    cppRate: SELF_EMPL_CPP_RATE,
+    maxEarnings: SELF_EMPL_CPP_MAX_EARN,
+    exemption: SELF_EMPL_CPP_EXEMPTION,
+  };
 }
 
 // ─── PERSONAL TAX ───────────────────────────────────────────────────────────

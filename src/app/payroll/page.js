@@ -33,8 +33,22 @@ const FREQUENCIES = [
   { value: '12',   label: 'Monthly (12/year)' },
 ];
 
+async function generateT4APDF(settings, recipients, year) {
+  const { pdf } = await import('@react-pdf/renderer');
+  const { default: T4ADocument } = await import('@/components/T4ADocument');
+  const { createElement } = await import('react');
+  const blob = await pdf(createElement(T4ADocument, { settings, recipients, year })).toBlob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `T4A-${year}.pdf`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 const BLANK_EMP = { name: '', sin: '', address: '', city: '', province: 'ON', postalCode: '', birthDate: '', startDate: '' };
 const BLANK_RUN = { employeeId: '', periodStart: '', periodEnd: '', grossPay: '', cpp: '', ei: '', incomeTax: '', notes: '' };
+const BLANK_T4A = { name: '', sin: '', address: '', city: '', province: 'ON', postalCode: '', taxYear: new Date().getFullYear() - 1, box048: '', box020: '', box028: '', box022: '', notes: '' };
 
 export default function PayrollPage() {
   const { state, dispatch, activeFY } = useApp();
@@ -43,8 +57,38 @@ export default function PayrollPage() {
   const payrollRuns = activeFY.payrollRuns || [];
   const fyLabel     = activeFY.label || '';
 
+  const t4aRecipients = state.t4aRecipients || [];
+
   const [tab, setTab] = useState(0);
   const [frequency, setFrequency] = useState('26');
+
+  // ── T4A modal state ──────────────────────────────────────────────────────
+  const [showT4AModal,  setShowT4AModal]   = useState(false);
+  const [t4aEditId,     setT4AEditId]      = useState(null);
+  const [t4aForm,       setT4AForm]        = useState({ ...BLANK_T4A });
+  const [confirmDelT4A, setConfirmDelT4A]  = useState(null);
+
+  const openT4AModal = (rec = null) => {
+    setT4AEditId(rec?.id ?? null);
+    setT4AForm(rec ? { ...BLANK_T4A, ...rec } : { ...BLANK_T4A });
+    setShowT4AModal(true);
+  };
+  const saveT4A = e => {
+    e.preventDefault();
+    const payload = {
+      ...t4aForm,
+      box048: parseFloat(t4aForm.box048) || 0,
+      box020: parseFloat(t4aForm.box020) || 0,
+      box028: parseFloat(t4aForm.box028) || 0,
+      box022: parseFloat(t4aForm.box022) || 0,
+    };
+    if (t4aEditId) {
+      dispatch({ type: 'UPDATE_T4A_RECIPIENT', payload: { id: t4aEditId, ...payload } });
+    } else {
+      dispatch({ type: 'ADD_T4A_RECIPIENT', payload });
+    }
+    setShowT4AModal(false);
+  };
 
   // ── Employees modal ──────────────────────────────────────────────────────
   const [showEmpModal, setShowEmpModal]   = useState(false);
@@ -149,7 +193,7 @@ export default function PayrollPage() {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {['Employees', 'Payroll Runs'].map((t, i) => (
+        {['Employees', 'Payroll Runs', 'T4A Contractors'].map((t, i) => (
           <button key={t} className={`${styles.tab} ${tab === i ? styles.tabActive : ''}`} onClick={() => setTab(i)}>{t}</button>
         ))}
       </div>
@@ -289,6 +333,126 @@ export default function PayrollPage() {
           )}
         </div>
       )}
+
+      {/* ═══ TAB 2: T4A Contractors ═══ */}
+      {tab === 2 && (
+        <div className={styles.section}>
+          <div className={styles.sectionTop}>
+            <div>
+              <h2 className={styles.sectionTitle}>T4A Contractors</h2>
+              <p className={styles.sectionSub}>Track contractors and service providers paid $500+ in a tax year. File T4A slips with CRA by Feb 28.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {t4aRecipients.length > 0 && (
+                <Button variant="secondary" onClick={async () => {
+                  try {
+                    const year = t4aRecipients[0]?.taxYear || new Date().getFullYear() - 1;
+                    await generateT4APDF(state.settings, t4aRecipients, year);
+                  } catch (err) {
+                    toast({ message: 'T4A PDF failed', detail: err.message, type: 'error' });
+                  }
+                }}>⬇ All T4As PDF</Button>
+              )}
+              <Button onClick={() => openT4AModal()}>+ Add Contractor</Button>
+            </div>
+          </div>
+
+          {t4aRecipients.length === 0 ? (
+            <EmptyState icon="📋" title="No contractors yet" description="Add contractors you paid for services to generate T4A slips." action={<Button onClick={() => openT4AModal()}>+ Add Contractor</Button>} />
+          ) : (
+            <div className={styles.empList}>
+              {t4aRecipients.map(rec => (
+                <div key={rec.id} className={styles.empCard}>
+                  <div className={styles.empCardMain}>
+                    <div className={styles.empName}>{rec.name || 'Unnamed'}</div>
+                    <div className={styles.empMeta}>
+                      {rec.sin && <span>SIN: {rec.sin}</span>}
+                      {rec.province && <span>{rec.province}</span>}
+                      <span>Tax Year: {rec.taxYear}</span>
+                    </div>
+                    <div className={styles.empTotals}>
+                      {rec.box048 > 0 && <span>Box 048 (Fees): <strong>{formatCurrency(rec.box048)}</strong></span>}
+                      {rec.box020 > 0 && <span>Box 020 (Commission): <strong>{formatCurrency(rec.box020)}</strong></span>}
+                      {rec.box028 > 0 && <span>Box 028 (Other): <strong>{formatCurrency(rec.box028)}</strong></span>}
+                    </div>
+                  </div>
+                  <div className={styles.empCardActions}>
+                    <Button size="sm" variant="secondary" onClick={async () => {
+                      try {
+                        await generateT4APDF(state.settings, [rec], rec.taxYear);
+                      } catch (err) {
+                        toast({ message: 'T4A PDF failed', detail: err.message, type: 'error' });
+                      }
+                    }}>⬇ T4A PDF</Button>
+                    <Button size="sm" variant="secondary" onClick={() => openT4AModal(rec)}>Edit</Button>
+                    <button className={styles.deleteBtn} onClick={() => setConfirmDelT4A(rec.id)} aria-label="Delete contractor">🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.t4Note}>
+            <strong>T4A Reminder:</strong> Issue T4A slips to contractors paid $500+ for services (Box 048). Filing deadline is Feb 28. You do not deduct CPP/EI for contractors — they handle their own CPP as a self-employed person.
+          </div>
+        </div>
+      )}
+
+      {/* ── T4A Modal ── */}
+      <Modal isOpen={showT4AModal} onClose={() => setShowT4AModal(false)} title={t4aEditId ? 'Edit Contractor' : 'Add Contractor'} size="md"
+        footer={<><Button variant="secondary" onClick={() => setShowT4AModal(false)}>Cancel</Button><Button type="submit" form="t4a-form">{t4aEditId ? 'Save' : 'Add'}</Button></>}
+      >
+        <form id="t4a-form" onSubmit={saveT4A}>
+          <div className={styles.formGrid}>
+            <FormField label="Full Name" className={styles.colSpan2} required>
+              <Input type="text" value={t4aForm.name} onChange={e => setT4AForm(f => ({ ...f, name: e.target.value }))} placeholder="Jane Smith" required />
+            </FormField>
+            <FormField label="SIN" hint="Social Insurance Number">
+              <Input type="text" value={t4aForm.sin} onChange={e => setT4AForm(f => ({ ...f, sin: e.target.value }))} placeholder="000 000 000" maxLength={11} />
+            </FormField>
+            <FormField label="Tax Year" required>
+              <Input type="number" min="2020" max="2030" value={t4aForm.taxYear} onChange={e => setT4AForm(f => ({ ...f, taxYear: parseInt(e.target.value) }))} required />
+            </FormField>
+            <FormField label="Province">
+              <Select value={t4aForm.province} onChange={e => setT4AForm(f => ({ ...f, province: e.target.value }))}>
+                {['ON','BC','AB','QC','MB','SK','NS','NB','NL','PE'].map(p => <option key={p} value={p}>{p}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Postal Code">
+              <Input type="text" value={t4aForm.postalCode} onChange={e => setT4AForm(f => ({ ...f, postalCode: e.target.value }))} placeholder="A1A 1A1" maxLength={7} />
+            </FormField>
+            <FormField label="Address" className={styles.colSpan2}>
+              <Input type="text" value={t4aForm.address} onChange={e => setT4AForm(f => ({ ...f, address: e.target.value }))} placeholder="123 Main St" />
+            </FormField>
+            <FormField label="City">
+              <Input type="text" value={t4aForm.city} onChange={e => setT4AForm(f => ({ ...f, city: e.target.value }))} />
+            </FormField>
+            <FormField label="" />
+            <FormField label="Box 048 — Fees for Services" hint="Most common for contractors">
+              <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box048} onChange={e => setT4AForm(f => ({ ...f, box048: e.target.value }))} placeholder="0.00" />
+            </FormField>
+            <FormField label="Box 020 — Self-employment Commissions">
+              <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box020} onChange={e => setT4AForm(f => ({ ...f, box020: e.target.value }))} placeholder="0.00" />
+            </FormField>
+            <FormField label="Box 028 — Other Income">
+              <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box028} onChange={e => setT4AForm(f => ({ ...f, box028: e.target.value }))} placeholder="0.00" />
+            </FormField>
+            <FormField label="Box 022 — Income Tax Deducted">
+              <Input type="number" min="0" step="0.01" prefix="$" value={t4aForm.box022} onChange={e => setT4AForm(f => ({ ...f, box022: e.target.value }))} placeholder="0.00" />
+            </FormField>
+            <FormField label="Notes" className={styles.colSpan2}>
+              <Input type="text" value={t4aForm.notes} onChange={e => setT4AForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+            </FormField>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Confirm Delete T4A ── */}
+      <Modal isOpen={!!confirmDelT4A} onClose={() => setConfirmDelT4A(null)} title="Remove Contractor?" size="sm"
+        footer={<><Button variant="secondary" onClick={() => setConfirmDelT4A(null)}>Cancel</Button><Button variant="danger" onClick={() => { dispatch({ type: 'DELETE_T4A_RECIPIENT', payload: confirmDelT4A }); setConfirmDelT4A(null); }}>Remove</Button></>}
+      >
+        <p>This contractor and their T4A data will be deleted.</p>
+      </Modal>
 
       {/* ── Employee Modal ── */}
       <Modal isOpen={showEmpModal} onClose={() => setShowEmpModal(false)} title={empEditId ? 'Edit Employee' : 'Add Employee'} size="md"

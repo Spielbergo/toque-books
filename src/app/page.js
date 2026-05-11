@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useApp } from '@/contexts/AppContext';
-import { calculateCorporateTax, calculateHSTSummary, calculatePersonalTax, calculateHomeOfficeDeduction, getDeductibleAmount } from '@/lib/taxCalculations';
+import { calculateCorporateTax, calculateHSTSummary, calculatePersonalTax, calculateHomeOfficeDeduction, getDeductibleAmount, checkHSTThreshold } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, formatPercent } from '@/lib/formatters';
 import { StatCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -63,7 +63,8 @@ export default function DashboardPage() {
   const homeOfficeCalc     = calculateHomeOfficeDeduction(homeOffice);
   const totalDeductibleExp = expenses.reduce((s, e) => s + getDeductibleAmount(e.amount || 0, e.category, e.businessUsePercent), 0) + homeOfficeCalc.deductible;
   const hst      = calculateHSTSummary(invoices, expenses);
-  const corp     = calculateCorporateTax(totalRevenue, totalDeductibleExp);
+  const corp     = calculateCorporateTax(totalRevenue, totalDeductibleExp, state.settings?.province || 'ON');
+  const hstAlert  = !state.settings?.hstRegistered ? checkHSTThreshold(allInvoices) : null;
   // Derive personal year from the active fiscal year's calendar year so that
   // blank fiscal years don't show personal tax data from a different year.
   const fyPersonalYear = activeFY?.endDate
@@ -79,7 +80,6 @@ export default function DashboardPage() {
     eligibleDivs:     fyPY.eligibleDivs     || 0,
     employmentIncome: fyPY.employmentIncome || 0,
     otherIncome:      fyPY.otherIncome      || 0,
-    rrspDeduction:    fyPY.rrspDeduction    || 0,
     taxWithheld:      fyPY.taxWithheld      || 0,
     cppContributions: fyPY.cppContributions || 0,
     eiPremiums:       fyPY.eiPremiums       || 0,
@@ -130,6 +130,24 @@ export default function DashboardPage() {
         <StatCard label="HST to Remit" value={formatCurrency(hst.netRemittance)} sub={`Collected ${formatCurrency(hst.hstCollected, { compact: true })} − ITC ${formatCurrency(hst.itcTotal, { compact: true })}`} color={hst.netRemittance > 0 ? 'warning' : 'default'} />
         <StatCard label="Est. Tax Owing" value={formatCurrency(totalTaxOwing)} sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`} color="danger" />
       </div>
+
+      {/* $30k HST threshold warning */}
+      {hstAlert?.exceeded && (
+        <div className={styles.alertBanner} style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 8%, var(--bg-card))' }}>
+          <strong>🚨 HST Registration Required</strong> — Your trailing 12-month revenue is{' '}
+          <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong>, which exceeds the $30,000 CRA small supplier threshold.
+          You must register for GST/HST immediately.{' '}
+          <Link href="/settings" className={styles.alertLink}>Register in Settings →</Link>
+        </div>
+      )}
+      {hstAlert?.approaching && (
+        <div className={styles.alertBanner} style={{ borderColor: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 8%, var(--bg-card))' }}>
+          <strong>⚠️ Approaching HST Threshold</strong> — Your trailing 12-month revenue is{' '}
+          <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong> (limit: $30,000).
+          Once you cross $30,000 you must register for GST/HST within 29 days.{' '}
+          <Link href="/settings" className={styles.alertLink}>Update Settings →</Link>
+        </div>
+      )}
 
       {/* Tax Set-Aside Widget */}
       <div className={styles.section}>

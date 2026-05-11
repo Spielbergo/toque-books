@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useToast } from '@/contexts/ToastContext';
-import { calculateHSTSummary } from '@/lib/taxCalculations';
+import { calculateHSTSummary, checkHSTThreshold } from '@/lib/taxCalculations';
 import { formatCurrency, formatDate, today } from '@/lib/formatters';
 import { expandRecurringForFY } from '@/lib/recurringUtils';
 import Button from '@/components/ui/Button';
@@ -47,6 +47,9 @@ export default function HSTTrackerPage() {
   const totalRemitted = remittances.reduce((s, r) => s + (parseFloat(r.netRemittance) || 0), 0);
   const balance = hst.netRemittance - totalRemitted;
 
+  const allInvoices = Object.values(state.fiscalYears || {}).flatMap(f => f.invoices || []);
+  const hstAlert = !state.settings?.hstRegistered ? checkHSTThreshold(allInvoices) : null;
+
   const openCreate = () => {
     setEditId(null);
     setForm({ ...BLANK, period: activeFY?.label || '', amtCollected: hst.hstCollected.toFixed(2), itc: hst.itcTotal.toFixed(2), netRemittance: hst.netRemittance.toFixed(2) });
@@ -80,6 +83,17 @@ export default function HSTTrackerPage() {
 
   return (
     <div className={styles.page}>
+      {/* $30k threshold warnings */}
+      {hstAlert?.exceeded && (
+        <div className={styles.alertBanner} style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 8%, var(--bg-card))' }}>
+          <strong>🚨 HST Registration Required</strong> — Your trailing 12-month revenue is <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong>, exceeding the $30,000 CRA small supplier threshold. You must register immediately.
+        </div>
+      )}
+      {hstAlert?.approaching && (
+        <div className={styles.alertBanner} style={{ borderColor: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 8%, var(--bg-card))' }}>
+          <strong>⚠️ Approaching HST Threshold</strong> — Trailing 12-month revenue: <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong> of $30,000 limit. Register before you cross the threshold.
+        </div>
+      )}
       {/* Summary */}
       <div className={styles.summaryBar}>
         <div className={styles.summaryItem}>

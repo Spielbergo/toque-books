@@ -125,6 +125,68 @@
   color: var(--success);
 }
 
+/* Access tab */
+.sectionDesc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.25rem;
+  line-height: 1.6;
+}
+.accessRow {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.accessInput {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+.accessInput::placeholder { color: var(--text-muted); }
+.accessEmpty {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+.accessList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.accessItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.875rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.accessEmail {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+.accessRemove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+.accessRemove:hover { color: var(--danger); }
+.accessNote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
 /* Fiscal years */
 .fyHeader {
   display: flex;

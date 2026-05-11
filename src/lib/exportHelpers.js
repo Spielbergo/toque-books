@@ -156,7 +156,7 @@ export function exportT2XML(state, fyKey) {
   const hoResult = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
   const totalCCA = (fy.ccaClasses ?? []).reduce((s, c) => s + (c.claimedAmount || 0), 0);
   const totalDeductions = totalDeductible + (hoResult?.deductible ?? 0) + totalCCA;
-  const corp = calculateCorporateTax(grossRevenue, totalDeductions);
+  const corp = calculateCorporateTax(grossRevenue, totalDeductions, state.settings?.province || 'ON');
   const totalDivsPaid = (fy.dividendsPaid ?? []).reduce((s, d) => s + (d.amount || 0), 0);
   const openingRE = fy.openingRetainedEarnings ?? 0;
   const closingRE = openingRE + corp.afterTaxIncome - totalDivsPaid;
@@ -599,7 +599,7 @@ export function exportTaxSummaryCSV(state, fyKey, userProfile) {
   const totalCCA = (fy.ccaClasses ?? []).reduce((s2, c) => s2 + (c.claimedAmount || 0), 0);
   const mileageResult = calculateMileageDeduction(fy.mileageLogs ?? []);
   const totalDeductions = totalDeductible + (hoResult?.deductible ?? 0) + totalCCA + mileageResult.deductible;
-  const corp = calculateCorporateTax(grossRevenue, totalDeductions);
+  const corp = calculateCorporateTax(grossRevenue, totalDeductions, state.settings?.province || 'ON');
   const { hstCollected, itcTotal, netRemittance } = calculateHSTSummary(invoices, expenses);
   const totalDivs = (fy.dividendsPaid ?? []).reduce((s2, d) => s2 + (d.amount || 0), 0);
 
@@ -738,7 +738,7 @@ export async function exportTaxWorksheetPDF(state, fyKey, userProfile) {
   const hoResult = calculateHomeOfficeDeduction(fy.homeOffice ?? {});
   const totalCCA = (fy.ccaClasses ?? []).reduce((acc, c) => acc + (c.claimedAmount || 0), 0);
   const totalDeductions = totalDeductible + (hoResult?.deductible ?? 0) + totalCCA;
-  const corp = calculateCorporateTax(grossRevenue, totalDeductions);
+  const corp = calculateCorporateTax(grossRevenue, totalDeductions, state.settings?.province || 'ON');
   const hst = calculateHSTSummary(invoices, expenses);
 
   const year = parseInt((fyKey ?? '').replace(/[^0-9]/g, '').slice(0, 4), 10) || new Date().getFullYear();
@@ -814,7 +814,7 @@ export async function exportS1PDF(state, fyKey) {
   // ── Corp calc for the reconciliation note ────────────────────────────────
   const totalDeductible = annotatedExpenses.reduce((sum, e) => sum + (e._deductible || 0), 0)
     + (hoResult.deductible || 0) + totalCCA;
-  const corp = calculateCorporateTax(grossRevenue, totalDeductible);
+  const corp = calculateCorporateTax(grossRevenue, totalDeductible, state.settings?.province || 'ON');
 
   // ── Build period label ────────────────────────────────────────────────────
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

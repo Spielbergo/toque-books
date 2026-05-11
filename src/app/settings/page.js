@@ -26,7 +26,7 @@ const PROVINCES = [
   { value: 'NL', label: 'Newfoundland & Labrador' },
 ];
 
-const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data', 'Personal Profile'];
+const TABS = ['Company', 'Business Profile', 'Fiscal Years', 'Data', 'Personal Profile', 'Access'];
 
 const MARITAL_STATUSES = [
   { value: '', label: 'Select…' },
@@ -54,7 +54,7 @@ const DEPENDANT_RELATIONSHIPS = [
 ];
 
 export default function SettingsPage() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, companies, activeCompanyId } = useApp();
   const { user } = useAuth();
   const { userProfile, userDispatch } = useUserProfile();
   const { toast } = useToast();
@@ -63,7 +63,68 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (searchParams.get('tab') === 'personal') setTab(4);
+    if (searchParams.get('tab') === 'access') setTab(5);
   }, [searchParams]);
+
+  // Access tab state
+  const [accountantEmails, setAccountantEmails] = useState([]);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const companyId = activeCompanyId;
+
+  useEffect(() => {
+    if (tab !== 5 || !companyId) return;
+    // Read accountant emails directly from Firestore (client SDK — no service account needed)
+    import('@/lib/firebase/client').then(({ db }) =>
+      import('firebase/firestore').then(({ doc, getDoc }) =>
+        getDoc(doc(db, 'companies', companyId))
+      )
+    ).then(snap => {
+      setAccountantEmails(snap.data()?.accountantEmails || []);
+    }).catch(() => {});
+  }, [tab, companyId]);
+
+  const addAccountant = async () => {
+    if (!newEmail.trim()) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) {
+      toast({ message: 'Invalid email address', type: 'error' }); return;
+    }
+    const email = newEmail.trim().toLowerCase();
+    setAccessLoading(true);
+    try {
+      const { db } = await import('@/lib/firebase/client');
+      const { doc, updateDoc, arrayUnion } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'companies', companyId), {
+        accountantEmails: arrayUnion(email),
+        updatedAt: new Date().toISOString(),
+      });
+      setAccountantEmails(prev => [...new Set([...prev, email])]);
+      setNewEmail('');
+      toast({ message: 'Accountant access granted', type: 'success' });
+    } catch (e) {
+      toast({ message: 'Failed to add accountant', detail: e.message, type: 'error' });
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const removeAccountant = async (email) => {
+    setAccessLoading(true);
+    try {
+      const { db } = await import('@/lib/firebase/client');
+      const { doc, updateDoc, arrayRemove } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'companies', companyId), {
+        accountantEmails: arrayRemove(email),
+        updatedAt: new Date().toISOString(),
+      });
+      setAccountantEmails(prev => prev.filter(e => e !== email));
+      toast({ message: 'Access removed', type: 'success' });
+    } catch (e) {
+      toast({ message: 'Failed to remove access', detail: e.message, type: 'error' });
+    } finally {
+      setAccessLoading(false);
+    }
+  };
 
   // Personal profile form
   const [ppForm, setPpForm] = useState(() => ({
@@ -672,6 +733,54 @@ export default function SettingsPage() {
               {ppSaved && <span className={styles.savedMsg}>✅ Saved!</span>}
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ══ Access (Accountant Portal) ══ */}
+      {tab === 5 && (
+        <div className={styles.section}>
+          <h3>Accountant Access</h3>
+          <p className={styles.sectionDesc}>Grant your accountant read-only access to this company's financial data. They can view it at <strong>/accountant</strong> when logged in with their email.</p>
+
+          {companyId ? (
+            <>
+              <div className={styles.accessRow}>
+                <input
+                  className={styles.accessInput}
+                  type="email"
+                  placeholder="accountant@firm.ca"
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addAccountant())}
+                />
+                <Button onClick={addAccountant} disabled={accessLoading || !newEmail.trim()}>Grant Access</Button>
+              </div>
+
+              {accountantEmails.length === 0 ? (
+                <p className={styles.accessEmpty}>No accountants have been granted access yet.</p>
+              ) : (
+                <div className={styles.accessList}>
+                  {accountantEmails.map(email => (
+                    <div key={email} className={styles.accessItem}>
+                      <span className={styles.accessEmail}>{email}</span>
+                      <button
+                        className={styles.accessRemove}
+                        onClick={() => removeAccountant(email)}
+                        disabled={accessLoading}
+                        aria-label={`Remove ${email}`}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className={styles.accessNote}>
+                Accountants can only <strong>view</strong> your data — they cannot edit, delete, or export. Remove access at any time.
+              </p>
+            </>
+          ) : (
+            <p className={styles.accessEmpty}>Select a company first to manage accountant access.</p>
+          )}
         </div>
       )}
 
