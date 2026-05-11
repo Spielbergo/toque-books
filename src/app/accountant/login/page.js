@@ -66,6 +66,7 @@ export default function AccountantLoginPage() {
       signInWithEmailLink(auth, saved, currentUrl)
         .then(() => {
           window.localStorage.removeItem('accountantInviteEmail');
+          window.localStorage.setItem('accountant_mode', '1');
           window.location.href = '/accountant';
         })
         .catch(err => {
@@ -89,6 +90,7 @@ export default function AccountantLoginPage() {
       const url = magicLinkUrl || window.location.href;
       await signInWithEmailLink(auth, magicEmail.trim(), url);
       window.localStorage.removeItem('accountantInviteEmail');
+      window.localStorage.setItem('accountant_mode', '1');
       window.location.href = '/accountant';
     } catch (err) {
       setError(friendlyAuthError(err));
@@ -111,6 +113,7 @@ export default function AccountantLoginPage() {
         const { user } = await createUserWithEmailAndPassword(auth, email, password);
         if (name) await updateProfile(user, { displayName: name });
       }
+      window.localStorage.setItem('accountant_mode', '1');
       window.location.href = '/accountant';
     } catch (err) {
       setError(friendlyAuthError(err));
@@ -124,6 +127,7 @@ export default function AccountantLoginPage() {
     setGoogleLoading(true);
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
+      window.localStorage.setItem('accountant_mode', '1');
       window.location.href = '/accountant';
     } catch (err) {
       setError(friendlyAuthError(err));

@@ -1,22 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { signOut as firebaseSignOut } from 'firebase/auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase/client';
+import { auth, db } from '@/lib/firebase/client';
+import CanBooksLogo from '@/components/CanBooksLogo';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/formatters';
 import { calculateCorporateTax, calculateHSTSummary, getDeductibleAmount } from '@/lib/taxCalculations';
 import styles from './page.module.css';
 
 export default function AccountantPage() {
-  const { user } = useAuth();
+  const { user, authLoading } = useAuth();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
+    if (authLoading) return;                        // wait for auth to resolve
     if (!user?.email) { setLoading(false); return; }
+    setLoading(true);
     const email = user.email.toLowerCase().trim();
     getDocs(
       query(collection(db, 'companies'), where('accountantEmails', 'array-contains', email))
@@ -29,60 +33,78 @@ export default function AccountantPage() {
       if (list.length) setSelectedId(list[0].id);
     }).catch(e => setError(e.message))
     .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, authLoading]);
 
   const selected = companies.find(c => c.id === selectedId);
 
-  if (!user) {
-    return <div className={styles.page}><p className={styles.empty}>You must be signed in to access this page.</p></div>;
-  }
-
-  if (loading) {
-    return <div className={styles.page}><p className={styles.empty}>Loading shared companies…</p></div>;
-  }
-
-  if (error) {
-    return <div className={styles.page}><p className={styles.empty}>Error: {error}</p></div>;
-  }
-
-  if (!companies.length) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Accountant View</h1>
-          <p className={styles.sub}>No companies have granted you access yet.</p>
-        </div>
-        <div className={styles.emptyCard}>
-          <p>Ask your client to go to <strong>Settings → Access</strong> and add your email address (<strong>{user.email}</strong>).</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSignOut = () => {
+    window.localStorage.removeItem('accountant_mode');
+    firebaseSignOut(auth).then(() => { window.location.href = '/accountant/login'; });
+  };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Accountant View</h1>
-          <p className={styles.sub}>Read-only access to client companies shared with {user.email}</p>
+    <div className={styles.shell}>
+      <nav className={styles.topBar}>
+        <div className={styles.topBarInner}>
+          <div className={styles.topBarLeft}>
+            <CanBooksLogo size={32} />
+            <div>
+              <span className={styles.topBarTitle}>CanBooks</span>
+              <span className={styles.topBarSub}>Accountant Portal</span>
+            </div>
+          </div>
+          <div className={styles.topBarRight}>
+            {user && <span className={styles.topBarEmail}>{user.email}</span>}
+            <button className={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
+          </div>
+        </div>
+      </nav>
+
+      <div className={styles.content}>
+        <div className={styles.page}>
+          {(authLoading || loading) ? (
+            <p className={styles.empty}>Loading shared companies…</p>
+          ) : !user ? (
+            <p className={styles.empty}>You must be signed in to access this page.</p>
+          ) : error ? (
+            <p className={styles.empty}>Error: {error}</p>
+          ) : !companies.length ? (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Accountant View</h1>
+                <p className={styles.sub}>No companies have granted you access yet.</p>
+              </div>
+              <div className={styles.emptyCard}>
+                <p>Ask your client to go to <strong>Settings → Access</strong> and add your email address (<strong>{user.email}</strong>).</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.header}>
+                <div>
+                  <h1 className={styles.title}>Accountant View</h1>
+                  <p className={styles.sub}>Read-only · {companies.length} client {companies.length === 1 ? 'company' : 'companies'} shared with you</p>
+                </div>
+              </div>
+
+              {companies.length > 1 && (
+                <div className={styles.selectorRow}>
+                  <label className={styles.selectorLabel}>Client Company:</label>
+                  <select
+                    className={styles.selector}
+                    value={selectedId}
+                    onChange={e => setSelectedId(e.target.value)}
+                  >
+                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {selected && <CompanyReadout company={selected} />}
+            </>
+          )}
         </div>
       </div>
-
-      {/* Company selector */}
-      {companies.length > 1 && (
-        <div className={styles.selectorRow}>
-          <label className={styles.selectorLabel}>Client Company:</label>
-          <select
-            className={styles.selector}
-            value={selectedId}
-            onChange={e => setSelectedId(e.target.value)}
-          >
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-      )}
-
-      {selected && <CompanyReadout company={selected} />}
     </div>
   );
 }
@@ -153,6 +175,21 @@ function CompanyReadout({ company }) {
   const t4aRecs      = d.t4aRecipients || [];
   const clients      = d.clients || [];
 
+  // Invoice status breakdown
+  const paidInvoices        = fyInvoices.filter(i => i.status === 'paid');
+  const outstandingInvoices = fyInvoices.filter(i => i.status === 'sent').sort((a, b) => (a.issueDate || '').localeCompare(b.issueDate || ''));
+  const draftInvoices       = fyInvoices.filter(i => i.status === 'draft');
+  const paidRevenue         = paidInvoices.reduce((s, i) => s + (i.subtotal || 0), 0);
+  const outstandingRevenue  = outstandingInvoices.reduce((s, i) => s + (i.subtotal || 0), 0);
+
+  // Expense category breakdown
+  const categoryTotals = fyExpenses.reduce((acc, exp) => {
+    const cat = exp.category || 'Uncategorized';
+    acc[cat] = (acc[cat] || 0) + getDeductibleAmount(exp.amount || 0, exp.category, exp.businessUsePercent ?? 100);
+    return acc;
+  }, {});
+  const categoryRows = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+
   function exportInvoicesCSV() {
     const rows = [
       ['Invoice #', 'Client', 'Issue Date', 'Status', 'Subtotal', 'HST', 'Total'],
@@ -185,6 +222,143 @@ function CompanyReadout({ company }) {
     downloadCSV(`${company.name}_${selectedFY}_expenses.csv`, rows);
   }
 
+  function exportAgedReceivables() {
+    const today = new Date();
+    const ageDays = date => !date ? 0 : Math.max(0, Math.floor((today - new Date(date + 'T00:00')) / 86400000));
+    const bucket  = d => d <= 30 ? 'Current (0–30 days)' : d <= 60 ? '31–60 days' : d <= 90 ? '61–90 days' : d <= 120 ? '91–120 days' : 'Over 120 days';
+    const rows = [
+      [`Aged Receivables Report — ${company.name}`],
+      ['As of', today.toLocaleDateString('en-CA')],
+      ['Fiscal Year', selectedFY],
+      [],
+      ['Invoice #', 'Client', 'Issue Date', 'Days Outstanding', 'Aging Bucket', 'Amount (excl. HST)'],
+      ...outstandingInvoices.map(i => {
+        const d = ageDays(i.issueDate);
+        return [i.invoiceNumber || i.id, i.clientName || '', i.issueDate || '', d, bucket(d), (i.subtotal || 0).toFixed(2)];
+      }),
+      [],
+      ['TOTAL OUTSTANDING', '', '', '', '', outstandingRevenue.toFixed(2)],
+    ];
+    downloadCSV(`${company.name}_${selectedFY}_aged_receivables.csv`, rows);
+  }
+
+  function exportQuickBooksIIF() {
+    const qbDate = s => { if (!s) return ''; const [y, m, d] = s.split('-'); return `${m}/${d}/${y}`; };
+    const lines = [
+      '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
+      '!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
+      '!ENDTRNS',
+    ];
+    for (const exp of fyExpenses) {
+      const date = qbDate(exp.date);
+      const amt  = (exp.amount || 0).toFixed(2);
+      const cat  = (exp.category || 'Other Expense').replace(/\t/g, ' ');
+      const name = (exp.description || '').replace(/\t/g, ' ');
+      lines.push(`TRNS\tCHECK\t${date}\tChecking\t${name}\t-${amt}\t${cat}`);
+      lines.push(`SPL\tCHECK\t${date}\t${cat}\t${name}\t${amt}\t${cat}`);
+      lines.push('ENDTRNS');
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    Object.assign(document.createElement('a'), { href: url, download: `${company.name}_${selectedFY}_quickbooks.iif` }).click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportWaveCSV() {
+    const rows = [
+      ['Transaction Date', 'Description', 'Withdrawal Amount', 'Deposit Amount', 'Currency'],
+      ...fyInvoices.filter(i => i.status === 'paid').map(inv => [
+        inv.issueDate || '',
+        `Invoice ${inv.invoiceNumber || ''} — ${inv.clientName || ''}`.trim().replace(/—\s*$/, ''),
+        '',
+        (inv.subtotal || 0).toFixed(2),
+        'CAD',
+      ]),
+      ...fyExpenses.map(exp => [
+        exp.date || '',
+        exp.description || exp.category || '',
+        (exp.amount || 0).toFixed(2),
+        '',
+        'CAD',
+      ]),
+    ];
+    downloadCSV(`${company.name}_${selectedFY}_wave.csv`, rows);
+  }
+
+  function exportT2Worksheet() {
+    const rows = [
+      ['T2 Corporate Income Tax Worksheet'],
+      ['Company', company.name],
+      ['Fiscal Year', selectedFY],
+      ['Province', province],
+      ['Business Type', businessType.toUpperCase()],
+      ['HST Number', settings.hstNumber || ''],
+      ['Business Number', settings.businessNumber || ''],
+      ['Generated', new Date().toLocaleDateString('en-CA')],
+      [],
+      ['SCHEDULE 1 — NET INCOME FOR TAX PURPOSES'],
+      [],
+      ['INCOME'],
+      ['Gross Revenue (excl. HST)', grossRevenue.toFixed(2)],
+      [],
+      ['DEDUCTIONS'],
+      ...categoryRows.map(([cat, amt]) => [cat, amt.toFixed(2)]),
+      [],
+      ['Total Deductible Expenses', totalDeductibleExp.toFixed(2)],
+      ['Net Income Before Tax', grossProfit.toFixed(2)],
+      [],
+      ...(taxInfo ? [
+        ['TAX CALCULATION (ESTIMATED)'],
+        ['Net Income for Tax Purposes', taxInfo.netIncome.toFixed(2)],
+        ['Federal Tax (Part I)', taxInfo.fedTax.toFixed(2)],
+        [`Provincial Tax (${province})`, taxInfo.provTax.toFixed(2)],
+        ['Total Estimated Tax', taxInfo.totalTax.toFixed(2)],
+        ['Effective Rate', taxInfo.effectiveRate != null ? `${(taxInfo.effectiveRate * 100).toFixed(2)}%` : ''],
+        [],
+      ] : []),
+      ['NOTE', 'Estimates only. Verify all figures with your tax professional before filing.'],
+    ];
+    downloadCSV(`${company.name}_${selectedFY}_T2_worksheet.csv`, rows);
+  }
+
+  function exportHSTReturn() {
+    if (!hstInfo) return;
+    const totalSalesInclHST = fyInvoices
+      .filter(i => i.status === 'paid' || i.status === 'sent')
+      .reduce((s, i) => s + (i.total || (i.subtotal || 0) + (i.hstAmount || 0)), 0);
+    const rows = [
+      ['GST/HST Return Worksheet (GST34)'],
+      ['Company', company.name],
+      ['HST Registration Number', settings.hstNumber || 'N/A'],
+      ['Fiscal Year', selectedFY],
+      ['Generated', new Date().toLocaleDateString('en-CA')],
+      [],
+      ['LINE', 'DESCRIPTION', 'AMOUNT (CAD)'],
+      ['101', 'Total sales and other revenue (incl. HST)', totalSalesInclHST.toFixed(2)],
+      ['105', 'Total GST/HST collected or collectible', hstInfo.hstCollected.toFixed(2)],
+      ['108', 'Total ITCs and adjustments (input tax credits)', hstInfo.itcTotal.toFixed(2)],
+      ['109', 'Net tax owing / refundable (Line 105 − Line 108)', hstInfo.netRemittance.toFixed(2)],
+      [],
+      ['NOTE', 'Estimates from recorded data. Confirm all amounts before filing with CRA.'],
+    ];
+    downloadCSV(`${company.name}_${selectedFY}_HST_GST34.csv`, rows);
+  }
+
+  function exportT4ACSV() {
+    const rows = [
+      ['T4A Recipients Summary'],
+      ['Company', company.name],
+      ['Generated', new Date().toLocaleDateString('en-CA')],
+      [],
+      ['Recipient Name', 'SIN', 'Tax Year', 'Box 020 (Self-Employment)', 'Box 048 (Fees for Services)'],
+      ...t4aRecs.map(r => [r.name || '', r.sin || '', r.taxYear || '', r.box020 || 0, r.box048 || 0]),
+      [],
+      ['TOTAL Box 020', '', '', t4aRecs.reduce((s, r) => s + (r.box020 || 0), 0).toFixed(2), ''],
+      ['TOTAL Box 048', '', '', '', t4aRecs.reduce((s, r) => s + (r.box048 || 0), 0).toFixed(2)],
+    ];
+    downloadCSV(`${company.name}_T4A_recipients.csv`, rows);
+  }
+
   return (
     <div className={styles.readout}>
       {/* Company info */}
@@ -199,7 +373,7 @@ function CompanyReadout({ company }) {
         </div>
       </div>
 
-      {/* FY selector + export */}
+      {/* FY selector */}
       <div className={styles.fyRow}>
         <div className={styles.fyBadge}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -211,10 +385,43 @@ function CompanyReadout({ company }) {
             {allFyKeys.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
-        <div className={styles.exportBtns}>
-          <button className={styles.exportBtn} onClick={exportInvoicesCSV} disabled={!fy}>Export Invoices CSV</button>
-          <button className={styles.exportBtn} onClick={exportExpensesCSV} disabled={!fy}>Export Expenses CSV</button>
+      </div>
+
+      {/* Invoice Summary */}
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Invoice Summary — {selectedFY || '—'}</h3>
+        <div className={styles.statusGrid}>
+          <div className={`${styles.statusItem} ${styles.statusPaid}`}>
+            <span className={styles.statusLabel}>Paid</span>
+            <span className={styles.statusAmount}>{formatCurrency(paidRevenue)}</span>
+            <span className={styles.statusCount}>{paidInvoices.length} invoice{paidInvoices.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className={`${styles.statusItem} ${styles.statusOutstanding}`}>
+            <span className={styles.statusLabel}>Outstanding</span>
+            <span className={styles.statusAmount}>{formatCurrency(outstandingRevenue)}</span>
+            <span className={styles.statusCount}>{outstandingInvoices.length} invoice{outstandingInvoices.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span className={styles.statusLabel}>Draft</span>
+            <span className={styles.statusAmount}>{draftInvoices.length}</span>
+            <span className={styles.statusCount}>not sent</span>
+          </div>
         </div>
+        {outstandingInvoices.length > 0 && (
+          <div className={styles.outstandingList}>
+            <span className={styles.outstandingHeader}>Outstanding invoices</span>
+            {outstandingInvoices.slice(0, 10).map((inv, i) => (
+              <div key={i} className={styles.outstandingItem}>
+                <span className={styles.outstandingClient}>{inv.clientName || 'Unknown client'}</span>
+                <span className={styles.outstandingDate}>{inv.issueDate || '—'}</span>
+                <span className={styles.outstandingAmt}>{formatCurrency(inv.subtotal || 0)}</span>
+              </div>
+            ))}
+            {outstandingInvoices.length > 10 && (
+              <p className={styles.disclaimer}>+ {outstandingInvoices.length - 10} more outstanding</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* P&L */}
@@ -253,6 +460,25 @@ function CompanyReadout({ company }) {
         </div>
       )}
 
+      {/* Expense Categories */}
+      {categoryRows.length > 0 && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle}>Expenses by Category — {selectedFY || '—'}</h3>
+          <div className={styles.categoryList}>
+            {categoryRows.map(([cat, amt]) => (
+              <div key={cat} className={styles.categoryRow}>
+                <span className={styles.categoryName}>{cat}</span>
+                <span className={styles.categoryAmount}>{formatCurrency(amt)}</span>
+              </div>
+            ))}
+            <div className={`${styles.categoryRow} ${styles.categoryTotal}`}>
+              <span className={styles.categoryName}>Total Deductible</span>
+              <span className={`${styles.categoryAmount} ${styles.pairHighlight}`}>{formatCurrency(totalDeductibleExp)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Staff */}
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>Staff &amp; Contractors</h3>
@@ -270,6 +496,43 @@ function CompanyReadout({ company }) {
                 <span>{r.box048 > 0 ? `Box 048: ${formatCurrency(r.box048)}` : r.box020 > 0 ? `Box 020: ${formatCurrency(r.box020)}` : ''}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Exports & Reports */}
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Exports &amp; Reports</h3>
+
+        <div className={styles.exportGroup}>
+          <span className={styles.exportGroupLabel}>Raw Data</span>
+          <div className={styles.exportGroupBtns}>
+            <button className={styles.exportBtn} onClick={exportInvoicesCSV} disabled={!fy}>Invoices CSV</button>
+            <button className={styles.exportBtn} onClick={exportExpensesCSV} disabled={!fy}>Expenses CSV</button>
+            {outstandingInvoices.length > 0 && (
+              <button className={styles.exportBtn} onClick={exportAgedReceivables} disabled={!fy}>Aged Receivables</button>
+            )}
+            {t4aRecs.length > 0 && (
+              <button className={styles.exportBtn} onClick={exportT4ACSV}>T4A Recipients</button>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.exportGroup}>
+          <span className={styles.exportGroupLabel}>Accounting Software</span>
+          <div className={styles.exportGroupBtns}>
+            <button className={styles.exportBtn} onClick={exportQuickBooksIIF} disabled={!fy}>QuickBooks IIF</button>
+            <button className={styles.exportBtn} onClick={exportWaveCSV} disabled={!fy}>Wave Accounting CSV</button>
+          </div>
+        </div>
+
+        {(taxInfo || hstInfo) && (
+          <div className={styles.exportGroup}>
+            <span className={styles.exportGroupLabel}>CRA &amp; Tax Prep</span>
+            <div className={styles.exportGroupBtns}>
+              {taxInfo && <button className={styles.exportBtn} onClick={exportT2Worksheet} disabled={!fy}>T2 Income Worksheet</button>}
+              {hstInfo && <button className={styles.exportBtn} onClick={exportHSTReturn} disabled={!fy}>HST Return (GST34)</button>}
+            </div>
           </div>
         )}
       </div>

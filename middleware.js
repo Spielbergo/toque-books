@@ -1,20 +1,23 @@
 import { NextResponse } from 'next/server';
 
-// Protected app routes. The `app_session` cookie is set by AuthContext when
-// Firebase Auth confirms a signed-in user, and cleared on sign-out.
-//
-// NOTE: This check is NOT cryptographically verified — it prevents casual
-// unauthenticated access and crawler indexing of app pages. Actual data
-// security is enforced by Firestore rules and per-route Bearer token checks
-// in the API layer.
+// Auth entry points — always public
 const PUBLIC_PATHS = ['/auth/login', '/auth/callback', '/accountant/login'];
+
+// App routes that require authentication.
+// Everything else (/, /about, /pricing, etc.) is treated as a public website page.
+const PROTECTED_APP_PATHS = [
+  '/dashboard', '/invoices', '/clients', '/products',
+  '/expenses', '/subscriptions', '/bank', '/hst',
+  '/mileage', '/payroll', '/personal', '/taxes',
+  '/export', '/settings', '/companies', '/onboarding',
+  '/accountant',
+];
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths and all API routes (API routes enforce auth themselves)
+  // Always allow static assets and API routes
   if (
-    PUBLIC_PATHS.some(p => pathname.startsWith(p)) ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon')
@@ -22,8 +25,16 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
+  // Always allow explicit public paths (auth pages)
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Only guard known app routes — public website pages pass through freely
+  const isAppRoute = PROTECTED_APP_PATHS.some(p => pathname.startsWith(p));
+  if (!isAppRoute) return NextResponse.next();
+
   // Redirect to login if no session cookie
-  // Accountant routes get their own login page
   const session = request.cookies.get('app_session');
   if (!session?.value) {
     const isAccountantRoute = pathname.startsWith('/accountant');

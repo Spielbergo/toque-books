@@ -24,12 +24,13 @@ export default function AppShell({ children }) {
   }, [authLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect to /companies if no company selected (and not already there)
-  // /accountant is exempt — accountant-only users have no company of their own
+  // Accountant-mode users (signed in via /accountant/login) go to /accountant instead.
   useEffect(() => {
     if (authLoading || appLoading || !user) return;
     if (pathname === '/accountant') return;
     if (!activeCompanyId && pathname !== '/companies') {
-      router.replace('/companies');
+      const isAccountantMode = typeof window !== 'undefined' && window.localStorage.getItem('accountant_mode') === '1';
+      router.replace(isAccountantMode ? '/accountant' : '/companies');
     }
   }, [authLoading, appLoading, user, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 

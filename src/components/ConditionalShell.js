@@ -14,8 +14,8 @@ import AppShell from '@/components/layout/AppShell';
 export default function ConditionalShell({ children }) {
   const pathname = usePathname();
 
-  if (pathname?.startsWith('/auth') || pathname === '/accountant/login') {
-    // Auth pages are standalone — no sidebar/header
+  if (pathname?.startsWith('/auth') || pathname?.startsWith('/accountant')) {
+    // Auth pages and accountant portal are standalone — no sidebar/header
     return <>{children}</>;
   }
 
