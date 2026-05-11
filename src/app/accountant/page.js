@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { signOut as firebaseSignOut } from 'firebase/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth, db } from '@/lib/firebase/client';
@@ -12,10 +13,25 @@ import styles from './page.module.css';
 
 export default function AccountantPage() {
   const { user, authLoading } = useAuth();
+  const router = useRouter();
+  const [isOwnerMode, setIsOwnerMode] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedFY, setSelectedFY] = useState(null);
+
+  // Detect whether this is a business owner previewing the accountant view
+  useEffect(() => {
+    setIsOwnerMode(window.localStorage.getItem('accountant_mode') !== '1');
+  }, []);
+
+  // Reset FY when the selected company changes
+  useEffect(() => {
+    if (!selected) return;
+    const keys = Object.keys(selected.data?.fiscalYears || {}).sort().reverse();
+    setSelectedFY(keys[0] || null);
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (authLoading) return;                        // wait for auth to resolve
@@ -49,11 +65,22 @@ export default function AccountantPage() {
           <div className={styles.topBarLeft}>
             <CanBooksLogo size={32} />
             <div>
-              <span className={styles.topBarTitle}>CanBooks</span>
+              <span className={styles.topBarTitle}>NorthBooks</span>
               <span className={styles.topBarSub}>Accountant Portal</span>
             </div>
           </div>
           <div className={styles.topBarRight}>
+            {isOwnerMode && (
+              <button
+                className={styles.backBtn}
+                onClick={() => window.history.length > 1 ? router.back() : router.replace('/dashboard')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                Back to App
+              </button>
+            )}
             {user && <span className={styles.topBarEmail}>{user.email}</span>}
             <button className={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
           </div>
@@ -85,6 +112,18 @@ export default function AccountantPage() {
                   <h1 className={styles.title}>Accountant View</h1>
                   <p className={styles.sub}>Read-only · {companies.length} client {companies.length === 1 ? 'company' : 'companies'} shared with you</p>
                 </div>
+                {selected && (
+                  <div className={styles.fyBadge}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <select className={styles.fyBadgeSelect} value={selected ? (selectedFY || '') : ''} onChange={e => setSelectedFY(e.target.value)}>
+                      {Object.keys((selected?.data?.fiscalYears) || {}).sort().reverse().map(k => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {companies.length > 1 && (
@@ -100,7 +139,7 @@ export default function AccountantPage() {
                 </div>
               )}
 
-              {selected && <CompanyReadout company={selected} />}
+              {selected && <CompanyReadout company={selected} selectedFY={selectedFY} setSelectedFY={setSelectedFY} />}
             </>
           )}
         </div>
@@ -125,7 +164,7 @@ function downloadCSV(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
-function CompanyReadout({ company }) {
+function CompanyReadout({ company, selectedFY, setSelectedFY }) {
   const d = company.data || {};
   const settings     = d.settings || {};
   const businessType = d.businessType || 'ccpc';
@@ -133,7 +172,6 @@ function CompanyReadout({ company }) {
 
   // Latest FY first (same order as sidebar)
   const allFyKeys = Object.keys(d.fiscalYears || {}).sort().reverse();
-  const [selectedFY, setSelectedFY] = useState(allFyKeys[0] || null);
   const fy = selectedFY ? d.fiscalYears[selectedFY] : null;
 
   // Same approach as taxes page: flatMap ALL FY buckets, filter by selected FY date range
@@ -370,20 +408,6 @@ function CompanyReadout({ company }) {
           <Pair label="HST Number"    value={settings.hstNumber || '—'} />
           <Pair label="Business #"    value={settings.businessNumber || '—'} />
           <Pair label="Last Updated"  value={formatTimestamp(company.updatedAt)} />
-        </div>
-      </div>
-
-      {/* FY selector */}
-      <div className={styles.fyRow}>
-        <div className={styles.fyBadge}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          <select className={styles.fyBadgeSelect} value={selectedFY || ''} onChange={e => setSelectedFY(e.target.value)}>
-            {allFyKeys.map(k => <option key={k} value={k}>{k}</option>)}
-          </select>
         </div>
       </div>
 

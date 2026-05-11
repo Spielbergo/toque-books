@@ -388,7 +388,7 @@ export default function ExportPage() {
 
       // README
       zip.file('README.txt', [
-        `CanBooks — Accountant Package`,
+        `NorthBooks — Accountant Package`,
         `Fiscal Year: ${fyLabel}`,
         `Generated: ${new Date().toLocaleString('en-CA')}`,
         ``,
@@ -979,7 +979,7 @@ export default function ExportPage() {
           </div>
         )}
         <p className={styles.checklistDisclaimer}>
-          CanBooks estimates are for guidance only. Always verify all figures against your official CRA T4/T5 slips before filing.
+          NorthBooks estimates are for guidance only. Always verify all figures against your official CRA T4/T5 slips before filing.
         </p>
       </Modal>
 

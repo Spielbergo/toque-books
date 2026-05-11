@@ -160,7 +160,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const router   = useRouter();
   const { state, dispatch, activeCompany } = useApp();
   const { user, signOut } = useAuth();
-  const companyName = activeCompany?.name || state.settings.companyName || 'CanBooks';
+  const companyName = activeCompany?.name || state.settings.companyName || 'NorthBooks';
   const badgeLogo = state.settings.badgeLogo || null;
 
   const userInitials = (user?.displayName || user?.email || '?')
@@ -182,7 +182,7 @@ export default function Sidebar({ isOpen, onClose }) {
         )}
         <div className={styles.logoText}>
           <span className={styles.logoName}>{companyName}</span>
-          <span className={styles.logoSub}>CanBooks</span>
+          <span className={styles.logoSub}>NorthBooks</span>
         </div>
         <button className={styles.closeBtn} onClick={onClose} aria-label="Close menu">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

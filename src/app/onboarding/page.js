@@ -391,7 +391,7 @@ export default function OnboardingPage() {
         return (
           <div className={styles.welcomeCard}>
             <CanBooksLogo size={72} />
-            <h1 className={styles.welcomeTitle}>Welcome to CanBooks</h1>
+            <h1 className={styles.welcomeTitle}>Welcome to NorthBooks</h1>
             <p className={styles.welcomeSubtitle}>
               Let&apos;s set up your profile in a few quick steps. This helps us
               tailor your tax calculations, invoices, and reports to your exact situation.
@@ -1242,7 +1242,7 @@ export default function OnboardingPage() {
         {step < TOTAL_STEPS && (
           <div className={styles.brand}>
             <CanBooksLogo size={28} />
-            <span className={styles.brandName}>CanBooks</span>
+            <span className={styles.brandName}>NorthBooks</span>
             <button
               type="button"
               className={styles.exitLink}

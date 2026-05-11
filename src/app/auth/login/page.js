@@ -69,7 +69,7 @@ export default function LoginPage() {
         <div className={styles.logoRow}>
           <CanBooksLogo size={48} />
           <div>
-            <h1 className={styles.appName}>CanBooks</h1>
+            <h1 className={styles.appName}>NorthBooks</h1>
             <p className={styles.appTagline}>Canadian corporate &amp; personal tax tracker</p>
           </div>
         </div>

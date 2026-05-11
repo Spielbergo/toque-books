@@ -198,6 +198,42 @@
   padding: 0 0.25rem;
   line-height: 1;
 }
+
+.inviteLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.inviteLinkUrl {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.inviteLinkBtn {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+.inviteLinkBtn:hover {
+  background: var(--accent-light);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
 .accessRemove:hover { color: var(--danger); }
 .accessNote {
   font-size: 0.78rem;

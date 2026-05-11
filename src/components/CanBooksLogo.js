@@ -7,7 +7,7 @@ export default function CanBooksLogo({ size = 32, className }) {
       height={size}
       fill="none"
       role="img"
-      aria-label="CanBooks"
+      aria-label="NorthBooks"
       className={className}
     >
       {/* Background circle */}

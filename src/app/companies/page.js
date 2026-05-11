@@ -99,7 +99,7 @@ export default function CompaniesPage() {
           {activeCompany?.badgeLogo
             ? <img src={activeCompany.badgeLogo} alt="logo" className={styles.brandBadge} />
             : <CanBooksLogo size={28} />}
-          <span className={styles.brandName}>CanBooks</span>
+          <span className={styles.brandName}>NorthBooks</span>
         </div>
         <div className={styles.userRow}>
           <div className={styles.userAvatar} title={user?.email}>{userInitials}</div>
@@ -130,7 +130,7 @@ export default function CompaniesPage() {
             <div className={styles.emptyIcon}>🏢</div>
             <h2 className={styles.emptyTitle}>No companies yet</h2>
             <p className={styles.emptyDesc}>
-              Get started by creating your first company. If you've used CanBooks before,
+              Get started by creating your first company. If you've used NorthBooks before,
               your existing data will be migrated automatically.
             </p>
             <Button onClick={() => { setNewName(''); setCreateError(''); setShowCreate(true); }}>

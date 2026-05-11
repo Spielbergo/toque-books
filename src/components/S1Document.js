@@ -559,7 +559,7 @@ export default function S1Document({ settings, fyLabel, fyPeriod, netIncomeBooks
         {/* ── Disclaimer */}
         <View style={s.disclaimer}>
           <Text style={s.disclaimerText}>
-            This document is a working draft prepared from data in CanBooks. It is intended to assist your
+            This document is a working draft prepared from data in NorthBooks. It is intended to assist your
             accountant in preparing the official CRA T2 Schedule 1 and is NOT a substitute for the filed return.
             Amounts marked "Enter manually" must be completed before filing. Always have a qualified CPA review
             and sign off on your T2 corporate return.

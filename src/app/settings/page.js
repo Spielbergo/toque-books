@@ -71,7 +71,13 @@ export default function SettingsPage() {
   const [accountantEmails, setAccountantEmails] = useState([]);
   const [accessLoading, setAccessLoading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [portalUrl, setPortalUrl] = useState('northbooks.ca/accountant/login');
   const companyId = activeCompanyId;
+
+  useEffect(() => {
+    setPortalUrl(`${window.location.origin}/accountant/login`);
+  }, []);
 
   useEffect(() => {
     if (tab !== 5 || !companyId) return;
@@ -760,7 +766,30 @@ export default function SettingsPage() {
         <div className={styles.section}>
           <h3>Accountant Access</h3>
           <p className={styles.sectionDesc}>Grant your accountant read-only access to this company’s financial data. When they sign in with their email they can view it at <Link href="/accountant" style={{color:'var(--accent)'}}>the Accountant View page</Link>.</p>
-          <p className={styles.sectionDesc}>Share this link with your accountant: <strong>localhost:3000/accountant/login</strong></p>
+          <p className={styles.sectionDesc}>Share this link with your accountant so they can sign in to the portal:</p>
+          <div className={styles.inviteLink}>
+            <code className={styles.inviteLinkUrl}>{portalUrl}</code>
+            <button
+              className={styles.inviteLinkBtn}
+              onClick={() => {
+                navigator.clipboard.writeText(portalUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? '✓ Copied' : 'Copy link'}
+            </button>
+            <button
+              className={styles.inviteLinkBtn}
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ title: 'NorthBooks Accountant Portal', text: 'Sign in to view financial data:', url: portalUrl });
+                }
+              }}
+            >
+              Share
+            </button>
+          </div>
 
           {companyId ? (
             <>

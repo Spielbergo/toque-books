@@ -81,6 +81,26 @@
   border-color: var(--danger);
 }
 
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.backBtn:hover {
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border-color-strong);
+}
+
 .content {
   flex: 1;
   padding: 2rem 1.5rem;
@@ -97,7 +117,14 @@
   max-width: 860px;
 }
 
-.header { margin-bottom: 0.25rem; }
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
 
 .title {
   font-size: 1.5rem;

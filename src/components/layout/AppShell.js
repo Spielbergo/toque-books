@@ -23,21 +23,27 @@ export default function AppShell({ children }) {
     }
   }, [authLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Redirect to /companies if no company selected (and not already there)
-  // Accountant-mode users (signed in via /accountant/login) go to /accountant instead.
+  // Accountant-mode users have no business in the main app — send them straight to /accountant
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (window.localStorage.getItem('accountant_mode') === '1') {
+      router.replace('/accountant');
+    }
+  }, [authLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Redirect to /companies if no company selected
   useEffect(() => {
     if (authLoading || appLoading || !user) return;
-    if (pathname === '/accountant') return;
+    if (window.localStorage.getItem('accountant_mode') === '1') return;
     if (!activeCompanyId && pathname !== '/companies') {
-      const isAccountantMode = typeof window !== 'undefined' && window.localStorage.getItem('accountant_mode') === '1';
-      router.replace(isAccountantMode ? '/accountant' : '/companies');
+      router.replace('/companies');
     }
   }, [authLoading, appLoading, user, activeCompanyId, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect to /onboarding for new companies that haven't been set up yet
   useEffect(() => {
     if (authLoading || appLoading || !user) return;
-    if (pathname === '/accountant') return;
+    if (window.localStorage.getItem('accountant_mode') === '1') return;
     if (!activeCompanyId) return;
     if (!state?.onboardingCompleted && pathname !== '/onboarding' && pathname !== '/companies') {
       router.replace('/onboarding');
