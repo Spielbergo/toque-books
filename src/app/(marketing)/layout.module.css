@@ -1,0 +1,44 @@
+/* Marketing layout root — establishes brand design tokens */
+.root {
+  /* Brand colour palette */
+  --m-navy: #0d1f3c;
+  --m-blue: #2d7dd2;
+  --m-blue-dark: #1a5fa8;
+  --m-blue-light: #e8f2fd;
+  --m-green: #2a7a4b;
+  --m-green-light: #e6f5ec;
+  --m-slate: #64748b;
+  --m-slate-light: #94a3b8;
+  --m-bg: #f7f9fc;
+  --m-white: #ffffff;
+  --m-text: #0d1f3c;
+  --m-text-sub: #475569;
+  --m-border: #e2e8f0;
+  --m-shadow: 0 4px 24px rgba(13, 31, 60, 0.08);
+  --m-shadow-md: 0 8px 40px rgba(13, 31, 60, 0.12);
+
+  /* Typography */
+  --m-font-display: var(--font-fraunces), Georgia, serif;
+  --m-font-body: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+
+  /* Spacing */
+  --m-section-y: 6rem;
+  --m-section-y-sm: 4rem;
+  --m-container: 1180px;
+  --m-radius: 12px;
+  --m-radius-lg: 20px;
+
+  /* Transitions */
+  --m-transition: 0.2s ease;
+
+  /* Apply marketing theme — override root dark theme */
+  font-family: var(--m-font-body);
+  background: var(--m-bg);
+  color: var(--m-text);
+  min-height: 100vh;
+}
+
+.main {
+  flex: 1;
+  overflow-x: hidden;
+}

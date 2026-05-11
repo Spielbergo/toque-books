@@ -15,11 +15,18 @@ export default function ConditionalShell({ children }) {
   const pathname = usePathname();
 
   if (
+    pathname === '/' ||
     pathname?.startsWith('/auth') ||
     pathname?.startsWith('/accountant') ||
-    pathname?.startsWith('/pricing')
+    pathname?.startsWith('/pricing') ||
+    pathname?.startsWith('/features') ||
+    pathname?.startsWith('/about') ||
+    pathname?.startsWith('/contact') ||
+    pathname?.startsWith('/blog') ||
+    pathname?.startsWith('/privacy') ||
+    pathname?.startsWith('/terms')
   ) {
-    // Standalone pages — no sidebar/header
+    // Standalone pages — marketing shell / no app sidebar
     return <>{children}</>;
   }
 

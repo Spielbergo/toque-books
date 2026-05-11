@@ -1,0 +1,95 @@
+.page {
+  padding: 5rem 0;
+}
+
+.container {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--m-blue);
+  margin: 0 0 1rem;
+}
+
+.header {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--m-border);
+}
+
+.title {
+  font-family: var(--m-font-display);
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  font-weight: 900;
+  color: var(--m-navy);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin: 0 0 0.75rem;
+}
+
+.updated {
+  font-size: 0.85rem;
+  color: var(--m-slate-light);
+  margin: 0;
+}
+
+/* Body prose */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.section h2 {
+  font-family: var(--m-font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--m-navy);
+  letter-spacing: -0.02em;
+  margin: 0 0 0.875rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--m-blue-light);
+}
+
+.section h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--m-navy);
+  margin: 1.25rem 0 0.5rem;
+}
+
+.section p {
+  font-size: 0.9rem;
+  color: var(--m-text-sub);
+  line-height: 1.8;
+  margin: 0 0 0.875rem;
+}
+
+.section p:last-child {
+  margin-bottom: 0;
+}
+
+.section ul {
+  margin: 0 0 0.875rem;
+  padding-left: 1.25rem;
+}
+
+.section li {
+  font-size: 0.9rem;
+  color: var(--m-text-sub);
+  line-height: 1.75;
+  margin-bottom: 0.25rem;
+}
+
+.inlineLink {
+  color: var(--m-blue);
+  text-decoration: none;
+}
+
+.inlineLink:hover { text-decoration: underline; }

@@ -1,0 +1,218 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(247, 249, 252, 0.85);
+  backdrop-filter: blur(0px);
+  border-bottom: 1px solid transparent;
+  transition: backdrop-filter 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.header.scrolled {
+  background: rgba(247, 249, 252, 0.95);
+  backdrop-filter: blur(16px);
+  border-bottom-color: var(--m-border);
+  box-shadow: 0 1px 12px rgba(13, 31, 60, 0.07);
+}
+
+.nav {
+  max-width: var(--m-container);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* Logo */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-family: var(--m-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--m-navy);
+  letter-spacing: -0.02em;
+}
+
+/* Desktop links */
+.links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.link {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--m-text-sub);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: color var(--m-transition), background var(--m-transition);
+}
+
+.link:hover {
+  color: var(--m-navy);
+  background: var(--m-blue-light);
+}
+
+/* CTA actions */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.signIn {
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--m-navy);
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1.5px solid var(--m-border);
+  transition: border-color var(--m-transition), background var(--m-transition);
+}
+
+.signIn:hover {
+  border-color: var(--m-blue);
+  background: var(--m-blue-light);
+}
+
+.cta {
+  padding: 0.45rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--m-white);
+  background: var(--m-blue);
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1.5px solid var(--m-blue);
+  transition: background var(--m-transition), transform var(--m-transition);
+}
+
+.cta:hover {
+  background: var(--m-blue-dark);
+  border-color: var(--m-blue-dark);
+  transform: translateY(-1px);
+}
+
+/* Hamburger button */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--m-navy);
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+  transform-origin: center;
+}
+
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile drawer */
+.drawer {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+  border-top: 1px solid transparent;
+}
+
+.drawerOpen {
+  max-height: 400px;
+  border-top-color: var(--m-border);
+}
+
+.drawerLinks {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 1.5rem;
+}
+
+.drawerLink {
+  display: block;
+  padding: 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--m-text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--m-border);
+}
+
+.drawerLink:last-child {
+  border-bottom: none;
+}
+
+.drawerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.25rem;
+}
+
+.drawerSignIn {
+  display: block;
+  text-align: center;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--m-navy);
+  text-decoration: none;
+  border: 1.5px solid var(--m-border);
+  border-radius: 8px;
+}
+
+.drawerCta {
+  display: block;
+  text-align: center;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+  background: var(--m-blue);
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .links,
+  .actions {
+    display: none;
+  }
+
+  .hamburger {
+    display: flex;
+  }
+}
