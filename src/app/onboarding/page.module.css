@@ -370,7 +370,7 @@
 .statusCardSelected {
   border-color: var(--accent);
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 /* ── Spouse sub-section ──────────────────────────────────────────────────── */
@@ -395,7 +395,7 @@
 
 .addDependantBtn {
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 0.3rem 0.75rem;
@@ -432,7 +432,7 @@
   height: 22px;
   border-radius: 50%;
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
   font-size: 0.72rem;
   font-weight: 700;
   display: flex;
@@ -638,7 +638,7 @@
 .termsCardSelected {
   border-color: var(--accent);
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 /* ── Navigation actions ──────────────────────────────────────────────────── */

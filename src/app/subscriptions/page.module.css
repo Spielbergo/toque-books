@@ -57,7 +57,7 @@
   color: var(--text-primary);
 }
 
-.summaryPersonal { color: var(--accent-text, #6366f1); }
+.summaryPersonal { color: var(--accent); }
 .summaryBold { color: var(--text-primary); }
 
 .summarySub {
@@ -93,7 +93,7 @@
 .tab:hover { color: var(--text-primary); }
 
 .tabActive {
-  color: var(--accent-text);
+  color: var(--accent);
   border-bottom-color: var(--accent);
   font-weight: 600;
 }
@@ -173,7 +173,7 @@
 }
 
 .bannerLink {
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -226,7 +226,7 @@
 }
 
 .cardNameLink {
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -321,7 +321,7 @@
 
 .actionLink {
   font-size: 0.78rem;
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: none;
   padding: 0.28rem 0.65rem;
   border: 1px solid var(--border-color);
@@ -414,7 +414,7 @@
 .right { text-align:right; }
 .tablePrimary { font-weight:600; color:var(--text-primary); }
 .tableSecondary { font-size:0.75rem; color:var(--text-muted); }
-.tableLink { color:var(--accent-text); text-decoration:none; font-weight:600; }
+.tableLink { color:var(--accent); text-decoration:none; font-weight:600; }
 .tableLink:hover { text-decoration:underline; }
 .currencyTag { font-size:0.72rem; color:var(--text-muted); }
 .renewalDate { font-size:0.8rem; color:var(--text-secondary); }
@@ -425,6 +425,6 @@
 /* Sort headers */
 .sortableTh { cursor:pointer; user-select:none; }
 .sortableTh:hover { color:var(--text-primary); }
-.sortableThActive { color:var(--accent-text) !important; }
+.sortableThActive { color:var(--accent) !important; }
 .sortIndicator { opacity:0.5; font-size:0.7rem; }
 .sortableThActive .sortIndicator { opacity:1; }

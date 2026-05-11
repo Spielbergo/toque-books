@@ -20,7 +20,7 @@ function ToastItem({ toast, onDismiss }) {
 
   return (
     <div
-      role="status"
+      role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
       className={`${styles.toast} ${styles[toast.type] ?? styles.success} ${visible ? styles.visible : ''}`}
     >
       <span className={styles.icon}>{TYPE_ICONS[toast.type] ?? TYPE_ICONS.success}</span>

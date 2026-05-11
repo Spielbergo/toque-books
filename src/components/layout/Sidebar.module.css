@@ -85,7 +85,7 @@
   margin: 0.75rem 1rem;
   padding: 0.4rem 0.75rem;
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
   border-radius: var(--radius-md);
   font-size: 0.75rem;
   font-weight: 600;
@@ -133,7 +133,7 @@
 }
 
 .navItem.active {
-  color: var(--accent-text);
+  color: var(--accent);
   background: var(--accent-light);
   font-weight: 600;
 }
@@ -174,7 +174,7 @@
   height: 30px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--btn-primary-text, #ffffff);
   font-size: 0.65rem;
   font-weight: 700;
   display: flex;

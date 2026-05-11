@@ -71,6 +71,9 @@ export default function AppShell({ children }) {
 
   return (
     <div className={styles.shell}>
+      {/* Skip navigation — visible on keyboard focus only */}
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+
       {/* Backdrop for mobile sidebar */}
       {sidebarOpen && (
         <div
@@ -84,7 +87,7 @@ export default function AppShell({ children }) {
 
       <div className={styles.main}>
         <Header onMenuClick={() => setSidebarOpen(o => !o)} />
-        <main className={styles.content}>
+        <main id="main-content" className={styles.content} tabIndex={-1}>
           {children}
         </main>
       </div>

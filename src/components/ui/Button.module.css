@@ -27,7 +27,7 @@
 /* Variants */
 .primary {
   background: var(--accent);
-  color: white;
+  color: var(--btn-primary-text, #ffffff);
   border-color: var(--accent);
 }
 .primary:hover:not(:disabled) {
@@ -62,7 +62,7 @@
 }
 .danger:hover:not(:disabled) {
   background: var(--danger);
-  color: white;
+  color: var(--btn-on-danger, #ffffff);
 }
 
 .success {
@@ -72,7 +72,7 @@
 }
 .success:hover:not(:disabled) {
   background: var(--success);
-  color: white;
+  color: var(--btn-on-success, #ffffff);
 }
 
 /* Spinner */

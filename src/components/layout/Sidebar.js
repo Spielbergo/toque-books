@@ -210,7 +210,7 @@ export default function Sidebar({ isOpen, onClose }) {
         </select>
       </div>
 
-      <nav className={styles.nav}>
+      <nav className={styles.nav} aria-label="Main navigation">
         {NAV_ITEMS.map(item => {
           const isActive = item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href);
           return (
@@ -219,8 +219,9 @@ export default function Sidebar({ isOpen, onClose }) {
               href={item.href}
               className={`${styles.navItem} ${isActive ? styles.active : ''}`}
               onClick={onClose}
+              aria-current={isActive ? 'page' : undefined}
             >
-              <span className={styles.navIcon}>{item.icon}</span>
+              <span className={styles.navIcon} aria-hidden="true">{item.icon}</span>
               <span className={styles.navLabel}>{item.label}</span>
             </Link>
           );
@@ -240,6 +241,7 @@ export default function Sidebar({ isOpen, onClose }) {
           className={styles.signOutBtn}
           onClick={() => { onClose(); signOut(); }}
           title="Sign out"
+          aria-label="Sign out of your account"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

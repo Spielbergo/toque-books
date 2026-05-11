@@ -167,7 +167,7 @@
 }
 
 .dropdownItemActive {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 .dropdownItemIcon {

@@ -201,7 +201,7 @@
 .bulkCount {
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--accent-text, var(--accent));
+  color: var(--accent);
   white-space: nowrap;
 }
 
@@ -303,7 +303,7 @@
 
 .invNum {
   font-weight: 600;
-  color: var(--accent-text);
+  color: var(--accent);
   white-space: nowrap;
 }
 

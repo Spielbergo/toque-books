@@ -184,7 +184,7 @@
 
 .forgotLink {
   font-size: 0.75rem;
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: none;
   cursor: pointer;
   background: none;

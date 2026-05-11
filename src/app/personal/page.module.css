@@ -452,7 +452,7 @@
 }
 .syncBarText {
   font-size: 0.8rem;
-  color: var(--accent-text, #2d4da5);
+  color: var(--accent);
 }
 .syncBarEmpty {
   font-size: 0.8rem;
@@ -605,7 +605,7 @@
 
 .familyCardEdit {
   font-size: 0.75rem;
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: none;
 }
 .familyCardEdit:hover { text-decoration: underline; }
@@ -687,7 +687,7 @@
 }
 
 .familyCardNoteLink {
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: none;
 }
 .familyCardNoteLink:hover { text-decoration: underline; }

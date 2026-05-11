@@ -20,7 +20,7 @@
 }
 
 .backLink a {
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: none;
 }
 

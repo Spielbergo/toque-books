@@ -231,7 +231,7 @@
 }
 .inviteLinkBtn:hover {
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
   border-color: var(--accent);
 }
 .accessRemove:hover { color: var(--danger); }

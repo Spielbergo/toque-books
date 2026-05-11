@@ -48,7 +48,7 @@
 .success .icon { color: var(--success-text, #166534); }
 .error   .icon { color: var(--danger-text,  #b91c1c); }
 .warning .icon { color: var(--warning-text, #92400e); }
-.info    .icon { color: var(--accent-text,  #4338ca); }
+.info    .icon { color: var(--accent); }
 
 .body {
   flex: 1;

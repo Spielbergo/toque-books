@@ -83,10 +83,13 @@ export default function Header({ onMenuClick }) {
         {/* Company selector */}
         {companies.length > 0 && (
           <div className={styles.dropdown} ref={companyRef}>
-            <button
+          <button
               className={styles.companyBtn}
               onClick={() => { setCompanyOpen(o => !o); setUserOpen(false); }}
               title="Switch company"
+              aria-haspopup="menu"
+              aria-expanded={companyOpen}
+              aria-label={`Active company: ${activeCompany?.name || 'Select company'}. Switch company`}
             >
               <span className={styles.companyName}>{activeCompany?.name || 'Select company'}</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -132,7 +135,9 @@ export default function Header({ onMenuClick }) {
             className={styles.avatarBtn}
             onClick={() => { setUserOpen(o => !o); setCompanyOpen(false); }}
             title={user?.email}
-            aria-label="User menu"
+            aria-haspopup="menu"
+            aria-expanded={userOpen}
+            aria-label={`User menu for ${user?.displayName || user?.email || 'account'}`}
           >
             {user?.photoURL ? (
               <img src={user.photoURL} alt="avatar" className={styles.avatarImg} />

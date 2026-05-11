@@ -28,7 +28,7 @@
 
 .tab:hover { color: var(--text-primary); }
 .tabActive {
-  color: var(--accent-text);
+  color: var(--accent);
   border-bottom-color: var(--accent);
   font-weight: 600;
 }
@@ -64,7 +64,7 @@
   color: var(--text-primary);
 }
 
-.summaryAccent { color: var(--accent-text); }
+.summaryAccent { color: var(--accent); }
 
 /* Toolbar */
 .toolbar {
@@ -717,7 +717,7 @@
 
 .recurMonthlyEq {
   font-size: 0.75rem;
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 .recurCardMeta {
@@ -894,7 +894,7 @@
   vertical-align: middle;
 }
 
-.receiptBtn:hover { color: var(--accent-text); }
+.receiptBtn:hover { color: var(--accent); }
 
 .receiptDropArea {
   border: 2px dashed var(--border-color);

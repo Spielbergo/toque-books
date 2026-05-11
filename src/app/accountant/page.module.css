@@ -43,7 +43,7 @@
 .topBarSub {
   display: block;
   font-size: 0.7rem;
-  color: var(--accent-text);
+  color: var(--accent);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -175,7 +175,7 @@
   align-items: center;
   gap: 0.5rem;
   background: var(--accent-light);
-  color: var(--accent-text);
+  color: var(--accent);
   border-radius: var(--radius-md);
   padding: 0.4rem 0.75rem;
   font-size: 0.875rem;
