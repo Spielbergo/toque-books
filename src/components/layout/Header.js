@@ -8,21 +8,29 @@ import ThemeToggle from './ThemeToggle';
 import styles from './Header.module.css';
 
 const PAGE_TITLES = {
-  '/':                 { title: 'Dashboard',        sub: 'Overview & quick stats' },
-  '/invoices':         { title: 'Invoices',          sub: 'Create and manage client invoices' },
-  '/clients':          { title: 'Clients',           sub: 'Manage client and payee records' },
-  '/expenses':         { title: 'Expenses',          sub: 'Track business expenses & home office' },
-  '/bank-statements':  { title: 'Bank Statements',   sub: 'Upload and parse bank statement PDFs' },
-  '/personal':         { title: 'Personal Tax',      sub: 'Dividends & personal income' },
-  '/taxes':            { title: 'Tax Summary',       sub: 'Corporate & personal tax estimates' },
-  '/settings':         { title: 'Settings',          sub: 'Company & app preferences' },
-  '/companies':        { title: 'Companies',         sub: 'Switch or manage your companies' },
+  '/':                 { title: 'Dashboard',          sub: 'Overview & quick stats' },
+  '/invoices':         { title: 'Invoices',            sub: 'Create and manage client invoices' },
+  '/clients':          { title: 'Clients',             sub: 'Manage client and payee records' },
+  '/expenses':         { title: 'Expenses',            sub: 'Track business expenses & home office' },
+  '/bank-statements':  { title: 'Bank Statements',     sub: 'Upload and parse bank statement PDFs' },
+  '/personal':         { title: 'Personal Tax',        sub: 'Dividends & personal income' },
+  '/taxes':            { title: 'Tax Summary',         sub: 'Corporate & personal tax estimates' },
+  '/settings':         { title: 'Settings',            sub: 'Company & app preferences' },
+  '/companies':        { title: 'Companies',           sub: 'Switch or manage your companies' },
+  '/hst-tracker':      { title: 'HST Tracker',         sub: 'HST/GST collected and input tax credits' },
+  '/mileage':          { title: 'Mileage Log',         sub: 'Track business vehicle use' },
+  '/payroll':          { title: 'Payroll & T4 Issuing',sub: 'Employees, pay runs and slips' },
+  '/subscriptions':    { title: 'Subscriptions',       sub: 'Recurring software & service costs' },
+  '/products':         { title: 'Products & Services', sub: 'Default rates and service catalogue' },
+  '/export':           { title: 'Export',              sub: 'Download your data' },
+  '/deadlines':        { title: 'Tax Deadline Calendar', sub: 'CRA filing and payment due dates' },
+  '/accountant':       { title: 'Accountant View',     sub: 'Read-only access to shared companies' },
 };
 
 export default function Header({ onMenuClick }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const info      = PAGE_TITLES[pathname] || PAGE_TITLES['/'];
+  const info = PAGE_TITLES[pathname] || { title: '', sub: '' };
 
   const { companies, activeCompany, selectCompany } = useApp();
   const { user, signOut } = useAuth();

@@ -1,0 +1,29 @@
+.portalBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+}
+
+.backLink {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.backLink a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.backLink a:hover {
+  text-decoration: underline;
+}

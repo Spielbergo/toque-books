@@ -11,6 +11,7 @@ import { formatDate, today } from '@/lib/formatters';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import Link from 'next/link';
 import styles from './page.module.css';
 
 const PROVINCES = [
@@ -121,6 +122,24 @@ export default function SettingsPage() {
       toast({ message: 'Access removed', type: 'success' });
     } catch (e) {
       toast({ message: 'Failed to remove access', detail: e.message, type: 'error' });
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const sendInvite = async (email) => {
+    setAccessLoading(true);
+    try {
+      const { auth } = await import('@/lib/firebase/client');
+      const { sendSignInLinkToEmail } = await import('firebase/auth');
+      const actionCodeSettings = {
+        url: `${window.location.origin}/accountant/login`,
+        handleCodeInApp: true,
+      };
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      toast({ message: `Invite sent to ${email}`, type: 'success' });
+    } catch (e) {
+      toast({ message: 'Failed to send invite', detail: e.message, type: 'error' });
     } finally {
       setAccessLoading(false);
     }
@@ -740,7 +759,8 @@ export default function SettingsPage() {
       {tab === 5 && (
         <div className={styles.section}>
           <h3>Accountant Access</h3>
-          <p className={styles.sectionDesc}>Grant your accountant read-only access to this company's financial data. They can view it at <strong>/accountant</strong> when logged in with their email.</p>
+          <p className={styles.sectionDesc}>Grant your accountant read-only access to this company’s financial data. When they sign in with their email they can view it at <Link href="/accountant" style={{color:'var(--accent)'}}>the Accountant View page</Link>.</p>
+          <p className={styles.sectionDesc}>Share this link with your accountant: <strong>localhost:3000/accountant/login</strong></p>
 
           {companyId ? (
             <>
@@ -763,6 +783,12 @@ export default function SettingsPage() {
                   {accountantEmails.map(email => (
                     <div key={email} className={styles.accessItem}>
                       <span className={styles.accessEmail}>{email}</span>
+                      <button
+                        className={styles.accessInvite}
+                        onClick={() => sendInvite(email)}
+                        disabled={accessLoading}
+                        title="Send magic link invite"
+                      >Send Invite</button>
                       <button
                         className={styles.accessRemove}
                         onClick={() => removeAccountant(email)}

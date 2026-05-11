@@ -24,8 +24,10 @@ export default function AppShell({ children }) {
   }, [authLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect to /companies if no company selected (and not already there)
+  // /accountant is exempt — accountant-only users have no company of their own
   useEffect(() => {
     if (authLoading || appLoading || !user) return;
+    if (pathname === '/accountant') return;
     if (!activeCompanyId && pathname !== '/companies') {
       router.replace('/companies');
     }
@@ -34,6 +36,7 @@ export default function AppShell({ children }) {
   // Redirect to /onboarding for new companies that haven't been set up yet
   useEffect(() => {
     if (authLoading || appLoading || !user) return;
+    if (pathname === '/accountant') return;
     if (!activeCompanyId) return;
     if (!state?.onboardingCompleted && pathname !== '/onboarding' && pathname !== '/companies') {
       router.replace('/onboarding');

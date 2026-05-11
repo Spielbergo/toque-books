@@ -48,6 +48,7 @@ async function generateT4APDF(settings, recipients, year) {
 
 const BLANK_EMP = { name: '', sin: '', address: '', city: '', province: 'ON', postalCode: '', birthDate: '', startDate: '' };
 const BLANK_RUN = { employeeId: '', periodStart: '', periodEnd: '', grossPay: '', cpp: '', ei: '', incomeTax: '', notes: '' };
+// BLANK_T4A taxYear is set dynamically from activeFY at modal open time
 const BLANK_T4A = { name: '', sin: '', address: '', city: '', province: 'ON', postalCode: '', taxYear: new Date().getFullYear() - 1, box048: '', box020: '', box028: '', box022: '', notes: '' };
 
 export default function PayrollPage() {
@@ -57,7 +58,14 @@ export default function PayrollPage() {
   const payrollRuns = activeFY.payrollRuns || [];
   const fyLabel     = activeFY.label || '';
 
-  const t4aRecipients = state.t4aRecipients || [];
+  // Derive the tax year from the active FY's end date (e.g. FY ending Nov 2025 → tax year 2025)
+  const activeTaxYear = activeFY?.endDate
+    ? new Date(activeFY.endDate).getFullYear()
+    : new Date().getFullYear() - 1;
+
+  const allT4ARecipients  = state.t4aRecipients || [];
+  // Only show recipients for the active fiscal year's tax year
+  const t4aRecipients = allT4ARecipients.filter(r => Number(r.taxYear) === activeTaxYear);
 
   const [tab, setTab] = useState(0);
   const [frequency, setFrequency] = useState('26');
@@ -70,7 +78,8 @@ export default function PayrollPage() {
 
   const openT4AModal = (rec = null) => {
     setT4AEditId(rec?.id ?? null);
-    setT4AForm(rec ? { ...BLANK_T4A, ...rec } : { ...BLANK_T4A });
+    // Default taxYear to the active FY's tax year when adding new
+    setT4AForm(rec ? { ...BLANK_T4A, ...rec } : { ...BLANK_T4A, taxYear: activeTaxYear });
     setShowT4AModal(true);
   };
   const saveT4A = e => {
@@ -340,14 +349,13 @@ export default function PayrollPage() {
           <div className={styles.sectionTop}>
             <div>
               <h2 className={styles.sectionTitle}>T4A Contractors</h2>
-              <p className={styles.sectionSub}>Track contractors and service providers paid $500+ in a tax year. File T4A slips with CRA by Feb 28.</p>
+              <p className={styles.sectionSub}>Track contractors and service providers paid $500+ in a tax year. File T4A slips with CRA by Feb 28. Showing tax year <strong>{activeTaxYear}</strong> (active fiscal year).</p>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               {t4aRecipients.length > 0 && (
                 <Button variant="secondary" onClick={async () => {
                   try {
-                    const year = t4aRecipients[0]?.taxYear || new Date().getFullYear() - 1;
-                    await generateT4APDF(state.settings, t4aRecipients, year);
+                    await generateT4APDF(state.settings, t4aRecipients, activeTaxYear);
                   } catch (err) {
                     toast({ message: 'T4A PDF failed', detail: err.message, type: 'error' });
                   }

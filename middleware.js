@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 // unauthenticated access and crawler indexing of app pages. Actual data
 // security is enforced by Firestore rules and per-route Bearer token checks
 // in the API layer.
-const PUBLIC_PATHS = ['/auth/login', '/auth/callback'];
+const PUBLIC_PATHS = ['/auth/login', '/auth/callback', '/accountant/login'];
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -23,9 +23,11 @@ export function middleware(request) {
   }
 
   // Redirect to login if no session cookie
+  // Accountant routes get their own login page
   const session = request.cookies.get('app_session');
   if (!session?.value) {
-    const loginUrl = new URL('/auth/login', request.url);
+    const isAccountantRoute = pathname.startsWith('/accountant');
+    const loginUrl = new URL(isAccountantRoute ? '/accountant/login' : '/auth/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
 

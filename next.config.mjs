@@ -20,8 +20,8 @@ const securityHeaders = [
       "font-src 'self' data:",
       "img-src 'self' data: blob: https:",
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
-      // Allow blob: URLs in iframes (used by the PDF invoice preview)
-      "frame-src blob: 'self'",
+      // Allow blob: for PDF preview, Firebase auth iframe, and Google accounts iframe
+      "frame-src blob: 'self' https://*.firebaseapp.com https://accounts.google.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
