@@ -13,6 +13,20 @@ import { auth } from '@/lib/firebase/client';
 import CanBooksLogo from '@/components/CanBooksLogo';
 import styles from './page.module.css';
 
+function friendlyAuthError(err) {
+  const code = err?.code || '';
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found')
+    return 'Incorrect email or password.';
+  if (code === 'auth/email-already-in-use') return 'An account with this email already exists. Try signing in instead.';
+  if (code === 'auth/weak-password')        return 'Password must be at least 6 characters.';
+  if (code === 'auth/invalid-email')        return 'Please enter a valid email address.';
+  if (code === 'auth/user-disabled')        return 'This account has been disabled.';
+  if (code === 'auth/popup-closed-by-user') return 'Sign-in popup was closed. Please try again.';
+  if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
+  if (code === 'auth/too-many-requests')    return 'Too many failed attempts. Please wait a moment and try again.';
+  return err?.message?.replace(/^Firebase:\s*/i, '').replace(/\s*\(auth\/[^)]+\)\.?$/, '') || 'An error occurred. Please try again.';
+}
+
 export default function LoginPage() {
   const [tab, setTab]         = useState('login'); // 'login' | 'signup'
   const [email, setEmail]     = useState('');
@@ -37,14 +51,14 @@ export default function LoginPage() {
     try {
       if (tab === 'login') {
         await signInWithEmailAndPassword(auth, email, password);
-        window.location.href = '/';
+        window.location.href = '/dashboard';
       } else {
         const { user } = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(user, { displayName: name });
-        window.location.href = '/';
+        window.location.href = '/dashboard';
       }
     } catch (err) {
-      setError(err.message || 'An error occurred.');
+      setError(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -55,9 +69,9 @@ export default function LoginPage() {
     setGoogleLoading(true);
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err) {
-      setError(err.message || 'Google sign-in failed.');
+      setError(friendlyAuthError(err));
       setGoogleLoading(false);
     }
   };

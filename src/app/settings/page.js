@@ -72,11 +72,13 @@ export default function SettingsPage() {
   const [accessLoading, setAccessLoading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
   const [portalUrl, setPortalUrl] = useState('northbooks.ca/accountant/login');
   const companyId = activeCompanyId;
 
   useEffect(() => {
     setPortalUrl(`${window.location.origin}/accountant/login`);
+    setCanShare(typeof navigator !== 'undefined' && !!navigator.share);
   }, []);
 
   useEffect(() => {
@@ -772,13 +774,14 @@ export default function SettingsPage() {
             <button
               className={styles.inviteLinkBtn}
               onClick={() => {
-                navigator.clipboard.writeText(portalUrl);
+                navigator.clipboard.writeText(portalUrl).catch(() => {});
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
             >
-              {copied ? '✓ Copied' : 'Copy link'}
+              {copied ? '\u2713 Copied' : 'Copy link'}
             </button>
+            {canShare && (
             <button
               className={styles.inviteLinkBtn}
               onClick={() => {
@@ -789,6 +792,7 @@ export default function SettingsPage() {
             >
               Share
             </button>
+            )}
           </div>
 
           {companyId ? (

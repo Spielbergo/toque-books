@@ -77,11 +77,15 @@ export async function POST(request) {
     if (!taxData) {
       return NextResponse.json({ error: 'Missing taxData' }, { status: 400 });
     }
+    // Prevent oversized / prompt-injection payloads
+    const sanitizedNotes = typeof userNotes === 'string'
+      ? userNotes.slice(0, 1000)
+      : undefined;
 
     // ── Cache check ───────────────────────────────────────────────────
     // Skip cache when user has added notes (personalised request)
     const cacheKey = hashTaxData(taxData);
-    if (!userNotes) {
+    if (!sanitizedNotes) {
       const cached = getCached(cacheKey);
       if (cached) return NextResponse.json(cached);
     }
@@ -90,7 +94,7 @@ export async function POST(request) {
 
 COMPANY TAX DATA:
 ${JSON.stringify(taxData, null, 2)}
-${userNotes ? `\nUSER NOTES / QUESTIONS:\n${userNotes}\n` : ''}
+${sanitizedNotes ? `\nUSER NOTES / QUESTIONS:\n${sanitizedNotes}\n` : ''}
 Provide a thorough, detailed tax review. Return ONLY a valid JSON object:
 {
   "summary": "2-3 sentence plain-English overview covering their key numbers: revenue, net income, combined tax burden, and one standout observation",
@@ -131,10 +135,14 @@ Return ONLY the JSON object, no markdown fences or explanation.`;
     const result = await model.generateContent(prompt);
     const raw = result.response.text().trim();
     const jsonText = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const parsed = JSON.parse(jsonText);
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      return NextResponse.json({ error: 'AI returned an unexpected response. Please try again.' }, { status: 502 });
+    }
 
-    // Only cache responses without user notes (generic review)
-    if (!userNotes) setCached(cacheKey, parsed);
+    if (!sanitizedNotes) setCached(cacheKey, parsed);
     return NextResponse.json(parsed);
   } catch (e) {
     console.error('tax-review route error:', e);

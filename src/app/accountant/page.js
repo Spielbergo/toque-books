@@ -55,7 +55,9 @@ export default function AccountantPage() {
 
   const handleSignOut = () => {
     window.localStorage.removeItem('accountant_mode');
-    firebaseSignOut(auth).then(() => { window.location.href = '/accountant/login'; });
+    firebaseSignOut(auth)
+      .then(() => { window.location.href = '/accountant/login'; })
+      .catch(() => { window.location.href = '/accountant/login'; });
   };
 
   return (

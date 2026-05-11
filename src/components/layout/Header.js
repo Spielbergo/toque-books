@@ -54,7 +54,7 @@ export default function Header({ onMenuClick }) {
     setCompanyOpen(false);
     if (id === activeCompany?.id) return;
     await selectCompany(id);
-    router.push('/');
+    router.push('/dashboard');
   };
 
   const userInitials = (user?.displayName || user?.email || '?')

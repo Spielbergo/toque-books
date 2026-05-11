@@ -44,6 +44,8 @@ export async function POST(request) {
     if (!taxData || !question?.trim()) {
       return NextResponse.json({ error: 'Missing taxData or question' }, { status: 400 });
     }
+    // Cap question length to prevent prompt injection / oversized payloads
+    const sanitizedQuestion = question.trim().slice(0, 500);
 
     // ── Build prompt ──────────────────────────────────────────────────
     const historyText = messages.length > 0
@@ -55,7 +57,7 @@ export async function POST(request) {
 TAX DATA:
 ${JSON.stringify(taxData, null, 2)}
 
-${historyText ? `PREVIOUS CONVERSATION:\n${historyText}\n\n` : ''}User: ${question}
+${historyText ? `PREVIOUS CONVERSATION:\n${historyText}\n\n` : ''}User: ${sanitizedQuestion}
 
 Respond as a tax advisor in 2-5 sentences. Be specific — reference dollar amounts and percentages from the tax data when relevant. If the question is outside the scope of this tax data or requires a professional opinion you cannot give, say so briefly. Do not use JSON. Plain text only.
 

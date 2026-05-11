@@ -37,7 +37,7 @@ export default function CompaniesPage() {
       await createCompany(newName.trim());
       setShowCreate(false);
       setNewName('');
-      router.push('/');
+      router.push('/dashboard');
     } catch (err) {
       setCreateError(err.message || 'Failed to create company.');
     } finally {
@@ -46,9 +46,9 @@ export default function CompaniesPage() {
   };
 
   const handleSelect = async id => {
-    if (id === activeCompanyId) { router.push('/'); return; }
+    if (id === activeCompanyId) { router.push('/dashboard'); return; }
     await selectCompany(id);
-    router.push('/');
+    router.push('/dashboard');
   };
 
   const handleRename = async e => {

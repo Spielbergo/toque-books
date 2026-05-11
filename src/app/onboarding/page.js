@@ -326,7 +326,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const goToDashboard = () => router.replace('/');
+  const goToDashboard = () => router.replace('/dashboard');
 
   // ── Logo uploads ────────────────────────────────────────────────────────────
   const handleLogoUpload = e => {
