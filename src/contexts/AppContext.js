@@ -113,6 +113,9 @@ function makeInitialState() {
     recurringInvoices: [], // [{ id, clientId, subject, lineItems, notes, frequency, nextDate, hstRate, active }]
     products: [],          // [{ id, name, description, category, defaultRate, unit, notes, createdAt }]
     personalSubs: [],      // [{ id, name, url, amount, currency, frequency, billingDay, category, notes, active }]
+    timeEntries: [],       // [{ id, clientId, projectId, description, date, startTime, endTime, durationMinutes, billable, rate, invoiceId, createdAt }]
+    projects: [],          // [{ id, name, clientId, status, description, dueDate, tasks: [], createdAt }]
+    proposals: [],         // [{ id, number, clientId, title, description, lineItems, subtotal, hstAmount, total, status, validUntil, sentAt, acceptedAt, notes, publicToken, createdAt }]
   };
 }
 
@@ -395,6 +398,57 @@ function reducer(state, action) {
         ...state,
         personalSubs: (state.personalSubs || []).filter(s => s.id !== action.payload),
       };
+    }
+
+    // Time entries
+    case 'ADD_TIME_ENTRY': {
+      const entry = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, timeEntries: [...(state.timeEntries || []), entry] };
+    }
+    case 'UPDATE_TIME_ENTRY': {
+      return {
+        ...state,
+        timeEntries: (state.timeEntries || []).map(e =>
+          e.id === action.payload.id ? { ...e, ...action.payload } : e
+        ),
+      };
+    }
+    case 'DELETE_TIME_ENTRY': {
+      return { ...state, timeEntries: (state.timeEntries || []).filter(e => e.id !== action.payload) };
+    }
+
+    // Projects
+    case 'ADD_PROJECT': {
+      const project = { id: uuidv4(), ...action.payload, tasks: action.payload.tasks || [], createdAt: new Date().toISOString() };
+      return { ...state, projects: [...(state.projects || []), project] };
+    }
+    case 'UPDATE_PROJECT': {
+      return {
+        ...state,
+        projects: (state.projects || []).map(p =>
+          p.id === action.payload.id ? { ...p, ...action.payload } : p
+        ),
+      };
+    }
+    case 'DELETE_PROJECT': {
+      return { ...state, projects: (state.projects || []).filter(p => p.id !== action.payload) };
+    }
+
+    // Proposals
+    case 'ADD_PROPOSAL': {
+      const proposal = { id: uuidv4(), ...action.payload, createdAt: new Date().toISOString() };
+      return { ...state, proposals: [...(state.proposals || []), proposal] };
+    }
+    case 'UPDATE_PROPOSAL': {
+      return {
+        ...state,
+        proposals: (state.proposals || []).map(p =>
+          p.id === action.payload.id ? { ...p, ...action.payload } : p
+        ),
+      };
+    }
+    case 'DELETE_PROPOSAL': {
+      return { ...state, proposals: (state.proposals || []).filter(p => p.id !== action.payload) };
     }
 
     // Recurring invoices

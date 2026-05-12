@@ -10,7 +10,7 @@ const PROTECTED_APP_PATHS = [
   '/expenses', '/subscriptions', '/bank', '/hst',
   '/mileage', '/payroll', '/personal', '/taxes',
   '/export', '/settings', '/companies', '/onboarding',
-  '/accountant',
+  '/accountant', '/time-tracking', '/projects', '/proposals',
 ];
 
 export function middleware(request) {
@@ -33,6 +33,9 @@ export function middleware(request) {
   // Only guard known app routes — public website pages pass through freely
   const isAppRoute = PROTECTED_APP_PATHS.some(p => pathname.startsWith(p));
   if (!isAppRoute) return NextResponse.next();
+
+  // Public sub-paths: proposal acceptance links are always accessible without login
+  if (/^\/proposals\/[^/]+\/accept/.test(pathname)) return NextResponse.next();
 
   // Redirect to login if no session cookie
   const session = request.cookies.get('app_session');

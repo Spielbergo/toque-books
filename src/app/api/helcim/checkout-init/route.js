@@ -21,11 +21,6 @@ export async function POST(req) {
   }
 
   try {
-    const tokenPreview = process.env.HELCIM_API_TOKEN
-      ? `set (${process.env.HELCIM_API_TOKEN.length} chars, starts: ${process.env.HELCIM_API_TOKEN.slice(0, 6)})`
-      : 'NOT SET';
-    console.log('[checkout-init] HELCIM_API_TOKEN:', tokenPreview);
-
     const data = await initHelcimCheckout({
       paymentType: 'verify',
       currency: 'CAD',
