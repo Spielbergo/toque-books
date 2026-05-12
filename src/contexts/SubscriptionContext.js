@@ -54,7 +54,7 @@ export function SubscriptionProvider({ children }) {
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
     setSubscription(data ?? null);
     setLoading(false);
   }, [user?.id]);
