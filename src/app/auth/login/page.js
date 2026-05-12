@@ -41,6 +41,8 @@ export default function LoginPage() {
       if (tab === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
         window.location.href = '/dashboard';
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -48,7 +50,11 @@ export default function LoginPage() {
           options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
         });
         if (error) throw error;
-        if (data.session) { window.location.href = '/dashboard'; }
+        if (data.session) {
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
+          window.location.href = '/dashboard';
+        }
         else { setInfo('Check your email for a confirmation link.'); }
       }
     } catch (err) { setError(friendlyError(err)); }

@@ -18,6 +18,8 @@ export default function AuthCallbackPage() {
 
     const redirect = (session) => {
       if (!session) { window.location.href = '/auth/login'; return; }
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
       if (isRecovery)   { window.location.href = '/settings?tab=security'; return; }
       if (isAccountant) { window.localStorage.setItem('accountant_mode', '1'); window.location.href = '/accountant'; return; }
       window.location.href = '/dashboard';
