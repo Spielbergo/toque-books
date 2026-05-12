@@ -39,7 +39,15 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (tab === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        console.log('[auth] signInWithPassword start, url:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out — check your Supabase project is not paused.')), 10000)
+        );
+        const { data, error } = await Promise.race([
+          supabase.auth.signInWithPassword({ email, password }),
+          timeout,
+        ]);
+        console.log('[auth] signInWithPassword result:', { data, error });
         if (error) throw error;
         const secure = window.location.protocol === 'https:' ? '; Secure' : '';
         document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;

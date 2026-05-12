@@ -41,10 +41,11 @@ export function AuthProvider({ children }) {
 function _syncCookie(user) {
   // Presence cookie for middleware — not cryptographically trusted,
   // real access is protected by Supabase RLS.
+  const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
   if (user) {
-    document.cookie = 'app_session=1; path=/; SameSite=Strict; Secure';
+    document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
   } else {
-    document.cookie = 'app_session=; path=/; SameSite=Strict; Secure; Max-Age=0';
+    document.cookie = `app_session=; path=/; SameSite=Strict${secure}; Max-Age=0`;
   }
 }
 
