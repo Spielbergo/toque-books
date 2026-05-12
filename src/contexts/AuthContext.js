@@ -10,16 +10,15 @@ export function AuthProvider({ children }) {
   const [authLoading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // onAuthStateChange fires INITIAL_SESSION immediately on subscribe,
+    // making a separate getSession() call unnecessary and potentially fragile
+    // (getSession() can hang if token refresh network call times out).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      setLoading(false);
-      _syncCookie(session?.user);
-    });
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      // INITIAL_SESSION is the first event — clears the loading gate
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        setLoading(false);
+      }
       _syncCookie(session?.user);
     });
 

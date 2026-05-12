@@ -795,6 +795,7 @@ export function AppProvider({ children }) {
   // ── Load company data by ID ────────────────────────────────────────────
   const loadCompanyData = useCallback(async (companyId) => {
     setAppLoading(true);
+    try {
     const { data: row } = await supabase
       .from('companies')
       .select('data')
@@ -839,6 +840,10 @@ export function AppProvider({ children }) {
     activeIdRef.current = companyId;
     try { localStorage.setItem('canbooks_active_company', companyId); } catch { /* private browsing */ }
     setAppLoading(false);
+    } catch (err) {
+      console.error('loadCompanyData error:', err);
+      setAppLoading(false);
+    }
   }, [migrateFromCompany]);
 
   // ── Initial load when user authenticates ──────────────────────────────
