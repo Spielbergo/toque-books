@@ -6,10 +6,10 @@ import ConditionalShell from '@/components/ConditionalShell';
 
 export const metadata = {
   title: {
-    default: 'CanBooks — Canadian Tax & Bookkeeping',
-    template: '%s — CanBooks',
+    default: 'NorthBooks — Canadian Tax & Bookkeeping',
+    template: '%s — NorthBooks',
   },
-  description: 'Track invoices, expenses, and calculate Canadian corporate and personal taxes for Ontario CCPCs.',
+  description: 'Track invoices, expenses, and calculate Canadian corporate and personal taxes for Canadian CCPCs.',
 };
 
 export default function RootLayout({ children }) {

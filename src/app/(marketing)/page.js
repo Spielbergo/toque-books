@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import PlanCards from '@/components/marketing/PlanCards';
 import styles from './page.module.css';
 
 const fadeUp = {
@@ -361,37 +362,8 @@ export default function HomePage() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: '-60px' }}
-            variants={stagger}
           >
-            <motion.div className={styles.pricingCard} variants={fadeUp}>
-              <div className={styles.pricingPlan}>Free</div>
-              <div className={styles.pricingPrice}><span className={styles.pricingAmount}>$0</span><span className={styles.pricingPer}>/mo</span></div>
-              <ul className={styles.pricingList}>
-                <li>✓ 10 invoices / month</li>
-                <li>✓ HST/GST tracking</li>
-                <li>✓ Bank statement import</li>
-                <li>✓ CRA deadline calendar</li>
-                <li>✓ 1 company</li>
-              </ul>
-              <Link href="/auth/login?signup=1" className={styles.pricingCtaSecondary}>Get started free</Link>
-            </motion.div>
-
-            <motion.div className={`${styles.pricingCard} ${styles.pricingCardPro}`} variants={fadeUp}>
-              <div className={styles.pricingBadge}>Most popular</div>
-              <div className={styles.pricingPlan}>Pro</div>
-              <div className={styles.pricingPrice}><span className={styles.pricingAmount}>$29</span><span className={styles.pricingPer}>/mo</span></div>
-              <ul className={styles.pricingList}>
-                <li>✓ Unlimited invoices</li>
-                <li>✓ T2 + T1 Tax Summary</li>
-                <li>✓ AI receipt & slip parsing</li>
-                <li>✓ Payroll + T4/T4A slips</li>
-                <li>✓ Mileage log (CRA rates)</li>
-                <li>✓ 20+ export formats</li>
-                <li>✓ Multi-company</li>
-                <li>✓ Accountant access</li>
-              </ul>
-              <Link href="/auth/login?signup=1" className={styles.pricingCtaPrimary}>Start Pro trial</Link>
-            </motion.div>
+            <PlanCards compact showToggle={false} animate="scroll" />
           </motion.div>
 
           <motion.p
