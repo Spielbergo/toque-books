@@ -7,6 +7,11 @@ export const runtime = 'nodejs';
 
 const WEBHOOK_SECRET = process.env.HELCIM_WEBHOOK_SECRET;
 
+/** Helcim may GET the URL to verify it's reachable before saving. */
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
 /**
  * POST /api/helcim/webhook
  *
@@ -52,7 +57,8 @@ export async function POST(req) {
   try {
     event = JSON.parse(rawBody);
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    // Empty or non-JSON body — Helcim sends this as a validation ping
+    return NextResponse.json({ ok: true });
   }
 
   if (event.type !== 'cardTransaction') {
