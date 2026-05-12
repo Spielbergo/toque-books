@@ -27,16 +27,23 @@ const PRO_FEATURES = [
   'Unlimited invoices',
   'T2 corporate tax summary',
   'T1 personal tax summary',
-  'AI receipt & slip parsing (T4, T5, NOA)',
   'Payroll & T4 / T4A slips',
   'Mileage log (CRA 2025 rates)',
   'Quick Method HST comparison',
   'Recurring invoice templates',
   'Multi-company (unlimited)',
   'Accountant read-only access',
-  '20+ export formats (TurboTax, FutureTax, QBO, GIFI, T2 XML…)',
-  'AI-reviewed tax summary (Gemini)',
+  'CSV & PDF exports',
   'Priority support',
+];
+
+const PRO_PLUS_FEATURES = [
+  'Everything in Pro, plus:',
+  'AI receipt & slip parsing (T4, T5, NOA)',
+  'AI-reviewed tax summary (Gemini)',
+  'AI transaction categorization',
+  'AI invoice import (PDF)',
+  '20+ export formats (TurboTax, FutureTax, QBO, GIFI, T2 XML…)',
 ];
 
 const FAQ_ITEMS = [
@@ -79,8 +86,11 @@ const FAQ_ITEMS = [
 
 export default function PricingContent() {
   const [annual, setAnnual] = useState(false);
-  const proMonthly = 29;
-  const proAnnual = Math.round(proMonthly * 12 * 0.8 / 12);
+
+  const proMonthly    = 7;
+  const proAnnual     = Math.round(proMonthly * 12 * 0.8 / 12);     // $6
+  const plusMonthly   = 9;
+  const plusAnnual    = Math.round(plusMonthly * 12 * 0.8 / 12);    // $7
 
   return (
     <>
@@ -167,7 +177,7 @@ export default function PricingContent() {
                     Billed ${proAnnual * 12}/year · saves ${(proMonthly - proAnnual) * 12}/year
                   </p>
                 )}
-                <p className={styles.planDesc}>Full T2 + T1 filing, AI automation, and all compliance features.</p>
+                <p className={styles.planDesc}>Full T2 + T1 filing, payroll, and all compliance features.</p>
                 <Link href="/auth/login?signup=1" className={styles.planCtaSolid}>
                   Start Pro — 14-day free trial
                 </Link>
@@ -176,6 +186,35 @@ export default function PricingContent() {
                 {PRO_FEATURES.map((f) => (
                   <li key={f} className={styles.planItem}>
                     <span className={styles.checkPro}>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Pro Plus plan */}
+            <motion.div className={`${styles.plan} ${styles.planProPlus}`} variants={fadeUp}>
+              <div className={`${styles.planBadge} ${styles.planBadgePlus}`}>Best value</div>
+              <div className={styles.planTop}>
+                <div className={styles.planName}>Pro Plus</div>
+                <div className={styles.planPrice}>
+                  <span className={styles.planAmount}>${annual ? plusAnnual : plusMonthly}</span>
+                  <span className={styles.planPer}>/month</span>
+                </div>
+                {annual && (
+                  <p className={styles.planAnnualNote}>
+                    Billed ${plusAnnual * 12}/year · saves ${(plusMonthly - plusAnnual) * 12}/year
+                  </p>
+                )}
+                <p className={styles.planDesc}>All Pro features plus AI automation and advanced export formats.</p>
+                <Link href="/auth/login?signup=1" className={styles.planCtaSolid}>
+                  Start Pro Plus — 14-day free trial
+                </Link>
+              </div>
+              <ul className={styles.planList}>
+                {PRO_PLUS_FEATURES.map((f) => (
+                  <li key={f} className={`${styles.planItem} ${f.startsWith('Everything') ? styles.planItemHeading : ''}`}>
+                    {!f.startsWith('Everything') && <span className={styles.checkProPlus}>✓</span>}
                     {f}
                   </li>
                 ))}
@@ -207,36 +246,38 @@ export default function PricingContent() {
               <div className={styles.tableFeature}>Feature</div>
               <div className={styles.tableCell}>Free</div>
               <div className={`${styles.tableCell} ${styles.tablePro}`}>Pro</div>
+              <div className={`${styles.tableCell} ${styles.tableProPlus}`}>Pro Plus</div>
             </div>
             {[
-              ['Invoices / month', '10', 'Unlimited'],
-              ['Invoice PDF export', '✓', '✓'],
-              ['Recurring invoice templates', '—', '✓'],
-              ['AI invoice import (PDF)', '—', '✓'],
-              ['HST / GST / QST tracking', '✓', '✓'],
-              ['ITC calculations', '✓', '✓'],
-              ['Quick Method comparison', '—', '✓'],
-              ['Remittance history', '✓', '✓'],
-              ['Bank statement import', '✓', '✓'],
-              ['AI transaction categorization', '—', '✓'],
-              ['T2 corporate tax summary', '—', '✓'],
-              ['T1 personal tax summary', '—', '✓'],
-              ['AI tax review (Gemini)', '—', '✓'],
-              ['T2 XML / GIFI export', '—', '✓'],
-              ['Payroll & T4 / T4A slips', '—', '✓'],
-              ['Mileage log (CRA rates)', '—', '✓'],
-              ['AI receipt & slip parsing', '—', '✓'],
-              ['CRA deadline calendar', '✓', '✓'],
-              ['CSV export', '✓', '✓'],
-              ['20+ export formats', '—', '✓'],
-              ['Number of companies', '1', 'Unlimited'],
-              ['Accountant read-only access', '—', '✓'],
-              ['Priority support', '—', '✓'],
-            ].map(([feat, free, pro]) => (
+              ['Invoices / month', '10', 'Unlimited', 'Unlimited'],
+              ['Invoice PDF export', '✓', '✓', '✓'],
+              ['Recurring invoice templates', '—', '✓', '✓'],
+              ['AI invoice import (PDF)', '—', '—', '✓'],
+              ['HST / GST / QST tracking', '✓', '✓', '✓'],
+              ['ITC calculations', '✓', '✓', '✓'],
+              ['Quick Method comparison', '—', '✓', '✓'],
+              ['Remittance history', '✓', '✓', '✓'],
+              ['Bank statement import', '✓', '✓', '✓'],
+              ['AI transaction categorization', '—', '—', '✓'],
+              ['T2 corporate tax summary', '—', '✓', '✓'],
+              ['T1 personal tax summary', '—', '✓', '✓'],
+              ['AI tax review (Gemini)', '—', '—', '✓'],
+              ['T2 XML / GIFI export', '—', '✓', '✓'],
+              ['Payroll & T4 / T4A slips', '—', '✓', '✓'],
+              ['Mileage log (CRA rates)', '—', '✓', '✓'],
+              ['AI receipt & slip parsing', '—', '—', '✓'],
+              ['CRA deadline calendar', '✓', '✓', '✓'],
+              ['CSV export', '✓', '✓', '✓'],
+              ['20+ export formats', '—', '—', '✓'],
+              ['Number of companies', '1', 'Unlimited', 'Unlimited'],
+              ['Accountant read-only access', '—', '✓', '✓'],
+              ['Priority support', '—', '✓', '✓'],
+            ].map(([feat, free, pro, plus]) => (
               <div key={feat} className={styles.tableRow}>
                 <div className={styles.tableFeature}>{feat}</div>
                 <div className={styles.tableCell}>{free}</div>
                 <div className={`${styles.tableCell} ${styles.tablePro}`}>{pro}</div>
+                <div className={`${styles.tableCell} ${styles.tableProPlus}`}>{plus}</div>
               </div>
             ))}
           </motion.div>

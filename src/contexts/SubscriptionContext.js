@@ -15,13 +15,23 @@ export const PLAN_LIMITS = {
     companies: Infinity,
     invoicesPerMonth: Infinity,
   },
+  pro_plus: {
+    companies: Infinity,
+    invoicesPerMonth: Infinity,
+  },
 };
 
 export const PRO_FEATURES = [
   'Multiple companies',
   'PDF exports (T5, T4, T2 worksheet)',
-  'AI receipt parsing',
   'Mileage log',
+];
+
+export const PRO_PLUS_FEATURES = [
+  'AI receipt parsing',
+  'AI tax review (Gemini)',
+  'AI transaction categorization',
+  '20+ export formats',
 ];
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -63,13 +73,20 @@ export function SubscriptionProvider({ children }) {
 
   const isPro =
     !loading &&
-    subscription?.plan === 'pro' &&
+    (subscription?.plan === 'pro' || subscription?.plan === 'pro_plus') &&
+    subscription?.status === 'active' &&
+    subscription?.current_period_end != null &&
+    new Date(subscription.current_period_end) > new Date();
+
+  const isProPlus =
+    !loading &&
+    subscription?.plan === 'pro_plus' &&
     subscription?.status === 'active' &&
     subscription?.current_period_end != null &&
     new Date(subscription.current_period_end) > new Date();
 
   return (
-    <SubscriptionContext.Provider value={{ subscription, isPro, loading, refresh: load }}>
+    <SubscriptionContext.Provider value={{ subscription, isPro, isProPlus, loading, refresh: load }}>
       {children}
     </SubscriptionContext.Provider>
   );

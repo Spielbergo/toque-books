@@ -92,7 +92,7 @@ export async function POST(req) {
     helcimSubscriptionId = sub.id;
 
     // ── 3. Upsert subscription record in Supabase ──────────────────────────
-    const supabase = getServiceClient();
+    const supabase = getAdminDb();
     const now = new Date();
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + 1);

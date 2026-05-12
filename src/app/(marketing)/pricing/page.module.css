@@ -97,10 +97,10 @@
 }
 
 .planGrid {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   align-items: start;
 }
@@ -116,6 +116,30 @@
 .planPro {
   border-color: var(--m-blue);
   box-shadow: 0 0 0 5px rgba(45, 125, 210, 0.09);
+}
+
+.planProPlus {
+  border-color: var(--m-navy);
+  box-shadow: 0 0 0 5px rgba(13, 31, 60, 0.09);
+}
+
+.planBadgePlus {
+  background: var(--m-navy);
+}
+
+.checkProPlus {
+  color: var(--m-navy);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.planItemHeading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--m-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0.25rem;
 }
 
 .planBadge {
@@ -265,13 +289,13 @@
   border: 1px solid var(--m-border);
   border-radius: var(--m-radius-lg);
   overflow: hidden;
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
 .tableRow {
   display: grid;
-  grid-template-columns: 1fr 120px 140px;
+  grid-template-columns: 1fr 90px 110px 120px;
   align-items: center;
   border-bottom: 1px solid var(--m-border);
 }
@@ -325,6 +349,15 @@
 
 .tableHead .tablePro {
   background: rgba(45, 125, 210, 0.15);
+  color: rgba(255,255,255,0.9);
+}
+
+.tableProPlus {
+  background: rgba(13, 31, 60, 0.03);
+}
+
+.tableHead .tableProPlus {
+  background: rgba(13, 31, 60, 0.25);
   color: rgba(255,255,255,0.9);
 }
 
