@@ -21,7 +21,6 @@ function getServiceClient() {
 /**
  * Verifies a Supabase access token from an Authorization: Bearer header.
  * Returns { user } on success, throws on failure.
- * Drop-in replacement for Firebase Admin's verifyIdToken().
  */
 export async function verifyToken(token) {
   const adminClient = getServiceClient();

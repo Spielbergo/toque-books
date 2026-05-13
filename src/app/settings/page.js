@@ -623,10 +623,10 @@ export default function SettingsPage() {
               <h4>🔒 Data Storage &amp; Privacy</h4>
               <p>
                 Your financial data (invoices, expenses, dividends) is saved as <strong>unencrypted JSON in your browser&rsquo;s localStorage</strong>.
-                It never leaves your device except when you explicitly use <em>Save to Cloud</em>, which stores it in your private Firestore account.
+                It never leaves your device except when you explicitly use <em>Save to Cloud</em>, which stores it in your private Supabase account.
               </p>
               <p style={{ marginTop: '0.4rem' }}>
-                Your personal profile (legal name, date of birth, SIN) is stored in <strong>Firestore under your account</strong> — encrypted in transit, access-controlled to your login only.
+                Your personal profile (legal name, date of birth, SIN) is stored in <strong>Supabase under your account</strong> — encrypted in transit, access-controlled to your login only.
               </p>
               <p style={{ marginTop: '0.4rem' }}>
                 <strong>Recommendation:</strong> Lock your screen when stepping away from this device. Anyone with OS-level access to your browser profile can read the data in localStorage through the browser&rsquo;s developer tools.
@@ -665,8 +665,8 @@ export default function SettingsPage() {
 
           <div className={styles.dataCard}>
             <div className={styles.dataCardInfo}>
-              <h4>☁ Firebase Cloud Backup</h4>
-              <p>Save your data to Firestore under your account, or restore from a previous cloud backup. Data is stored privately under your user ID.</p>
+              <h4>☁ Supabase Cloud Backup</h4>
+              <p>Save your data to Supabase under your account, or restore from a previous cloud backup. Data is stored privately under your user ID.</p>
               {cloudMsg && (
                 <p className={cloudStatus === 'error' ? styles.importError : styles.importSuccess}>{cloudMsg}</p>
               )}

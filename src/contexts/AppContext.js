@@ -940,7 +940,7 @@ export function AppProvider({ children }) {
     ));
   }, [state.settings?.badgeLogo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Debounced sync back to Firestore ──────────────────────────────────
+  // ── Debounced sync back to Supabase ───────────────────────────────────
   useEffect(() => {
     if (!activeIdRef.current) return;
     if (state === lastLoaded.current) return; // unchanged since load — skip

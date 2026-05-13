@@ -152,7 +152,7 @@ export default function AccountantPage() {
 
 function formatTimestamp(ts) {
   if (!ts) return '—';
-  // Firestore Timestamp has .toDate(), plain JS Date/string also handled
+  // Normalize possible timestamp/date shapes for display
   const d = ts?.toDate ? ts.toDate() : new Date(ts);
   return isNaN(d) ? '—' : d.toLocaleDateString('en-CA');
 }
