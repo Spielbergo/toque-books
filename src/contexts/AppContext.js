@@ -931,6 +931,16 @@ export function AppProvider({ children }) {
     })();
   }, [user?.id, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Global safety valve: never allow app loading screen to persist indefinitely.
+  useEffect(() => {
+    if (authLoading || !user?.id || !appLoading) return;
+    const timer = setTimeout(() => {
+      console.error('App loading watchdog triggered. Forcing loading state to false.');
+      setAppLoading(false);
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [authLoading, user?.id, appLoading]);
+
   // ── Keep active company's badgeLogo in sync in the companies list ────
   useEffect(() => {
     const id = activeIdRef.current;

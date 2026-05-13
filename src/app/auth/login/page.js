@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import styles from './page.module.css';
 
+function withTimeout(promise, ms, label = 'request') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error(`${label} timed out. Please try again.`)), ms)),
+  ]);
+}
+
 function friendlyError(err) {
   const msg = err?.message || '';
   if (msg.includes('Invalid login credentials'))  return 'Incorrect email or password.';
@@ -39,16 +46,24 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (tab === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          15000,
+          'Sign in',
+        );
         if (error) throw error;
         const secure = window.location.protocol === 'https:' ? '; Secure' : '';
         document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
         window.location.href = '/dashboard';
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
-        });
+        const { data, error } = await withTimeout(
+          supabase.auth.signUp({
+            email, password,
+            options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
+          }),
+          20000,
+          'Sign up',
+        );
         if (error) throw error;
         if (data.session) {
           const secure = window.location.protocol === 'https:' ? '; Secure' : '';
@@ -65,10 +80,14 @@ export default function LoginPage() {
     reset();
     setGLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
-      });
+      const { error } = await withTimeout(
+        supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${window.location.origin}/auth/callback` },
+        }),
+        15000,
+        'Google sign in',
+      );
       if (error) throw error;
     } catch (err) { setError(friendlyError(err)); setGLoading(false); }
   }
@@ -77,9 +96,13 @@ export default function LoginPage() {
     if (!email) { setError('Enter your email first.'); return; }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
-      });
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+        }),
+        15000,
+        'Password reset',
+      );
       if (error) throw error;
       setInfo('Password reset email sent.');
     } catch (err) { setError(err.message); }

@@ -25,16 +25,29 @@ export default function AuthCallbackPage() {
       window.location.href = '/dashboard';
     };
 
+    const withTimeout = (promise, ms, label) => Promise.race([
+      promise,
+      new Promise((_, reject) => window.setTimeout(() => reject(new Error(`${label} timeout`)), ms)),
+    ]);
+
     if (code) {
       // Email confirmation / magic link (PKCE): exchange code for session
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        redirect(error ? null : data.session);
-      });
+      withTimeout(supabase.auth.exchangeCodeForSession(code), 15000, 'exchangeCodeForSession')
+        .then(({ data, error }) => {
+          redirect(error ? null : data.session);
+        })
+        .catch(() => {
+          window.location.href = '/auth/login?error=callback_timeout';
+        });
     } else {
       // OAuth (Google): session already in URL hash, getSession() picks it up
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        redirect(error ? null : session);
-      });
+      withTimeout(supabase.auth.getSession(), 15000, 'getSession')
+        .then(({ data: { session }, error }) => {
+          redirect(error ? null : session);
+        })
+        .catch(() => {
+          window.location.href = '/auth/login?error=callback_timeout';
+        });
     }
   }, []);
 
