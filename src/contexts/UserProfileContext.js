@@ -1,0 +1,276 @@
+'use client';
+
+import { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
+
+// ─── DEFAULT STATE ───────────────────────────────────────────────────────────
+
+const DEFAULT_PERSONAL = {
+  nonEligibleDivs:  0,
+  eligibleDivs:     0,
+  employmentIncome: 0,   // T4 Box 14 — employment income from any source
+  otherIncome:      0,   // rental, pension, EI, etc.
+  rrspDeduction:    0,
+  rrspRoom:         0,
+  taxWithheld:      0,   // T4 Box 22 — income tax withheld at source
+  cppContributions: 0,   // T4 Box 16 — CPP employee contributions
+  eiPremiums:       0,   // T4 Box 18 — EI employee premiums
+  // Medical expenses (line 33099) — household tracker
+  medicalExpenses: [],   // [{ id, date, description, patient: 'self'|'spouse'|'dependant', amount }]
+  // Charitable donations (line 34900)
+  donations: [],         // [{ id, date, charity, amount, receiptNo }]
+  spouseNetIncome:  null, // null = no spouse; auto-computed from spouse detail fields below
+  // Spouse per-year income detail (used to compute spouseNetIncome for line 23600)
+  spouseEmploymentIncome: 0,
+  spouseEligibleDivs:     0,
+  spouseNonEligibleDivs:  0,
+  spouseTaxWithheld:      0,
+  spouseOtherIncome:      0,
+  spouseRrspDeduction:    0,
+  // Additional spouse T1 fields (for their own T1 estimate)
+  spouseCPP:            0,
+  spouseEI:             0,
+  spouseDonationsTotal: 0,   // total donations for spouse's return
+  spouseMedicalTotal:   0,   // total medical for spouse's return
+};
+
+export function makeDefaultUserProfile() {
+  const year = new Date().getFullYear();
+  return {
+    personalProfile: {
+      ownerLegalName: '',
+      ownerDOB: '',
+      ownerSIN: '',
+      maritalStatus: '',
+      spouseName: '',
+      spouseIncomeType: '',
+      spouseEstIncome: 0,
+    },
+    dependants: [],
+    otherIncomeSources: {
+      hasEmployment: false,
+      employmentAmount: 0,
+      hasRental: false,
+      rentalAmount: 0,
+      hasForeign: false,
+      foreignAmount: 0,
+      rrspRoom: 0,
+      usesTFSA: false,
+    },
+    activePersonalYear: year,
+    personalYears: {
+      [year]: { ...DEFAULT_PERSONAL },
+    },
+  };
+}
+
+// ─── REDUCER ────────────────────────────────────────────────────────────────
+
+function reducer(state, action) {
+  switch (action.type) {
+
+    case 'RESTORE_USER_PROFILE':
+      return { ...makeDefaultUserProfile(), ...action.payload };
+
+    case 'UPDATE_PERSONAL_PROFILE':
+      return { ...state, personalProfile: { ...state.personalProfile, ...action.payload } };
+
+    case 'SET_DEPENDANTS':
+      return { ...state, dependants: action.payload };
+
+    case 'SET_ACTIVE_PERSONAL_YEAR': {
+      const year = action.payload;
+      const existing = state.personalYears?.[year];
+      return {
+        ...state,
+        activePersonalYear: year,
+        personalYears: existing
+          ? state.personalYears
+          : { ...state.personalYears, [year]: { ...DEFAULT_PERSONAL } },
+      };
+    }
+
+    case 'UPDATE_PERSONAL': {
+      const year = state.activePersonalYear;
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...(state.personalYears?.[year] || DEFAULT_PERSONAL), ...action.payload },
+        },
+      };
+    }
+
+    case 'UPDATE_OTHER_INCOME_SOURCES':
+      return { ...state, otherIncomeSources: { ...state.otherIncomeSources, ...action.payload } };
+
+    case 'ADD_MEDICAL_EXPENSE': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      const item = { id: Math.random().toString(36).slice(2), ...action.payload.expense };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, medicalExpenses: [...(py.medicalExpenses || []), item] },
+        },
+      };
+    }
+
+    case 'DELETE_MEDICAL_EXPENSE': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, medicalExpenses: (py.medicalExpenses || []).filter(e => e.id !== action.payload.id) },
+        },
+      };
+    }
+
+    case 'ADD_DONATION': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      const item = { id: Math.random().toString(36).slice(2), ...action.payload.donation };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, donations: [...(py.donations || []), item] },
+        },
+      };
+    }
+
+    case 'DELETE_DONATION': {
+      const year = action.payload.year ?? state.activePersonalYear;
+      const py   = state.personalYears?.[year] ?? { ...DEFAULT_PERSONAL };
+      return {
+        ...state,
+        personalYears: {
+          ...state.personalYears,
+          [year]: { ...py, donations: (py.donations || []).filter(d => d.id !== action.payload.id) },
+        },
+      };
+    }
+
+    default:
+      return state;
+  }
+}
+
+// ─── CONTEXT ────────────────────────────────────────────────────────────────
+
+const UserProfileContext = createContext(null);
+
+export function UserProfileProvider({ children }) {
+  const { user } = useAuth();
+  const [userProfile, userDispatch] = useReducer(reducer, null, makeDefaultUserProfile);
+
+  const lastLoaded  = useRef(null);
+  const syncTimer   = useRef(null);
+  const migrated    = useRef(false);
+  const profileRef  = useRef(userProfile);
+  profileRef.current = userProfile;
+
+  // ── Load user profile from Supabase when user signs in ───────────────
+  useEffect(() => {
+    if (!user?.id) return;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('personal')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && data?.personal) {
+        const merged = { ...makeDefaultUserProfile(), ...data.personal };
+        lastLoaded.current = merged;
+        userDispatch({ type: 'RESTORE_USER_PROFILE', payload: merged });
+        migrated.current = true;
+      } else {
+        // New user — create row with defaults
+        const defaults = makeDefaultUserProfile();
+        lastLoaded.current = defaults;
+        await supabase.from('users').upsert({ id: user.id, personal: defaults });
+        migrated.current = false;
+      }
+    })();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear state on sign-out
+  useEffect(() => {
+    if (!user) {
+      lastLoaded.current = null;
+      migrated.current = false;
+      userDispatch({ type: 'RESTORE_USER_PROFILE', payload: makeDefaultUserProfile() });
+    }
+  }, [user]);
+
+  // ── Debounced sync back to Supabase ──────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    if (userProfile === lastLoaded.current) return;
+
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      if (!user?.id) return;
+      supabase
+        .from('users')
+        .update({ personal: profileRef.current })
+        .eq('id', user.id)
+        .then(({ error }) => { if (error) console.error('UserProfile sync error:', error); });
+    }, 1500);
+
+    return () => clearTimeout(syncTimer.current);
+  }, [userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── One-time migration: seed from company state on first use ──────────
+  // Called by AppContext after loading a company that has personal data.
+  // Pass force=true to bypass the already-migrated guard (e.g. after a backup import).
+  const migrateFromCompany = useCallback(async (companyPersonalData, force = false) => {
+    if (!force && migrated.current) return; // already migrated
+    if (!user?.id) return;
+    if (!companyPersonalData) return;
+
+    const merged = {
+      personalProfile:    companyPersonalData.personalProfile    || makeDefaultUserProfile().personalProfile,
+      dependants:         companyPersonalData.dependants?.length > 0 ? companyPersonalData.dependants : (profileRef.current.dependants || []),
+      otherIncomeSources: companyPersonalData.otherIncomeSources || makeDefaultUserProfile().otherIncomeSources,
+      activePersonalYear: companyPersonalData.activePersonalYear || profileRef.current.activePersonalYear,
+      personalYears:      { ...profileRef.current.personalYears, ...(companyPersonalData.personalYears || {}) },
+    };
+
+    lastLoaded.current = merged;
+    userDispatch({ type: 'RESTORE_USER_PROFILE', payload: merged });
+
+    // Persist to Supabase and mark as migrated
+    await supabase.from('users').upsert({ id: user.id, personal: merged });
+
+    migrated.current = true;
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Derived values ────────────────────────────────────────────────────
+  const activePersonalYear = userProfile.activePersonalYear;
+  const activePY = userProfile.personalYears?.[activePersonalYear] ?? { ...DEFAULT_PERSONAL };
+
+  return (
+    <UserProfileContext.Provider value={{
+      userProfile,
+      userDispatch,
+      activePY,
+      activePersonalYear,
+      migrateFromCompany,
+    }}>
+      {children}
+    </UserProfileContext.Provider>
+  );
+}
+
+export function useUserProfile() {
+  const ctx = useContext(UserProfileContext);
+  if (!ctx) throw new Error('useUserProfile must be used inside UserProfileProvider');
+  return ctx;
+}

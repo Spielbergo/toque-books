@@ -1,0 +1,395 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import CanBooksLogo from '@/components/CanBooksLogo';
+import styles from './Sidebar.module.css';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+
+const SECTION_LABELS = {
+  workspace: 'Workspace',
+  sales: 'Sales',
+  operations: 'Operations',
+  tax: 'Tax & Compliance',
+  admin: 'Admin',
+};
+
+const NAV_ITEMS = [
+  {
+    section: 'workspace',
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'sales',
+    label: 'Invoices',
+    href: '/invoices',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'sales',
+    label: 'Proposals',
+    href: '/proposals',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/>
+        <path d="M17 17l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    section: 'operations',
+    label: 'Time Tracking',
+    href: '/time-tracking',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'operations',
+    label: 'Projects',
+    href: '/projects',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <line x1="3" y1="9" x2="21" y2="9"/>
+        <line x1="9" y1="21" x2="9" y2="9"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'sales',
+    label: 'Clients',
+    href: '/clients',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'sales',
+    label: 'Products & Services',
+    href: '/products',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+        <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'operations',
+    label: 'Expenses',
+    href: '/expenses',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'operations',
+    label: 'Subscriptions',
+    href: '/subscriptions',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+        <line x1="1" y1="10" x2="23" y2="10"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'operations',
+    label: 'Bank Statements',
+    href: '/bank-statements',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'tax',
+    label: 'HST Tracker',
+    href: '/hst-tracker',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'operations',
+    label: 'Mileage Log',
+    href: '/mileage',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4l3 3"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'tax',
+    label: 'Payroll',
+    href: '/payroll',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+        <line x1="12" y1="12" x2="12" y2="16"/>
+        <line x1="10" y1="14" x2="14" y2="14"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'tax',
+    label: 'Personal Tax',
+    href: '/personal',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'tax',
+    label: 'Tax Summary',
+    href: '/taxes',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'tax',
+    label: 'Export',
+    href: '/export',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    ),
+  },
+  {
+    section: 'admin',
+    label: 'Settings',
+    href: '/settings',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    ),
+  },
+];
+
+export default function Sidebar({ isOpen, isCollapsed = false, onClose, onToggleCollapse }) {
+  const pathname = usePathname();
+  const { state, dispatch, activeCompany } = useApp();
+  const { user, signOut } = useAuth();
+  const { isPro, loading: subLoading } = useSubscription();
+  const companyName = activeCompany?.name || state.settings.companyName || 'NorthBooks';
+  const badgeLogo = state.settings.badgeLogo || null;
+
+  const asideRef    = useRef(null);
+  const onCloseRef  = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  const navSections = Object.entries(SECTION_LABELS)
+    .map(([key, label]) => ({
+      key,
+      label,
+      items: NAV_ITEMS.filter(item => item.section === key),
+    }))
+    .filter(section => section.items.length > 0);
+
+  // Focus trap while sidebar is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = asideRef.current;
+    if (!el) return;
+    const focusable = Array.from(
+      el.querySelectorAll('a[href],button:not([disabled]),input,select,[tabindex]:not([tabindex="-1"])')
+    );
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    first?.focus();
+    const trap = e => {
+      if (e.key === 'Escape') { onCloseRef.current(); return; }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener('keydown', trap);
+    return () => document.removeEventListener('keydown', trap);
+  }, [isOpen]);
+
+  const userInitials = (user?.user_metadata?.full_name || user?.email || '?')
+    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  const fiscalYearKeys = Object.keys(state.fiscalYears || {}).sort().reverse();
+
+  const handleFYChange = e => {
+    dispatch({ type: 'SET_ACTIVE_FISCAL_YEAR', payload: e.target.value });
+  };
+
+  return (
+    <aside
+      ref={asideRef}
+      role={isOpen ? 'dialog' : undefined}
+      aria-modal={isOpen ? 'true' : undefined}
+      aria-label="Navigation menu"
+      className={`${styles.sidebar} ${isOpen ? styles.open : ''} ${isCollapsed ? styles.collapsed : ''}`}
+    >
+      <div className={styles.topPinned}>
+        <div className={styles.logo}>
+          {badgeLogo ? (
+            <img src={badgeLogo} alt="" className={styles.badgeLogoImg} />
+          ) : (
+            <CanBooksLogo size={32} className={styles.logoIcon} />
+          )}
+          <div className={styles.logoText}>
+            <span className={styles.logoName}>{companyName}</span>
+            <span className={styles.logoSub}>NorthBooks</span>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <button
+            className={styles.collapseBtn}
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-pressed={isCollapsed}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {isCollapsed ? (
+                <polyline points="9 18 15 12 9 6" />
+              ) : (
+                <polyline points="15 18 9 12 15 6" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        <div className={styles.yearBadge}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <select
+            className={styles.yearSelect}
+            value={state.activeFiscalYear}
+            onChange={handleFYChange}
+            aria-label="Select fiscal year"
+          >
+            <option value="all">All Time</option>
+            {fiscalYearKeys.map(key => (
+              <option key={key} value={key}>{state.fiscalYears[key].label || key}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <nav className={styles.nav} aria-label="Main navigation">
+        {navSections.map(section => (
+          <div key={section.key} className={styles.navSection}>
+            <p className={styles.sectionTitle}>{section.label}</p>
+            {section.items.map(item => {
+              const isActive = item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                  onClick={onClose}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <span className={styles.navIcon} aria-hidden="true">{item.icon}</span>
+                  <span className={styles.navLabel}>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <div className={styles.footer}>
+        {/* Upgrade CTA for free users */}
+        {!subLoading && !isPro && (
+          <Link
+            href="/settings?tab=billing"
+            className={styles.upgradeCta}
+            onClick={onClose}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            Upgrade to Pro
+          </Link>
+        )}
+        {/* User info */}
+        <div className={styles.footerUser}>
+          <div className={styles.footerAvatar}>{userInitials}</div>
+          <div className={styles.footerUserInfo}>
+            <span className={styles.footerUserName}>{user?.user_metadata?.full_name || 'Account'}</span>
+            <span className={styles.footerUserEmail}>{user?.email}</span>
+          </div>
+        </div>
+        <button
+          className={styles.signOutBtn}
+          onClick={() => { onClose(); signOut(); }}
+          title="Sign out"
+          aria-label="Sign out of your account"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </div>
+    </aside>
+  );
+}

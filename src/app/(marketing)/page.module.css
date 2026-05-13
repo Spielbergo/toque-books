@@ -1,0 +1,721 @@
+/* ─────────────────────────────────────────────
+   Shared marketing layout helpers
+───────────────────────────────────────────── */
+.container {
+  max-width: var(--m-container);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--m-blue);
+  margin: 0 0 1rem;
+}
+
+.eyebrowLight {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 1rem;
+}
+
+.sectionTitle {
+  font-family: var(--m-font-display);
+  font-size: clamp(1.75rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: var(--m-navy);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.1rem;
+}
+
+.sectionTitleLight {
+  font-family: var(--m-font-display);
+  font-size: clamp(1.75rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: white;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.1rem;
+}
+
+.sectionSub {
+  font-size: 1.05rem;
+  color: var(--m-text-sub);
+  line-height: 1.7;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ─── Hero ─────────────────────────────────── */
+.hero {
+  background: linear-gradient(160deg, #f0f6ff 0%, var(--m-bg) 55%);
+  padding: 5rem 1.5rem 4rem;
+  overflow: hidden;
+}
+
+.heroInner {
+  max-width: var(--m-container);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.9rem;
+  background: var(--m-blue-light);
+  border: 1px solid rgba(45, 125, 210, 0.25);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--m-blue-dark);
+  width: fit-content;
+}
+
+.heroHeading {
+  font-family: var(--m-font-display);
+  font-size: clamp(2.4rem, 4.5vw, 3.75rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  color: var(--m-navy);
+  margin: 0;
+}
+
+.heroHeading em {
+  font-style: italic;
+  color: var(--m-blue);
+}
+
+.heroSub {
+  font-size: 1.1rem;
+  color: var(--m-text-sub);
+  line-height: 1.7;
+  margin: 0;
+  max-width: 460px;
+}
+
+.heroCtas {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ctaPrimary {
+  padding: 0.8rem 1.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: white;
+  background: var(--m-blue);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background var(--m-transition), transform var(--m-transition), box-shadow var(--m-transition);
+  box-shadow: 0 4px 14px rgba(45, 125, 210, 0.35);
+}
+
+.ctaPrimary:hover {
+  background: var(--m-blue-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 125, 210, 0.4);
+}
+
+.ctaSecondary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--m-navy);
+  text-decoration: none;
+  transition: color var(--m-transition);
+}
+
+.ctaSecondary:hover {
+  color: var(--m-blue);
+}
+
+.heroNote {
+  font-size: 0.8rem;
+  color: var(--m-slate-light);
+  margin: 0;
+}
+
+/* ─── App Mockup ───────────────────────────── */
+.heroMockup {
+  perspective: 1000px;
+}
+
+.mockup {
+  background: #141626;
+  border-radius: 14px;
+  box-shadow: 0 32px 80px rgba(13, 31, 60, 0.22), 0 0 0 1px rgba(255,255,255,0.06);
+  overflow: hidden;
+  transform: rotateY(-4deg) rotateX(2deg);
+}
+
+.mockupBar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+  background: #1a1e30;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.mockupDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+}
+
+.mockupTitle {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.3);
+  margin-left: 0.5rem;
+}
+
+.mockupBody {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mockupStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.mockupStat {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.mockupStatLabel {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mockupStatValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  margin: 0.2rem 0 0.15rem;
+}
+
+.mockupStatSub {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.3);
+}
+
+.mockupChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 64px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.mockupBar2 {
+  flex: 1;
+  background: var(--m-blue);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.7;
+}
+
+.mockupInvoices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mockupRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.5rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  font-size: 0.72rem;
+}
+
+.mockupRowId { color: rgba(255,255,255,0.4); font-family: monospace; }
+.mockupRowClient { color: rgba(255,255,255,0.75); font-weight: 500; }
+.mockupRowAmount { color: rgba(255,255,255,0.9); font-weight: 600; text-align: right; }
+
+.mockupBadge {
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+}
+
+.badge_paid { background: rgba(42, 122, 75, 0.25); color: #6dd68e; }
+.badge_sent { background: rgba(45, 125, 210, 0.25); color: #79b9f2; }
+.badge_draft { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.45); }
+
+/* ─── Pain Points ──────────────────────────── */
+.pain {
+  padding: var(--m-section-y) 0;
+}
+
+.painGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.painCard {
+  background: white;
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  padding: 2rem;
+  box-shadow: var(--m-shadow);
+}
+
+.painIcon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.painTitle {
+  font-family: var(--m-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--m-navy);
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.painBody {
+  font-size: 0.9rem;
+  color: var(--m-text-sub);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ─── Features ─────────────────────────────── */
+.features {
+  background: var(--m-navy);
+  padding: var(--m-section-y) 0;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.featureCard {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--m-radius-lg);
+  padding: 2rem;
+  transition: background var(--m-transition), border-color var(--m-transition);
+}
+
+.featureCard:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.14);
+}
+
+.featureIcon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.featureTitle {
+  font-family: var(--m-font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 0.65rem;
+  letter-spacing: -0.02em;
+}
+
+.featureBody {
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.featuresMore {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.featuresMoreLink {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  text-decoration: none;
+  transition: color var(--m-transition);
+}
+
+.featuresMoreLink:hover {
+  color: white;
+}
+
+/* ─── Built for Canada ─────────────────────── */
+.canada {
+  padding: var(--m-section-y) 0;
+}
+
+.canadaInner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+}
+
+.canadaFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.canadaFeature {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.canadaCheck {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: var(--m-green-light);
+  color: var(--m-green);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.canadaFeatureTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--m-navy);
+  margin: 0 0 0.3rem;
+}
+
+.canadaFeatureBody {
+  font-size: 0.875rem;
+  color: var(--m-text-sub);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ─── Testimonials ─────────────────────────── */
+.testimonials {
+  padding: var(--m-section-y) 0;
+  background: var(--m-blue-light);
+}
+
+.testimonialGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.testimonialCard {
+  background: white;
+  border-radius: var(--m-radius-lg);
+  padding: 2rem;
+  box-shadow: var(--m-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.testimonialStars {
+  color: #f59e0b;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+}
+
+.testimonialQuote {
+  font-size: 0.9rem;
+  color: var(--m-text-sub);
+  line-height: 1.7;
+  margin: 0;
+  flex: 1;
+}
+
+.testimonialAuthor {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.testimonialAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--m-blue);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.testimonialName {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--m-navy);
+}
+
+.testimonialRole {
+  font-size: 0.78rem;
+  color: var(--m-slate);
+}
+
+/* ─── Pricing Teaser ───────────────────────── */
+.pricingTeaser {
+  padding: var(--m-section-y) 0;
+}
+
+.pricingCards {
+  width: 100%;
+}
+
+.pricingCard {
+  background: white;
+  border: 2px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  padding: 2rem;
+  position: relative;
+}
+
+.pricingCardPro {
+  border-color: var(--m-blue);
+  box-shadow: 0 0 0 4px rgba(45, 125, 210, 0.08);
+}
+
+.pricingBadge {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--m-blue);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pricingPlan {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--m-slate);
+  margin-bottom: 0.75rem;
+}
+
+.pricingPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  margin-bottom: 1.5rem;
+}
+
+.pricingAmount {
+  font-family: var(--m-font-display);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--m-navy);
+  letter-spacing: -0.04em;
+}
+
+.pricingPer {
+  font-size: 0.85rem;
+  color: var(--m-slate);
+  font-weight: 500;
+}
+
+.pricingList {
+  list-style: none;
+  margin: 0 0 1.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--m-text-sub);
+}
+
+.pricingCtaPrimary {
+  display: block;
+  text-align: center;
+  padding: 0.7rem 1rem;
+  background: var(--m-blue);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background var(--m-transition);
+}
+
+.pricingCtaPrimary:hover { background: var(--m-blue-dark); }
+
+.pricingCtaSecondary {
+  display: block;
+  text-align: center;
+  padding: 0.7rem 1rem;
+  border: 2px solid var(--m-border);
+  color: var(--m-navy);
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: border-color var(--m-transition), background var(--m-transition);
+}
+
+.pricingCtaSecondary:hover {
+  border-color: var(--m-blue);
+  background: var(--m-blue-light);
+}
+
+.pricingNote {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.pricingFullLink {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--m-blue);
+  text-decoration: none;
+}
+
+.pricingFullLink:hover { text-decoration: underline; }
+
+/* ─── CTA Banner ───────────────────────────── */
+.ctaBanner {
+  background: linear-gradient(135deg, var(--m-navy) 0%, #1a3a6c 100%);
+  padding: var(--m-section-y) 0;
+}
+
+.ctaBannerInner {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.ctaBannerTitle {
+  font-family: var(--m-font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  font-weight: 900;
+  color: white;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin: 0 0 1rem;
+}
+
+.ctaBannerSub {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.7;
+  margin: 0 0 2rem;
+}
+
+.ctaBannerBtn {
+  display: inline-block;
+  padding: 0.875rem 2rem;
+  background: white;
+  color: var(--m-navy);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: transform var(--m-transition), box-shadow var(--m-transition);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.ctaBannerBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(0,0,0,0.28);
+}
+
+/* ─── Responsive ────────────────────────────── */
+@media (max-width: 1024px) {
+  .heroInner {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .heroMockup {
+    max-width: 540px;
+    margin: 0 auto;
+  }
+
+  .mockup {
+    transform: none;
+  }
+
+  .canadaInner {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .painGrid,
+  .featuresGrid,
+  .testimonialGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pricingCards {
+    grid-template-columns: 1fr;
+    max-width: 380px;
+  }
+
+  .mockupStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

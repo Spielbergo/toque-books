@@ -1,0 +1,261 @@
+'use client';
+
+import { useState } from 'react';
+import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/contexts/ToastContext';
+import { calculateHSTSummary, calculateGSTQuickMethod, checkHSTThreshold } from '@/lib/taxCalculations';
+import { formatCurrency, formatDate, today } from '@/lib/formatters';
+import { expandRecurringForFY } from '@/lib/recurringUtils';
+import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import EmptyState from '@/components/ui/EmptyState';
+import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import Explain from '@/components/ui/Explain';
+import styles from './page.module.css';
+
+const BLANK = { period: '', amtCollected: '', itc: '', netRemittance: '', remittedDate: '', confirmationNo: '', notes: '' };
+
+export default function HSTTrackerPage() {
+  const { state, dispatch, activeFY } = useApp();
+  const { toast } = useToast();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState(BLANK);
+  const [autoFill, setAutoFill] = useState(false);
+
+  if (state.activeFiscalYear === 'all') {
+    return (
+      <div className={styles.empty}>
+        <p>Select a fiscal year to view HST remittances.</p>
+      </div>
+    );
+  }
+
+  const remittances = activeFY?.hstRemittances || [];
+
+  // Calculate expected HST from books
+  const allFYData = Object.values(state.fiscalYears || {});
+  const { startDate, endDate } = activeFY || {};
+  const inRange = d => !d || ((!startDate || d >= startDate) && (!endDate || d <= endDate));
+  const invoices = allFYData.flatMap(f => f.invoices || []).filter(inv => inRange(inv.issueDate));
+  const baseExpenses = allFYData.flatMap(f => f.expenses || []).filter(e => inRange(e.date));
+  const recurringForFY = startDate && endDate
+    ? expandRecurringForFY(state.recurringExpenses || [], startDate, endDate) : [];
+  const expenses = [...baseExpenses, ...recurringForFY];
+  const hst = calculateHSTSummary(invoices, expenses);
+
+  const totalRemitted = remittances.reduce((s, r) => s + (parseFloat(r.netRemittance) || 0), 0);
+  const balance = hst.netRemittance - totalRemitted;
+
+  const allInvoices = Object.values(state.fiscalYears || {}).flatMap(f => f.invoices || []);
+  const hstAlert = !state.settings?.hstRegistered ? checkHSTThreshold(allInvoices) : null;
+
+  const grossRevenue = invoices
+    .filter(inv => ['sent', 'paid'].includes(inv.status))
+    .reduce((s, inv) => s + (inv.subtotal || 0), 0);
+
+  const quickMethodEnabled = state.settings?.hstRegistered && state.settings?.hstQuickMethod;
+  const quickMethod = quickMethodEnabled
+    ? calculateGSTQuickMethod(
+        grossRevenue,
+        hst.hstCollected,
+        hst.itcTotal,
+        state.settings?.province || 'ON',
+        state.settings?.hstQuickMethodType || 'services',
+      )
+    : null;
+
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ ...BLANK, period: activeFY?.label || '', amtCollected: hst.hstCollected.toFixed(2), itc: hst.itcTotal.toFixed(2), netRemittance: hst.netRemittance.toFixed(2) });
+    setAutoFill(true);
+    setShowModal(true);
+  };
+
+  const openEdit = r => {
+    setEditId(r.id);
+    setForm({ period: r.period || '', amtCollected: r.amtCollected || '', itc: r.itc || '', netRemittance: r.netRemittance || '', remittedDate: r.remittedDate || '', confirmationNo: r.confirmationNo || '', notes: r.notes || '' });
+    setAutoFill(false);
+    setShowModal(true);
+  };
+
+  const handleSave = () => {
+    const payload = {
+      ...form,
+      amtCollected: parseFloat(form.amtCollected) || 0,
+      itc: parseFloat(form.itc) || 0,
+      netRemittance: parseFloat(form.netRemittance) || 0,
+    };
+    dispatch({ type: editId ? 'UPDATE_HST_REMITTANCE' : 'ADD_HST_REMITTANCE', payload: editId ? { id: editId, ...payload } : payload });
+    toast({ message: editId ? 'Remittance updated' : 'Remittance recorded', type: 'success' });
+    setShowModal(false);
+  };
+
+  const handleDelete = id => {
+    dispatch({ type: 'DELETE_HST_REMITTANCE', payload: id });
+    toast({ message: 'Remittance deleted', type: 'info' });
+  };
+
+  return (
+    <div className={styles.page}>
+      {/* $30k threshold warnings */}
+      {hstAlert?.exceeded && (
+        <div className={styles.alertBanner} style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 8%, var(--bg-card))' }}>
+          <strong>🚨 HST Registration Required</strong> — Your trailing 12-month revenue is <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong>, exceeding the $30,000 CRA small supplier threshold. You must register immediately.
+        </div>
+      )}
+      {hstAlert?.approaching && (
+        <div className={styles.alertBanner} style={{ borderColor: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 8%, var(--bg-card))' }}>
+          <strong>⚠️ Approaching HST Threshold</strong> — Trailing 12-month revenue: <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong> of $30,000 limit. Register before you cross the threshold.
+        </div>
+      )}
+      {/* Summary */}
+      <div className={styles.summaryBar}>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>HST Collected</span>
+          <span className={styles.summaryValue}>{formatCurrency(hst.hstCollected)}</span>
+          <span className={styles.summarySub}>From invoices this FY</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Input Tax Credits<Explain text="ITCs are the HST you paid on business expenses. You deduct these from HST collected to reduce what you remit to CRA. Only registered businesses can claim ITCs." /></span>
+          <span className={styles.summaryValue} style={{ color: 'var(--success)' }}>{formatCurrency(hst.itcTotal)}</span>
+          <span className={styles.summarySub}>HST paid on expenses</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Net Owing to CRA<Explain text="HST Collected minus Input Tax Credits. This is the amount you remit to CRA (or receive as a refund if negative)." /></span>
+          <span className={styles.summaryValue} style={{ color: hst.netRemittance < 0 ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(hst.netRemittance)}</span>
+          <span className={styles.summarySub}>{hst.netRemittance < 0 ? 'Refund owed to you' : 'Amount to remit'}</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Total Remitted</span>
+          <span className={styles.summaryValue}>{formatCurrency(totalRemitted)}</span>
+          <span className={styles.summarySub}>Recorded payments</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Outstanding Balance</span>
+          <span className={styles.summaryValue} style={{ color: balance > 0 ? 'var(--danger)' : 'var(--success)' }}>{formatCurrency(Math.abs(balance))}</span>
+          <span className={styles.summarySub}>{balance > 0 ? 'Still owed to CRA' : balance < 0 ? 'Overpaid / refund' : 'Fully remitted'}</span>
+        </div>
+      </div>
+
+      {/* GST Quick Method comparison */}
+      {quickMethod && (
+        <div className={styles.quickMethodPanel}>
+          <div className={styles.quickMethodHeader}>
+            <span>⚡ GST/HST Quick Method — Comparison</span>
+            <span className={styles.quickMethodRate}>Remittance rate: {(quickMethod.rate * 100).toFixed(1)}%</span>
+          </div>
+          <div className={styles.quickMethodRow}>
+            <span>Standard method (collected − ITC)</span>
+            <strong>{formatCurrency(quickMethod.standardRemittance)}</strong>
+          </div>
+          <div className={styles.quickMethodRow}>
+            <span>Quick Method estimate (incl. 1% credit)</span>
+            <strong>{formatCurrency(quickMethod.quickMethodRemittance)}</strong>
+          </div>
+          <div className={`${styles.quickMethodRow} ${styles.quickMethodSavings}`}>
+            <span>{quickMethod.isAdvantageous ? '💰 Estimated savings with Quick Method' : '⚠️ Quick Method costs more in this scenario'}</span>
+            <strong style={{ color: quickMethod.isAdvantageous ? 'var(--success)' : 'var(--danger)' }}>
+              {quickMethod.isAdvantageous ? '+' : '−'}{formatCurrency(Math.abs(quickMethod.savings))}
+            </strong>
+          </div>
+          <p className={styles.quickMethodNote}>
+            This is an estimate. Quick Method eligibility and rates vary. Consult your CPA before electing. Update your type in <a href="/settings">Settings → Company</a>.
+          </p>
+        </div>
+      )}
+      {state.settings?.hstRegistered && !state.settings?.hstQuickMethod && hst.hstCollected > 0 && (
+        <div className={styles.quickMethodHint}>
+          💡 <strong>Tip:</strong> Enable <strong>GST/HST Quick Method</strong> in <a href="/settings">Settings → Company</a> to see if you could pay less HST with a flat remittance rate.
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <h2 className={styles.tableTitle}>Remittance History — {state.activeFiscalYear}</h2>
+        <Button size="sm" onClick={openCreate}>+ Record Remittance</Button>
+      </div>
+      {remittances.length === 0 ? (
+        <EmptyState
+          icon="🏦"
+          title="No remittances recorded"
+          description="Record your HST remittance payments to CRA to track your balance."
+          action={<Button onClick={openCreate}>+ Record Remittance</Button>}
+        />
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th className={styles.right}>Collected</th>
+                <th className={styles.right}>ITC</th>
+                <th className={styles.right}>Net Remittance</th>
+                <th>Remitted Date</th>
+                <th>Confirmation #</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...remittances].sort((a, b) => (a.remittedDate > b.remittedDate ? -1 : 1)).map(r => (
+                <tr key={r.id} className={styles.row}>
+                  <td>{r.period || '—'}</td>
+                  <td className={styles.right}>{formatCurrency(parseFloat(r.amtCollected) || 0)}</td>
+                  <td className={styles.right} style={{ color: 'var(--success)' }}>{formatCurrency(parseFloat(r.itc) || 0)}</td>
+                  <td className={styles.right}><strong>{formatCurrency(parseFloat(r.netRemittance) || 0)}</strong></td>
+                  <td>{r.remittedDate ? formatDate(r.remittedDate) : '—'}</td>
+                  <td className={styles.confNo}>{r.confirmationNo || '—'}</td>
+                  <td className={styles.actions}>
+                    <button className={styles.editBtn} onClick={() => openEdit(r)}>Edit</button>
+                    <button className={styles.delBtn} onClick={() => handleDelete(r.id)}>✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className={styles.disclaimer}>
+        💡 HST collected and ITC figures are calculated from your invoices and expenses. Record each remittance payment after you file with CRA to track your outstanding balance.
+      </div>
+
+      {/* Modal */}
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editId ? 'Edit Remittance' : 'Record HST Remittance'} size="md">
+        <div className={styles.modalGrid}>
+          <FormField label="Reporting Period" hint="e.g. Q1 2025, Jan–Mar 2025">
+            <Input type="text" placeholder="FY2024-25 Q1" value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))} />
+          </FormField>
+          <FormField label="Remittance Date">
+            <Input type="date" value={form.remittedDate} onChange={e => setForm(f => ({ ...f, remittedDate: e.target.value }))} />
+          </FormField>
+          <FormField label="HST Collected" hint="Line 103">
+            <Input type="number" prefix="$" step="0.01" value={form.amtCollected} onChange={e => setForm(f => ({ ...f, amtCollected: e.target.value }))} />
+          </FormField>
+          <FormField label="Input Tax Credits" hint="Line 106">
+            <Input type="number" prefix="$" step="0.01" value={form.itc} onChange={e => setForm(f => ({ ...f, itc: e.target.value }))} />
+          </FormField>
+          <FormField label="Net Remittance" hint="Line 109 — amount actually paid">
+            <Input type="number" prefix="$" step="0.01" value={form.netRemittance} onChange={e => setForm(f => ({ ...f, netRemittance: e.target.value }))} />
+          </FormField>
+          <FormField label="CRA Confirmation #">
+            <Input type="text" placeholder="e.g. 123456789" value={form.confirmationNo} onChange={e => setForm(f => ({ ...f, confirmationNo: e.target.value }))} />
+          </FormField>
+          <div style={{ gridColumn: 'span 2' }}>
+            <FormField label="Notes">
+              <Textarea rows={2} placeholder="Optional notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            </FormField>
+          </div>
+        </div>
+        {autoFill && (
+          <p className={styles.autoFillNote}>📋 Amounts pre-filled from your books. Adjust if your actual filing differed.</p>
+        )}
+        <div className={styles.modalActions}>
+          <Button variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
