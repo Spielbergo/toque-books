@@ -145,6 +145,33 @@ function getCurrentFiscalYearEnd() {
   return `${endYear}-11-30`;
 }
 
+function withTimeout(promise, ms, label = 'request') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    }),
+  ]);
+}
+
+async function withTimeoutRetry(taskFactory, {
+  label = 'request',
+  timeoutMs = 30000,
+  retries = 1,
+} = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await withTimeout(taskFactory(), timeoutMs, label);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retries) break;
+      if (!String(error?.message || '').includes('timed out')) break;
+    }
+  }
+  throw lastError;
+}
+
 // ─── REDUCER ────────────────────────────────────────────────────────────────
 
 function reducer(state, action) {
@@ -796,52 +823,57 @@ export function AppProvider({ children }) {
   const loadCompanyData = useCallback(async (companyId) => {
     setAppLoading(true);
     try {
-    const { data: row } = await supabase
-      .from('companies')
-      .select('data')
-      .eq('id', companyId)
-      .single();
+      const { data: row, error } = await withTimeoutRetry(
+        () => supabase
+          .from('companies')
+          .select('data')
+          .eq('id', companyId)
+          .single(),
+        { label: 'loadCompanyData', timeoutMs: 30000, retries: 1 },
+      );
 
-    if (row?.data && Object.keys(row.data).length > 0) {
-      const rawData = row.data;
-      // Extract personal fields for migration (legacy — will be absent on new saves)
-      const { personalProfile, dependants, personalYears, activePersonalYear: aPY,
-              otherIncomeSources, ...companyOnlyData } = rawData;
-      const hasPersonalData = personalProfile || dependants?.length || personalYears;
-      if (hasPersonalData) {
-        // force=true: bypass migrated guard so a backup-import that embedded personal
-        // fields gets correctly promoted to users.personal on every load until cleaned up.
-        migrateFromCompany({ personalProfile, dependants, personalYears,
-          activePersonalYear: aPY, otherIncomeSources }, true);
-        // Clean the personal fields out of the company row so this branch is never
-        // triggered again for this company.
-        const cleaned = {
+      if (error) throw error;
+
+      if (row?.data && Object.keys(row.data).length > 0) {
+        const rawData = row.data;
+        // Extract personal fields for migration (legacy — will be absent on new saves)
+        const { personalProfile, dependants, personalYears, activePersonalYear: aPY,
+                otherIncomeSources, ...companyOnlyData } = rawData;
+        const hasPersonalData = personalProfile || dependants?.length || personalYears;
+        if (hasPersonalData) {
+          // force=true: bypass migrated guard so a backup-import that embedded personal
+          // fields gets correctly promoted to users.personal on every load until cleaned up.
+          migrateFromCompany({ personalProfile, dependants, personalYears,
+            activePersonalYear: aPY, otherIncomeSources }, true);
+          // Clean the personal fields out of the company row so this branch is never
+          // triggered again for this company.
+          const cleaned = {
+            ...companyOnlyData,
+            onboardingCompleted: companyOnlyData.onboardingCompleted ?? true,
+          };
+          supabase.from('companies').update({ data: cleaned }).eq('id', companyId)
+            .then(({ error }) => { if (error) console.error('Company data cleanup error:', error); });
+        }
+        // Back-fill onboardingCompleted for accounts created before this flag existed.
+        // undefined (absent) → treat as completed; explicit false → still in onboarding.
+        const restoredData = {
           ...companyOnlyData,
           onboardingCompleted: companyOnlyData.onboardingCompleted ?? true,
         };
-        supabase.from('companies').update({ data: cleaned }).eq('id', companyId)
-          .then(({ error }) => { if (error) console.error('Company data cleanup error:', error); });
+        lastLoaded.current = restoredData;
+        dispatch({ type: 'RESTORE', payload: restoredData });
+      } else {
+        const init = makeInitialState();
+        lastLoaded.current = init;
+        dispatch({ type: 'RESTORE', payload: init });
       }
-      // Back-fill onboardingCompleted for accounts created before this flag existed.
-      // undefined (absent) → treat as completed; explicit false → still in onboarding.
-      const restoredData = {
-        ...companyOnlyData,
-        onboardingCompleted: companyOnlyData.onboardingCompleted ?? true,
-      };
-      lastLoaded.current = restoredData;
-      dispatch({ type: 'RESTORE', payload: restoredData });
-    } else {
-      const init = makeInitialState();
-      lastLoaded.current = init;
-      dispatch({ type: 'RESTORE', payload: init });
-    }
 
-    setActiveId(companyId);
-    activeIdRef.current = companyId;
-    try { localStorage.setItem('canbooks_active_company', companyId); } catch { /* private browsing */ }
-    setAppLoading(false);
+      setActiveId(companyId);
+      activeIdRef.current = companyId;
+      try { localStorage.setItem('canbooks_active_company', companyId); } catch { /* private browsing */ }
     } catch (err) {
       console.error('loadCompanyData error:', err);
+    } finally {
       setAppLoading(false);
     }
   }, [migrateFromCompany]);
@@ -859,11 +891,14 @@ export function AppProvider({ children }) {
     (async () => {
       setAppLoading(true);
       try {
-        const { data: rows, error } = await supabase
-          .from('companies')
-          .select('id, name, created_at, data')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true });
+        const { data: rows, error } = await withTimeoutRetry(
+          () => supabase
+            .from('companies')
+            .select('id, name, created_at, data')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true }),
+          { label: 'loadCompanies', timeoutMs: 30000, retries: 1 },
+        );
 
         if (error) throw error;
 
@@ -883,6 +918,15 @@ export function AppProvider({ children }) {
         await loadCompanyData(pick.id);
       } catch (err) {
         console.error('Failed to load companies:', err);
+        try {
+          const fallbackId = localStorage.getItem('canbooks_active_company');
+          if (fallbackId) {
+            await loadCompanyData(fallbackId);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error('Fallback company load failed:', fallbackErr);
+        }
         setAppLoading(false);
       }
     })();
