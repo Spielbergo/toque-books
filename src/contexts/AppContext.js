@@ -3,7 +3,6 @@
 import { createContext, useContext, useReducer, useEffect, useRef, useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase/client';
-import { loadData } from '@/lib/storage';
 import { today, addDays } from '@/lib/formatters';
 import { HST_RATES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
@@ -962,25 +961,40 @@ export function AppProvider({ children }) {
 
   // ── Company CRUD ───────────────────────────────────────────────────────
   const createCompany = useCallback(async (name) => {
-    const migrateData = companies.length === 0 ? loadData() : null;
-    const initialData = migrateData ?? makeInitialState();
+    if (!user?.id) throw new Error('You must be signed in to create a company.');
+
+    const initialData = makeInitialState();
     if (name) {
       initialData.settings = { ...initialData.settings, companyName: name };
     }
 
-    const { data: row, error } = await supabase
-      .from('companies')
-      .insert({ user_id: user.id, name, data: initialData })
-      .select('id')
-      .single();
+    const { data: row, error } = await withTimeoutRetry(
+      () => supabase
+        .from('companies')
+        .insert({ user_id: user.id, name, data: initialData })
+        .select('id')
+        .single(),
+      { label: 'createCompany', timeoutMs: 15000, retries: 0 },
+    );
 
     if (error) throw error;
 
     const newCompany = { id: row.id, name };
     setCompanies(prev => [...prev, newCompany]);
-    await loadCompanyData(row.id);
+
+    try {
+      await loadCompanyData(row.id);
+    } catch (err) {
+      // Don't block company creation UI if post-create data hydration fails.
+      console.error('createCompany post-load error:', err);
+      setActiveId(row.id);
+      activeIdRef.current = row.id;
+      try { localStorage.setItem('canbooks_active_company', row.id); } catch { /* private browsing */ }
+      setAppLoading(false);
+    }
+
     return newCompany;
-  }, [companies.length, user?.id, loadCompanyData]);
+  }, [user?.id, loadCompanyData]);
 
   const selectCompany = useCallback(async (companyId) => {
     if (companyId === activeIdRef.current) return;

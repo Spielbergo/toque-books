@@ -143,8 +143,7 @@ export default function CompaniesPage() {
             <div className={styles.emptyIcon}>🏢</div>
             <h2 className={styles.emptyTitle}>No companies yet</h2>
             <p className={styles.emptyDesc}>
-              Get started by creating your first company. If you've used NorthBooks before,
-              your existing data will be migrated automatically.
+              Get started by creating your first company.
             </p>
             <Button onClick={() => { setNewName(''); setCreateError(''); setShowCreate(true); }}>
               Create Company
@@ -233,11 +232,6 @@ export default function CompaniesPage() {
               required
               autoFocus
             />
-            {companies.length === 0 && (
-              <p className={styles.formHint}>
-                Any existing data from this browser will be imported automatically.
-              </p>
-            )}
           </div>
         </form>
       </Modal>

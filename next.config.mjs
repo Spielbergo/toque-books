@@ -1,4 +1,18 @@
 /** @type {import('next').NextConfig} */
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+let supabaseConnectSources = '';
+
+try {
+  if (supabaseUrl) {
+    const parsed = new URL(supabaseUrl);
+    const wsProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+    supabaseConnectSources = `${parsed.origin} ${wsProtocol}//${parsed.host}`;
+  }
+} catch {
+  // Keep CSP valid even if env is temporarily misconfigured.
+  supabaseConnectSources = '';
+}
+
 const securityHeaders = [
   // Prevent clickjacking by disallowing this app in iframes
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -19,7 +33,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://suprdoldpnlifdzithzj.supabase.co wss://suprdoldpnlifdzithzj.supabase.co https://*.googleapis.com https://api.helcim.com",
+      `connect-src 'self' ${supabaseConnectSources} https://*.googleapis.com https://api.helcim.com`,
       // Allow blob: for PDF preview and Google accounts OAuth iframe; Helcim for payment modal
       "frame-src blob: 'self' https://accounts.google.com https://*.helcim.com https://helcimcdn.net",
       "frame-ancestors 'none'",

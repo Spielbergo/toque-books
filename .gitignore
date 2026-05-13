@@ -45,3 +45,5 @@ AGENTS.md
 CLAUDE.md
 firestore.rules
 supabase-schema.sql
+supabase-setup-v2.sql
+supabase-subscriptions.sql
