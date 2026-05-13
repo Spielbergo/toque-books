@@ -828,7 +828,7 @@ export function AppProvider({ children }) {
           .select('data')
           .eq('id', companyId)
           .single(),
-        { label: 'loadCompanyData', timeoutMs: 30000, retries: 1 },
+        { label: 'loadCompanyData', timeoutMs: 15000, retries: 0 },
       );
 
       if (error) throw error;
@@ -896,7 +896,7 @@ export function AppProvider({ children }) {
             .select('id, name, created_at, data')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true }),
-          { label: 'loadCompanies', timeoutMs: 30000, retries: 1 },
+          { label: 'loadCompanies', timeoutMs: 15000, retries: 0 },
         );
 
         if (error) throw error;
@@ -937,7 +937,7 @@ export function AppProvider({ children }) {
     const timer = setTimeout(() => {
       console.error('App loading watchdog triggered. Forcing loading state to false.');
       setAppLoading(false);
-    }, 20000);
+    }, 12000);
     return () => clearTimeout(timer);
   }, [authLoading, user?.id, appLoading]);
 
@@ -978,28 +978,49 @@ export function AppProvider({ children }) {
       initialData.settings = { ...initialData.settings, companyName: name };
     }
 
-    const { data: row, error } = await withTimeoutRetry(
-      () => supabase
-        .from('companies')
-        .insert({ user_id: user.id, name, data: initialData })
-        .select('id')
-        .single(),
-      { label: 'createCompany', timeoutMs: 15000, retries: 0 },
-    );
+    const newCompanyId = uuidv4();
 
-    if (error) throw error;
+    let insertError = null;
+    try {
+      const { error } = await withTimeoutRetry(
+        () => supabase
+          .from('companies')
+          .insert({ id: newCompanyId, user_id: user.id, name, data: initialData }),
+        { label: 'createCompany', timeoutMs: 30000, retries: 1 },
+      );
+      if (error) insertError = error;
+    } catch (err) {
+      insertError = err;
+    }
 
-    const newCompany = { id: row.id, name };
+    if (insertError) {
+      // Recovery path: timeout can happen after DB commit; verify by ID before failing.
+      const { data: existing, error: verifyError } = await withTimeout(
+        supabase
+          .from('companies')
+          .select('id, name')
+          .eq('id', newCompanyId)
+          .maybeSingle(),
+        10000,
+        'createCompany verify',
+      ).catch(() => ({ data: null, error: insertError }));
+
+      if (!existing || verifyError) {
+        throw insertError;
+      }
+    }
+
+    const newCompany = { id: newCompanyId, name };
     setCompanies(prev => [...prev, newCompany]);
 
     try {
-      await loadCompanyData(row.id);
+      await loadCompanyData(newCompanyId);
     } catch (err) {
       // Don't block company creation UI if post-create data hydration fails.
       console.error('createCompany post-load error:', err);
-      setActiveId(row.id);
-      activeIdRef.current = row.id;
-      try { localStorage.setItem('canbooks_active_company', row.id); } catch { /* private browsing */ }
+      setActiveId(newCompanyId);
+      activeIdRef.current = newCompanyId;
+      try { localStorage.setItem('canbooks_active_company', newCompanyId); } catch { /* private browsing */ }
       setAppLoading(false);
     }
 
