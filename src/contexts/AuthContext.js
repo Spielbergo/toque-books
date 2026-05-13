@@ -10,19 +10,49 @@ export function AuthProvider({ children }) {
   const [authLoading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChange fires INITIAL_SESSION immediately on subscribe,
-    // making a separate getSession() call unnecessary and potentially fragile
-    // (getSession() can hang if token refresh network call times out).
+    let resolved = false;
+    // Safety valve: never let auth loading block the app forever.
+    const hardTimeout = window.setTimeout(() => {
+      if (!resolved) setLoading(false);
+    }, 5000);
+
+    const finishInit = () => {
+      resolved = true;
+      setLoading(false);
+      window.clearTimeout(hardTimeout);
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      // INITIAL_SESSION is the first event — clears the loading gate
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-        setLoading(false);
+        finishInit();
       }
       _syncCookie(session?.user);
     });
 
-    return () => subscription.unsubscribe();
+    // Fallback probe: if INITIAL_SESSION is missed, unblock via a timed session read.
+    Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => window.setTimeout(() => reject(new Error('getSession timeout')), 2500)),
+    ])
+      .then((result) => {
+        const session = result?.data?.session;
+        if (session?.user) {
+          setUser(session.user);
+          _syncCookie(session.user);
+        }
+      })
+      .catch(() => {
+        // Ignore fallback errors; auth listener and hard timeout still resolve loading.
+      })
+      .finally(() => {
+        finishInit();
+      });
+
+    return () => {
+      window.clearTimeout(hardTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
