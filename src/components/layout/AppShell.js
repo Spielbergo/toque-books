@@ -12,6 +12,7 @@ import styles from './AppShell.module.css';
 export default function AppShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showLoadingHelp, setShowLoadingHelp] = useState(false);
   const { appLoading, activeCompanyId, state } = useApp();
   const { user, authLoading } = useAuth();
   const router   = useRouter();
@@ -67,12 +68,43 @@ export default function AppShell({ children }) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Show a recovery prompt if app loading takes unusually long.
+  useEffect(() => {
+    if (!appLoading) {
+      setShowLoadingHelp(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowLoadingHelp(true), 7000);
+    return () => window.clearTimeout(timer);
+  }, [appLoading]);
+
   // Full-screen loading while companies / company data load
   if (appLoading) {
     return (
       <div className={styles.loadingScreen}>
         <CanBooksLogo size={64} />
         <p className={styles.loadingText}>Loading…</p>
+        {showLoadingHelp && (
+          <div className={styles.loadingHelp}>
+            <p className={styles.loadingHelpText}>Still loading your data. You can retry now.</p>
+            <div className={styles.loadingHelpActions}>
+              <button
+                type="button"
+                className={styles.loadingHelpBtn}
+                onClick={() => window.location.reload()}
+              >
+                Retry Load
+              </button>
+              <button
+                type="button"
+                className={`${styles.loadingHelpBtn} ${styles.loadingHelpBtnGhost}`}
+                onClick={() => router.replace('/companies')}
+              >
+                Go to Companies
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

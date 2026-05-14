@@ -24,6 +24,44 @@
   color: var(--text-muted);
 }
 
+.loadingHelp {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.loadingHelpText {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.loadingHelpActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.loadingHelpBtn {
+  border: 1px solid var(--border-primary);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.loadingHelpBtn:hover {
+  background: var(--bg-hover);
+}
+
+.loadingHelpBtnGhost {
+  background: transparent;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
