@@ -208,7 +208,7 @@ export default function ClientsPage() {
                   value={form.province}
                   onChange={e => setForm(f => ({ ...f, province: e.target.value }))}
                   placeholder="ON"
-                  style={{ width: '60px' }}
+                  className={styles.provinceInput}
                   maxLength={2}
                 />
                 <Input

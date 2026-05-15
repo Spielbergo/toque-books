@@ -878,12 +878,12 @@ export default function InvoicesPage() {
                       <tr key={r.id}>
                         <td>{client?.name || r.clientId || '—'}</td>
                         <td>{r.subject || '—'}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{r.frequency}</td>
+                        <td className={styles.textCapitalize}>{r.frequency}</td>
                         <td>{formatDate(r.nextDate)}</td>
                         <td><span className={r.active ? styles.statusPaid : styles.statusDraft}>{r.active ? 'Active' : 'Paused'}</span></td>
                         <td className={styles.right}>
                           <Button variant="ghost" size="sm" onClick={() => { setRecurEditId(r.id); setRecurForm({ clientId: r.clientId || '', subject: r.subject || '', frequency: r.frequency || 'monthly', nextDate: r.nextDate || '', notes: r.notes || '', active: r.active !== false }); setShowRecurModal(true); }}>Edit</Button>
-                          <Button variant="ghost" size="sm" style={{ color: 'var(--danger)' }} onClick={() => setConfirmDeleteRecurId(r.id)}>Delete</Button>
+                          <Button variant="ghost" size="sm" className={styles.actionDanger} onClick={() => setConfirmDeleteRecurId(r.id)}>Delete</Button>
                         </td>
                       </tr>
                     );
@@ -928,7 +928,7 @@ export default function InvoicesPage() {
               <label className={styles.formLabel}>Notes</label>
               <input className={styles.input} value={recurForm.notes} onChange={e => setRecurForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes" />
               <label className={styles.formLabel}>Active</label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label className={styles.inlineCheckLabel}>
                 <input type="checkbox" checked={recurForm.active} onChange={e => setRecurForm(f => ({ ...f, active: e.target.checked }))} />
                 Send reminders for this template
               </label>
@@ -950,16 +950,16 @@ export default function InvoicesPage() {
           <div className={styles.agingTitle}>Accounts Receivable Aging</div>
           <div className={styles.agingGrid}>
             {[
-              { label: 'Current', key: 'current', color: 'var(--success)' },
-              { label: '1–30 days', key: '1_30', color: 'var(--warning, #f59e0b)' },
-              { label: '31–60 days', key: '31_60', color: 'var(--warning, #f59e0b)' },
-              { label: '61–90 days', key: '61_90', color: 'var(--danger)' },
-              { label: '90+ days', key: '90plus', color: 'var(--danger)' },
-            ].map(({ label, key, color }) => (
+              { label: 'Current', key: 'current', tone: 'success' },
+              { label: '1–30 days', key: '1_30', tone: 'warning' },
+              { label: '31–60 days', key: '31_60', tone: 'warning' },
+              { label: '61–90 days', key: '61_90', tone: 'danger' },
+              { label: '90+ days', key: '90plus', tone: 'danger' },
+            ].map(({ label, key, tone }) => (
               <div key={key} className={styles.agingBucket}>
                 <div className={styles.agingBucketLabel}>{label}</div>
                 <div className={styles.agingBucketCount}>{agingBuckets[key].length} invoice{agingBuckets[key].length !== 1 ? 's' : ''}</div>
-                <div className={styles.agingBucketTotal} style={{ color }}>{formatCurrency(agingTotal(agingBuckets[key]))}</div>
+                <div className={`${styles.agingBucketTotal} ${styles[`agingBucketTotal_${tone}`]}`}>{formatCurrency(agingTotal(agingBuckets[key]))}</div>
               </div>
             ))}
           </div>
@@ -976,7 +976,7 @@ export default function InvoicesPage() {
                         <td>#{inv.invoiceNumber}</td>
                         <td>{inv.client?.name || '—'}</td>
                         <td>{formatDate(inv.dueDate)}</td>
-                        <td style={{ color: days > 60 ? 'var(--danger)' : 'var(--warning, #f59e0b)', fontWeight: 600 }}>{days}d</td>
+                        <td className={`${styles.agingDays} ${days > 60 ? styles.agingDaysDanger : styles.agingDaysWarning}`}>{days}d</td>
                         <td className={styles.right}>{formatCurrency(inv.total)}</td>
                       </tr>
                     );
@@ -1391,11 +1391,11 @@ export default function InvoicesPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', margin: '0 0 0.75rem' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.25rem' }}>Currency</label>
+          <div className={styles.currencyRow}>
+            <label className={styles.currencyLabel}>Currency</label>
             <Select
               value={form.currency || 'CAD'}
-              style={{ width: '6rem' }}
+              className={styles.currencySelect}
               onChange={async e => {
                 const cur = e.target.value;
                 setForm(f => ({ ...f, currency: cur, exchangeRateToCAD: cur === 'CAD' ? 1 : f.exchangeRateToCAD }));
@@ -1414,15 +1414,15 @@ export default function InvoicesPage() {
             </Select>
             {(form.currency && form.currency !== 'CAD') && (
               <>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
+                <span className={styles.currencyRateText}>1 {form.currency} =</span>
                 <Input
                   type="number" min="0" step="any"
                   value={form.exchangeRateToCAD || ''}
                   onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
                   placeholder={rateLoading ? 'Fetching…' : 'Rate'}
-                  style={{ width: '6rem' }}
+                  className={styles.currencyRateInput}
                 />
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
+                <span className={styles.currencyRateText}>CAD</span>
               </>
             )}
           </div>
@@ -1530,7 +1530,7 @@ export default function InvoicesPage() {
           <Button variant="secondary" onClick={closePreview}>Close</Button>
           {previewInvoice && (
             <Button onClick={() => downloadInvoicePDF(previewInvoice, state.settings)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:'0.35rem'}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.downloadIcon}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download PDF
             </Button>
           )}

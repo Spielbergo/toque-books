@@ -284,9 +284,9 @@ export default function PayrollPage() {
               <h2 className={styles.sectionTitle}>Payroll Runs — {fyLabel}</h2>
               <p className={styles.sectionSub}>Record each pay period. CPP and EI are auto-calculated based on year-to-date totals.</p>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div className={styles.sectionTopActions}>
               <FormField label="Pay frequency">
-                <Select value={frequency} onChange={e => setFrequency(e.target.value)} style={{ minWidth: '180px' }}>
+                <Select value={frequency} onChange={e => setFrequency(e.target.value)} className={styles.frequencySelect}>
                   {FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                 </Select>
               </FormField>
@@ -352,7 +352,7 @@ export default function PayrollPage() {
               <h2 className={styles.sectionTitle}>T4A Contractors</h2>
               <p className={styles.sectionSub}>Track contractors and service providers paid $500+ in a tax year. File T4A slips with CRA by Feb 28. Showing tax year <strong>{activeTaxYear}</strong> (active fiscal year).</p>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div className={styles.sectionTopActions}>
               {t4aRecipients.length > 0 && (
                 <Button variant="secondary" onClick={async () => {
                   try {

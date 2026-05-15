@@ -101,12 +101,12 @@ export default function HSTTrackerPage() {
     <div className={styles.page}>
       {/* $30k threshold warnings */}
       {hstAlert?.exceeded && (
-        <div className={styles.alertBanner} style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 8%, var(--bg-card))' }}>
+        <div className={`${styles.alertBanner} ${styles.alertBannerDanger}`}>
           <strong>🚨 HST Registration Required</strong> — Your trailing 12-month revenue is <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong>, exceeding the $30,000 CRA small supplier threshold. You must register immediately.
         </div>
       )}
       {hstAlert?.approaching && (
-        <div className={styles.alertBanner} style={{ borderColor: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 8%, var(--bg-card))' }}>
+        <div className={`${styles.alertBanner} ${styles.alertBannerWarning}`}>
           <strong>⚠️ Approaching HST Threshold</strong> — Trailing 12-month revenue: <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong> of $30,000 limit. Register before you cross the threshold.
         </div>
       )}
@@ -119,12 +119,12 @@ export default function HSTTrackerPage() {
         </div>
         <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>Input Tax Credits<Explain text="ITCs are the HST you paid on business expenses. You deduct these from HST collected to reduce what you remit to CRA. Only registered businesses can claim ITCs." /></span>
-          <span className={styles.summaryValue} style={{ color: 'var(--success)' }}>{formatCurrency(hst.itcTotal)}</span>
+          <span className={`${styles.summaryValue} ${styles.summaryValueSuccess}`}>{formatCurrency(hst.itcTotal)}</span>
           <span className={styles.summarySub}>HST paid on expenses</span>
         </div>
         <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>Net Owing to CRA<Explain text="HST Collected minus Input Tax Credits. This is the amount you remit to CRA (or receive as a refund if negative)." /></span>
-          <span className={styles.summaryValue} style={{ color: hst.netRemittance < 0 ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(hst.netRemittance)}</span>
+          <span className={`${styles.summaryValue} ${hst.netRemittance < 0 ? styles.summaryValueSuccess : styles.summaryValueDanger}`}>{formatCurrency(hst.netRemittance)}</span>
           <span className={styles.summarySub}>{hst.netRemittance < 0 ? 'Refund owed to you' : 'Amount to remit'}</span>
         </div>
         <div className={styles.summaryItem}>
@@ -134,7 +134,7 @@ export default function HSTTrackerPage() {
         </div>
         <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>Outstanding Balance</span>
-          <span className={styles.summaryValue} style={{ color: balance > 0 ? 'var(--danger)' : 'var(--success)' }}>{formatCurrency(Math.abs(balance))}</span>
+          <span className={`${styles.summaryValue} ${balance > 0 ? styles.summaryValueDanger : styles.summaryValueSuccess}`}>{formatCurrency(Math.abs(balance))}</span>
           <span className={styles.summarySub}>{balance > 0 ? 'Still owed to CRA' : balance < 0 ? 'Overpaid / refund' : 'Fully remitted'}</span>
         </div>
       </div>
@@ -156,7 +156,7 @@ export default function HSTTrackerPage() {
           </div>
           <div className={`${styles.quickMethodRow} ${styles.quickMethodSavings}`}>
             <span>{quickMethod.isAdvantageous ? '💰 Estimated savings with Quick Method' : '⚠️ Quick Method costs more in this scenario'}</span>
-            <strong style={{ color: quickMethod.isAdvantageous ? 'var(--success)' : 'var(--danger)' }}>
+            <strong className={quickMethod.isAdvantageous ? styles.quickMethodDeltaPositive : styles.quickMethodDeltaNegative}>
               {quickMethod.isAdvantageous ? '+' : '−'}{formatCurrency(Math.abs(quickMethod.savings))}
             </strong>
           </div>
@@ -202,7 +202,7 @@ export default function HSTTrackerPage() {
                 <tr key={r.id} className={styles.row}>
                   <td>{r.period || '—'}</td>
                   <td className={styles.right}>{formatCurrency(parseFloat(r.amtCollected) || 0)}</td>
-                  <td className={styles.right} style={{ color: 'var(--success)' }}>{formatCurrency(parseFloat(r.itc) || 0)}</td>
+                  <td className={`${styles.right} ${styles.summaryValueSuccess}`}>{formatCurrency(parseFloat(r.itc) || 0)}</td>
                   <td className={styles.right}><strong>{formatCurrency(parseFloat(r.netRemittance) || 0)}</strong></td>
                   <td>{r.remittedDate ? formatDate(r.remittedDate) : '—'}</td>
                   <td className={styles.confNo}>{r.confirmationNo || '—'}</td>
@@ -242,7 +242,7 @@ export default function HSTTrackerPage() {
           <FormField label="CRA Confirmation #">
             <Input type="text" placeholder="e.g. 123456789" value={form.confirmationNo} onChange={e => setForm(f => ({ ...f, confirmationNo: e.target.value }))} />
           </FormField>
-          <div style={{ gridColumn: 'span 2' }}>
+          <div className={styles.modalColSpan2}>
             <FormField label="Notes">
               <Textarea rows={2} placeholder="Optional notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </FormField>

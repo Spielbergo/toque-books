@@ -6,7 +6,7 @@
 .tabs {
   display: flex;
   border-bottom: 2px solid var(--border);
-  margin-bottom: 1.75rem;
+  margin-bottom: var(--space-7);
   gap: 0;
 }
 .tab {
@@ -14,9 +14,9 @@
   border: none;
   border-bottom: 3px solid transparent;
   margin-bottom: -2px;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: var(--space-2) 1.1rem;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
@@ -29,32 +29,32 @@
 
 /* Section */
 .sectionHeader {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 .sectionHeader h3 {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   margin: 0 0 0.3rem;
 }
 .sectionHeader p {
-  font-size: 0.825rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
 }
 .subsectionHeader {
-  margin: 1.5rem 0 1rem;
-  padding-top: 1.25rem;
+  margin: var(--space-6) 0 var(--space-4);
+  padding-top: var(--space-5);
   border-top: 1px solid var(--border);
 }
 .subsectionHeader h4 {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  margin: 0 0 0.25rem;
+  margin: 0 0 var(--space-1);
 }
 .subsectionHeader p {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
 }
@@ -63,21 +63,29 @@
 .formGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem 1.25rem;
-  margin-bottom: 1.25rem;
+  gap: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.formGridTightTop {
+  margin-top: var(--space-2);
+}
+
+.textMarginTopSm {
+  margin-top: var(--space-1);
 }
 
 /* Toggle */
 .toggleRow {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 .toggleLabel {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   color: var(--text-primary);
 }
 .toggle {
@@ -109,76 +117,95 @@
   transform: translateX(18px);
 }
 .toggleHint {
-  font-size: 0.775rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
-  margin: 0.35rem 0 0 54px;
+  margin: var(--space-1) 0 0 54px;
 }
 
 /* Actions */
 .actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
+
+.cloudActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.accentLink {
+  color: var(--accent);
+}
+
+.readOnlyInput {
+  opacity: 0.7;
+}
+
+.accessNoteTop {
+  margin-top: var(--space-8);
+}
+
 .savedMsg {
-  font-size: 0.825rem;
+  font-size: var(--text-sm);
   color: var(--success);
 }
 
 /* Access tab */
 .sectionDesc {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin: 0 0 1.25rem;
-  line-height: 1.6;
+  margin: 0 0 var(--space-5);
+  line-height: var(--leading-relaxed);
 }
 .accessRow {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .accessInput {
   flex: 1;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 .accessInput::placeholder { color: var(--text-muted); }
 .accessEmpty {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 .accessList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 .accessItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.875rem;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
 .accessEmail {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-primary);
 }
 .accessInvite {
-  padding: 0.25rem 0.6rem;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--accent);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
@@ -193,38 +220,38 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: var(--text-xl);
   color: var(--text-muted);
-  padding: 0 0.25rem;
+  padding: 0 var(--space-1);
   line-height: 1;
 }
 
 .inviteLink {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.875rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-surface-raised);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
 }
 .inviteLinkUrl {
   flex: 1;
-  font-family: monospace;
-  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   word-break: break-all;
 }
 .inviteLinkBtn {
-  padding: 0.3rem 0.75rem;
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
   color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
   white-space: nowrap;
   transition: all var(--transition);
@@ -236,9 +263,9 @@
 }
 .accessRemove:hover { color: var(--danger); }
 .accessNote {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
-  line-height: 1.6;
+  line-height: var(--leading-relaxed);
 }
 
 /* Fiscal years */
@@ -246,17 +273,17 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 .fyHeader h3 {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   margin: 0 0 0.3rem;
 }
 .fyHeader p {
-  font-size: 0.825rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
 }
@@ -264,18 +291,18 @@
 .fyList {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 1.25rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
 }
 .fyRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.875rem 1rem;
+  padding: var(--space-3) var(--space-4);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 .fyRowActive {
   border-color: var(--accent);
@@ -284,72 +311,72 @@
 .fyInfo {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
 }
 .fyKey {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
 .fyDates {
-  font-size: 0.775rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 .fyStats {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 .fyActions { flex-shrink: 0; }
 .activeBadge {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--accent);
   background: var(--accent-bg, color-mix(in srgb, var(--accent) 15%, var(--bg-secondary)));
-  padding: 0.25rem 0.6rem;
-  border-radius: 100px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
 }
 
 .fyNote {
-  font-size: 0.775rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
-  padding: 0.875rem 1rem;
+  padding: var(--space-3) var(--space-4);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  line-height: 1.5;
+  line-height: var(--leading-normal);
 }
 
 /* Fiscal year modal */
 .fyModalHint {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 .fyModalGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.875rem;
+  gap: var(--space-3);
 }
 
 /* Data management */
 .dataTitle {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--space-5);
 }
 .dataCard {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1.5rem;
-  padding: 1.25rem;
+  gap: var(--space-6);
+  padding: var(--space-5);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 .dataCardDanger {
   border-left: 4px solid var(--danger);
@@ -361,38 +388,38 @@
   flex: 1;
 }
 .dataCardInfo h4 {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  margin: 0 0 0.35rem;
+  margin: 0 0 var(--space-1);
 }
 .dataCardInfo p {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   margin: 0;
-  line-height: 1.5;
+  line-height: var(--leading-normal);
 }
 .fileInput {
   display: none;
 }
 .importError {
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
   color: var(--danger);
 }
 .importSuccess {
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
   color: var(--success);
 }
 
 /* App Badge Logo (Company tab) */
 .badgeLogoSection {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-6);
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -418,7 +445,7 @@
 }
 
 .badgeLogoPlaceholder {
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   text-align: center;
 }
@@ -426,10 +453,10 @@
 /* Business Profile — Logo */
 .logoSection {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-6);
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -455,18 +482,18 @@
 }
 
 .logoPlaceholder {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 .logoActions {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .logoHint {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
 }
@@ -496,8 +523,8 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 1rem 2.5rem 1rem 1rem;
-  margin-bottom: 0.75rem;
+  padding: var(--space-4) 2.5rem var(--space-4) var(--space-4);
+  margin-bottom: var(--space-3);
 }
 .depRemove {
   position: absolute;
@@ -507,9 +534,9 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1;
-  padding: 0.2rem 0.35rem;
+  padding: var(--space-1) var(--space-1);
   border-radius: var(--radius-sm);
   transition: color var(--transition), background var(--transition);
 }
@@ -523,29 +550,29 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-5) var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
 }
 
 .billingPlan {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .billingPlanLabel {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
 .billingPlanBadge {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.2rem 0.6rem;
-  border-radius: 100px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -563,7 +590,7 @@
 }
 
 .billingPeriod {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
 }
@@ -572,34 +599,34 @@
   background: linear-gradient(135deg, rgba(79,142,247,0.07) 0%, rgba(79,142,247,0.03) 100%);
   border: 1px solid rgba(79,142,247,0.2);
   border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-5) var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .billingUpgradeText {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-primary);
   margin: 0;
-  line-height: 1.6;
+  line-height: var(--leading-relaxed);
 }
 
 .billingCancel {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-5) var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .billingCancelText {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   margin: 0;
-  line-height: 1.6;
+  line-height: var(--leading-relaxed);
 }

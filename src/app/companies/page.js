@@ -245,7 +245,7 @@ export default function CompaniesPage() {
           </>
         }
       >
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+        <p className={styles.confirmDeleteText}>
           This will permanently delete the company and all its data (invoices, expenses, clients, etc.).
           This cannot be undone.
         </p>

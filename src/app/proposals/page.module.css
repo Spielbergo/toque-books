@@ -4,19 +4,19 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
-.title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.25rem; }
-.sub   { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+.title { font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--text-primary); margin: 0 0 var(--space-1); }
+.sub   { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
 
 /* Toolbar */
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
 }
 .search {
@@ -25,8 +25,8 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.875rem;
-  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s;
@@ -35,18 +35,18 @@
 
 .filterTabs {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.25rem;
+  padding: var(--space-1);
 }
 .filterTab {
   background: none;
   border: none;
-  padding: 0.375rem 0.75rem;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -54,29 +54,29 @@
 .filterTabActive {
   background: var(--bg-card);
   color: var(--text-primary);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-card, 0 1px 3px rgba(0,0,0,0.1));
 }
 
 /* Stats */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 .stat {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem;
+  padding: var(--space-4) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: var(--space-1);
 }
-.statLabel { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.statValue { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
-.statSub   { font-size: 0.8rem; color: var(--text-secondary); }
+.statLabel { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.statValue { font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--text-primary); }
+.statSub   { font-size: var(--text-sm); color: var(--text-secondary); }
 
 /* Table */
 .table {
@@ -88,12 +88,12 @@
 .tableHead {
   display: grid;
   grid-template-columns: 70px 1fr 160px 110px 110px 100px 100px;
-  gap: 0.75rem;
-  padding: 0.75rem 1.25rem;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -101,8 +101,8 @@
 .tableRow {
   display: grid;
   grid-template-columns: 70px 1fr 160px 110px 110px 100px 100px;
-  gap: 0.75rem;
-  padding: 0.875rem 1.25rem;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
   align-items: center;
   border-bottom: 1px solid var(--border);
   transition: background 0.1s;
@@ -110,21 +110,22 @@
 .tableRow:last-child { border-bottom: none; }
 .tableRow:hover { background: var(--bg-hover); }
 
-.cellNum    { font-size: 0.875rem; font-weight: 600; color: var(--accent); }
-.cellTitle  { font-size: 0.875rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cellClient { font-size: 0.8125rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cellTotal  { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.cellDate   { font-size: 0.8125rem; color: var(--text-muted); }
+.cellNum    { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--accent); }
+.cellTitle  { font-size: var(--text-sm); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cellClient { font-size: var(--text-sm); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cellTotal  { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.cellDate   { font-size: var(--text-sm); color: var(--text-muted); }
 .cellStatus { }
-.cellActions { display: flex; gap: 0.375rem; justify-content: flex-end; }
+.cellActions { display: flex; gap: var(--space-1); justify-content: flex-end; }
+.cellActions { display: flex; gap: var(--space-1); justify-content: flex-end; }
 
 .actionBtn {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: var(--space-1);
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   opacity: 0.6;
   transition: opacity 0.15s, background 0.15s;
 }
@@ -137,16 +138,16 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  margin: 1rem 0;
+  margin: var(--space-4) 0;
 }
 .lineItemsHeader {
   display: grid;
   grid-template-columns: 1fr 80px 100px 100px 32px;
-  gap: 0.5rem;
-  padding: 0.625rem 0.875rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-secondary);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
   border-bottom: 1px solid var(--border);
@@ -154,8 +155,8 @@
 .lineItemRow {
   display: grid;
   grid-template-columns: 1fr 80px 100px 100px 32px;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   align-items: center;
   border-bottom: 1px solid var(--border);
 }
@@ -165,8 +166,8 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0.375rem 0.5rem;
-  font-size: 0.875rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   outline: none;
   width: 100%;
@@ -177,8 +178,8 @@
 .liNum { text-align: right; }
 
 .liAmount {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -188,8 +189,8 @@
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  font-size: 0.75rem;
-  padding: 0.2rem 0.4rem;
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   transition: color 0.15s;
 }
@@ -202,8 +203,8 @@
   background: none;
   border: none;
   border-top: 1px solid var(--border);
-  padding: 0.625rem;
-  font-size: 0.8125rem;
+  padding: var(--space-2);
+  font-size: var(--text-sm);
   color: var(--accent);
   cursor: pointer;
   text-align: left;
@@ -213,28 +214,53 @@
 
 .totals {
   border-top: 2px solid var(--border);
-  padding: 0.75rem 0.875rem;
+  padding: var(--space-3) var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--space-1);
 }
 .totalRow {
   display: flex;
   justify-content: space-between;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 .totalRowFinal {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
   border-top: 1px solid var(--border);
-  padding-top: 0.5rem;
-  margin-top: 0.25rem;
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.modalGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.modalActionsTop {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-6);
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
+}
+
+.modalActions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
 }
 
 @media (max-width: 900px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
   .tableHead { display: none; }
-  .tableRow { grid-template-columns: 1fr; gap: 0.375rem; }
+  .tableRow { grid-template-columns: 1fr; gap: var(--space-1); }
+  .modalGrid2 { grid-template-columns: 1fr; }
 }

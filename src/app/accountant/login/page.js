@@ -144,7 +144,7 @@ export default function AccountantLoginPage() {
         {/* Magic link email confirmation */}
         {magicLinkPending ? (
           <form onSubmit={completeMagicLink} className={styles.form}>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+            <p className={portalStyles.magicPrompt}>
               Enter the email address your invite was sent to:
             </p>
             <div className={styles.field}>

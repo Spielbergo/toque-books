@@ -6,20 +6,20 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
 .title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
-  margin: 0 0 0.25rem;
+  margin: 0 0 var(--space-1);
 }
 
 .sub {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
 }
@@ -28,8 +28,8 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
@@ -39,8 +39,8 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.875rem;
-  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s;
@@ -49,19 +49,19 @@
 
 .filterTabs {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.25rem;
+  padding: var(--space-1);
 }
 
 .filterTab {
   background: none;
   border: none;
-  padding: 0.375rem 0.75rem;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -69,44 +69,44 @@
 .filterTabActive {
   background: var(--bg-card);
   color: var(--text-primary);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-card, 0 1px 3px rgba(0,0,0,0.1));
 }
 
 /* ── Project Grid ── */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
+  padding: var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: var(--space-3);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .card:hover {
-  border-color: var(--border-strong);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-color: var(--border-color-strong);
+  box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.06));
 }
 
-.cardTop { display: flex; flex-direction: column; gap: 0.375rem; }
+.cardTop { display: flex; flex-direction: column; gap: var(--space-1); }
 
 .cardTitleRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .cardTitle {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   margin: 0;
   overflow: hidden;
@@ -115,17 +115,17 @@
 }
 
 .cardClient {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   color: var(--accent);
   margin: 0;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .cardDesc {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   margin: 0;
-  line-height: 1.5;
+  line-height: var(--leading-normal);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -136,7 +136,7 @@
 .progress {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--space-1);
 }
 
 .progressBar {
@@ -156,22 +156,22 @@
 }
 
 .progressLabel {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 /* ── Card meta ── */
 .cardMeta {
   display: flex;
-  gap: 0.875rem;
-  font-size: 0.8rem;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   flex-wrap: wrap;
 }
 
 .cardActions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin-top: auto;
   flex-wrap: wrap;
 }
@@ -179,8 +179,8 @@
 /* ── Task panel ── */
 .addTaskForm {
   display: flex;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
   align-items: center;
 }
 
@@ -189,20 +189,45 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s;
 }
 .taskInput:focus { border-color: var(--accent); }
 
+
+.modalGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.modalActionsTop {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-6);
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
+}
+
+.modalActions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
 .taskDate {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
+  .modalGrid2 { grid-template-columns: 1fr; }
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.625rem;
-  font-size: 0.8125rem;
+  padding: var(--space-2) 0.625rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   outline: none;
   cursor: pointer;
@@ -211,8 +236,8 @@
 .noTasks {
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.875rem;
-  padding: 2rem 0;
+  font-size: var(--text-sm);
+  padding: var(--space-8) 0;
 }
 
 .taskList {
@@ -221,14 +246,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--space-1);
 }
 
 .taskItem {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.625rem 0.75rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   transition: background 0.1s;
@@ -252,12 +277,12 @@
 
 .taskTitle {
   flex: 1;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-primary);
 }
 
 .taskDue {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -267,8 +292,8 @@
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  font-size: 0.75rem;
-  padding: 0.1rem 0.3rem;
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-1);
   border-radius: var(--radius-sm);
   opacity: 0;
   transition: opacity 0.15s;

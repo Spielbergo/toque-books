@@ -375,9 +375,9 @@ export default function TaxesPage() {
 
   if (state.activeFiscalYear === 'all') {
     return (
-      <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Select a fiscal year to view tax estimates</p>
-        <p style={{ fontSize: '0.875rem' }}>Corporate T2 and personal T1 estimates are calculated per fiscal year. Choose a year in the sidebar.</p>
+      <div className={styles.fyEmptyState}>
+        <p className={styles.fyEmptyTitle}>Select a fiscal year to view tax estimates</p>
+        <p className={styles.fyEmptyText}>Corporate T2 and personal T1 estimates are calculated per fiscal year. Choose a year in the sidebar.</p>
       </div>
     );
   }
@@ -504,7 +504,7 @@ export default function TaxesPage() {
       </div>
 
       {/* ── Tax Deadlines shortcut ── */}
-      <Link href="/deadlines" style={{ alignSelf: 'flex-end', fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+      <Link href="/deadlines" className={styles.deadlineLink}>
         📅 Tax Deadlines →
       </Link>
 
@@ -532,7 +532,7 @@ export default function TaxesPage() {
           </>
         }
       >
-        <p style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        <p className={styles.reviewPromptText}>
           Optionally add any context or specific questions for the AI to consider when reviewing your tax return.
         </p>
         <textarea
@@ -750,21 +750,21 @@ export default function TaxesPage() {
       {/* ── Corporate Tax Instalments ── */}
       {corp.totalTax >= 3000 && (
         <Section title="Corporate Tax Instalments" badge="CRA Quarterly">
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          <p className={styles.instalmentIntro}>
             Because your estimated corporate tax exceeds $3,000, CRA requires quarterly instalment payments during the fiscal year.
             The table below shows estimated amounts based on the <strong>current-year method</strong>. You may also use the prior-year or no-calculation methods — consult your CPA.
           </p>
           {(() => {
             const quarterlyAmt = corp.totalTax / 4;
             const dates = getInstalmentDates(activeFY.startDate, activeFY.endDate);
-            if (!dates) return <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Set fiscal year start/end dates to see instalment due dates.</p>;
+            if (!dates) return <p className={styles.instalmentEmpty}>Set fiscal year start/end dates to see instalment due dates.</p>;
             return (
-              <table className={styles.slTable} style={{ maxWidth: 520 }}>
+              <table className={`${styles.slTable} ${styles.instalmentTable}`}>
                 <thead>
                   <tr>
                     <th>Quarter</th>
                     <th>Due Date</th>
-                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th className={styles.right}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -775,7 +775,7 @@ export default function TaxesPage() {
                       <td className={styles.slAmt}>{formatCurrency(quarterlyAmt)}</td>
                     </tr>
                   ))}
-                  <tr style={{ borderTop: '2px solid var(--border-color)' }}>
+                  <tr className={styles.instalmentTotalRow}>
                     <td colSpan={2}><strong>Total</strong></td>
                     <td className={styles.slAmt}><strong>{formatCurrency(corp.totalTax)}</strong></td>
                   </tr>
@@ -783,7 +783,7 @@ export default function TaxesPage() {
               </table>
             );
           })()}
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+          <p className={styles.instalmentNote}>
             ℹ️ Instalments are due on the last day of the 3rd, 6th, 9th, and 12th months of your taxation year. Interest accrues on late instalments. Always verify with CRA or a CPA.
           </p>
         </Section>
@@ -905,7 +905,7 @@ export default function TaxesPage() {
       {/* ── Sole Proprietor CPP ── */}
       {isSoleProp && soleProprietorCPP && (
         <Section title="Self-Employment CPP Contributions" badge="Schedule 8 / Line 22200">
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          <p className={styles.sectionLead}>
             As a sole proprietor, you pay <strong>both</strong> the employee and employer CPP shares on your net self-employment income.
             The employer half is deductible on line 22200, reducing your taxable income.
           </p>
@@ -925,7 +925,7 @@ export default function TaxesPage() {
               <Row label="Net CPP cost after deduction" value={formatCurrency(soleProprietorCPP.totalCPP - soleProprietorCPP.deductibleAmount)} />
             </SubSection>
           </div>
-          <div className={styles.alertBox} style={{ marginTop: '0.75rem', borderColor: 'var(--warning)', background: 'var(--warning-bg, #fffbeb)' }}>
+          <div className={styles.alertBox}>
             💡 Add {formatCurrency(soleProprietorCPP.totalCPP)} CPP to your tax set-aside.
             The employer half ({formatCurrency(soleProprietorCPP.deductibleAmount)}) reduces your T1 line 22200.
           </div>
@@ -940,7 +940,7 @@ export default function TaxesPage() {
           </div>
           <div className={styles.hstCard}>
             <span className={styles.hstLabel}>Input Tax Credits (ITCs)</span>
-            <strong className={styles.hstValue} style={{ color: 'var(--success)' }}>{formatCurrency(hst.itcTotal)}</strong>
+            <strong className={`${styles.hstValue} ${styles.hstCredit}`}>{formatCurrency(hst.itcTotal)}</strong>
             <span className={styles.hstSub}>{isQuebec ? 'GST' : 'HST'} paid on business expenses</span>
           </div>
           <div className={`${styles.hstCard} ${styles.hstCardTotal}`}>
@@ -962,7 +962,7 @@ export default function TaxesPage() {
       {/* ── QST (Quebec only) ── */}
       {isQuebec && qst && (
         <Section title="QST Summary" badge="Quebec 9.975%">
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          <p className={styles.sectionLead}>
             Quebec businesses file GST with the CRA <em>and</em> QST separately with Revenu Québec. Both are tracked independently.
           </p>
           <div className={styles.hstGrid}>
@@ -973,7 +973,7 @@ export default function TaxesPage() {
             </div>
             <div className={styles.hstCard}>
               <span className={styles.hstLabel}>QST Input Tax Refunds</span>
-              <strong className={styles.hstValue} style={{ color: 'var(--success)' }}>{formatCurrency(qst.qstITC)}</strong>
+              <strong className={`${styles.hstValue} ${styles.hstCredit}`}>{formatCurrency(qst.qstITC)}</strong>
               <span className={styles.hstSub}>QST paid on business expenses</span>
             </div>
             <div className={`${styles.hstCard} ${styles.hstCardTotal}`}>
@@ -1056,7 +1056,7 @@ export default function TaxesPage() {
                 {prevYearData.shareholderLoan !== null && <li>Shareholder Loan Opening Balance: <strong>{formatCurrency(prevYearData.shareholderLoan)}</strong></li>}
                 {prevYearData.ccaClasses?.length > 0 && <li>{prevYearData.ccaClasses.length} CCA class{prevYearData.ccaClasses.length !== 1 ? 'es' : ''} (additions/disposals will be reset to 0)</li>}
               </ul>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <div className={styles.prevYearActions}>
                 <Button onClick={applyPrevYear}>Apply to Current Year</Button>
                 <Button variant="secondary" onClick={() => setPrevYearData(null)}>Discard</Button>
               </div>
@@ -1072,7 +1072,7 @@ export default function TaxesPage() {
 
       {/* ── Shareholder Loan Modal ── */}
       <Modal isOpen={showSLModal} onClose={() => setShowSLModal(false)} title={slEditId ? 'Edit Transaction' : 'Add SHL Transaction'} size="sm">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+        <div className={styles.modalFormStack}>
           <FormField label="Date"><Input type="date" value={slForm.date} onChange={e => setSLForm(f => ({ ...f, date: e.target.value }))} /></FormField>
           <FormField label="Description"><Input type="text" placeholder="e.g. Owner withdrawal" value={slForm.description} onChange={e => setSLForm(f => ({ ...f, description: e.target.value }))} /></FormField>
           <FormField label="Amount"><Input type="number" prefix="$" step="0.01" value={slForm.amount} onChange={e => setSLForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
@@ -1083,7 +1083,7 @@ export default function TaxesPage() {
             </Select>
           </FormField>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
+        <div className={styles.modalActions}>
           <Button variant="ghost" onClick={() => setShowSLModal(false)}>Cancel</Button>
           <Button onClick={() => {
             const amt = parseFloat(slForm.amount);
@@ -1096,7 +1096,7 @@ export default function TaxesPage() {
 
       {/* ── CCA Modal ── */}
       <Modal isOpen={showCCAModal} onClose={() => setShowCCAModal(false)} title={ccaEditId ? 'Edit Asset Class' : 'Add CCA Asset Class'} size="md">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+        <div className={styles.ccaModalGrid}>
           <FormField label="CCA Class #" hint="e.g. 8, 10, 50">
             <Input type="text" placeholder="8" value={ccaForm.classNumber} onChange={e => {
               const m = CCA_COMMON_CLASSES.find(c => c.num === e.target.value);
@@ -1106,7 +1106,7 @@ export default function TaxesPage() {
           <FormField label="Rate (%)" hint="e.g. 20 for 20%">
             <Input type="number" step="0.01" value={ccaForm.rate} onChange={e => setCCAForm(f => ({ ...f, rate: e.target.value }))} />
           </FormField>
-          <div style={{ gridColumn: 'span 2' }}>
+          <div className={styles.ccaModalFullWidth}>
             <FormField label="Description">
               <Input type="text" placeholder="e.g. Office furniture, MacBook Pro" value={ccaForm.description} onChange={e => setCCAForm(f => ({ ...f, description: e.target.value }))} />
             </FormField>
@@ -1135,7 +1135,7 @@ export default function TaxesPage() {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
+        <div className={styles.modalActions}>
           <Button variant="ghost" onClick={() => setShowCCAModal(false)}>Cancel</Button>
           <Button onClick={() => {
             const rate = parseFloat(ccaForm.rate) / 100;
@@ -1316,9 +1316,9 @@ function BalanceSheetSection({ activeFY, invoices, ccaClasses, hst, corp, slClos
           <div className={styles.bsBalanced}>✅ Balance sheet balances — Assets = Liabilities + Equity ({f(totalAssets)})</div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+        <div className={styles.bsSaveRow}>
           <Button type="submit" size="sm">Save Balance Sheet</Button>
-          {saved && <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>✅ Saved!</span>}
+          {saved && <span className={styles.savedInline}>✅ Saved!</span>}
         </div>
       </form>
     </Section>

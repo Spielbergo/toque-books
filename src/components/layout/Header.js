@@ -9,6 +9,7 @@ import styles from './Header.module.css';
 
 const PAGE_TITLES = {
   '/':                 { title: 'Dashboard',          sub: 'Overview & quick stats' },
+  '/dashboard':        { title: 'Dashboard',          sub: 'Overview & quick stats' },
   '/invoices':         { title: 'Invoices',            sub: 'Create and manage client invoices' },
   '/clients':          { title: 'Clients',             sub: 'Manage client and payee records' },
   '/expenses':         { title: 'Expenses',            sub: 'Track business expenses & home office' },

@@ -199,7 +199,7 @@ export default function ProjectsPage() {
           <FormField label="Project Name" required>
             <Input value={form.name} onChange={set('name')} placeholder="e.g. Website Redesign" required />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className={styles.modalGrid2}>
             <FormField label="Client">
               <Select value={form.clientId} onChange={set('clientId')} options={clientOptions} />
             </FormField>
@@ -213,7 +213,7 @@ export default function ProjectsPage() {
           <FormField label="Description">
             <Textarea value={form.description} onChange={set('description')} placeholder="Brief description of the project…" rows={3} />
           </FormField>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div className={styles.modalActionsTop}>
             <Button type="button" variant="ghost" onClick={() => setShowProjectModal(false)}>Cancel</Button>
             <Button type="submit">{editProject ? 'Save Changes' : 'Create Project'}</Button>
           </div>
@@ -274,8 +274,8 @@ export default function ProjectsPage() {
 
       {/* ── Confirm Delete ── */}
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Delete Project?" size="sm">
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>This project and all its tasks will be permanently deleted.</p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+        <p className={styles.confirmText}>This project and all its tasks will be permanently deleted.</p>
+        <div className={styles.modalActions}>
           <Button variant="ghost" onClick={() => setConfirmDel(null)}>Cancel</Button>
           <Button variant="danger" onClick={() => handleDelete(confirmDel)}>Delete</Button>
         </div>

@@ -417,12 +417,12 @@ export default function OnboardingPage() {
               Takes about 3–5 minutes &middot; You can update everything later in Settings
             </p>
             <Button onClick={() => setStep(1)} size="lg">Get Started →</Button>
-            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', width: '100%', textAlign: 'center' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+            <div className={styles.welcomeImportSection}>
+              <p className={styles.welcomeImportText}>
                 Already have a NorthBooks backup? Restore it instead of going through setup.
               </p>
               {importError && (
-                <p style={{ color: 'var(--color-danger)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>{importError}</p>
+                <p className={styles.welcomeImportError}>{importError}</p>
               )}
               <Button variant="secondary" size="sm" onClick={() => importRef.current?.click()}>
                 Import Backup (.json)
@@ -431,7 +431,7 @@ export default function OnboardingPage() {
                 ref={importRef}
                 type="file"
                 accept=".json,application/json"
-                style={{ display: 'none' }}
+                className={styles.hiddenFileInput}
                 onChange={handleImportBackup}
               />
             </div>
@@ -697,7 +697,7 @@ export default function OnboardingPage() {
                   ref={logoInputRef}
                   type="file"
                   accept="image/*"
-                  style={{ display: 'none' }}
+                  className={styles.hiddenFileInput}
                   onChange={handleLogoUpload}
                 />
                 {wiz.logo ? (
@@ -750,7 +750,7 @@ export default function OnboardingPage() {
                     ref={badgeLogoInputRef}
                     type="file"
                     accept="image/*"
-                    style={{ display: 'none' }}
+                    className={styles.hiddenFileInput}
                     onChange={handleBadgeLogoUpload}
                   />
                   {wiz.badgeLogo ? (
@@ -803,7 +803,7 @@ export default function OnboardingPage() {
             </FormField>
 
             {hasSpouse && (
-              <div className={styles.fieldGroup} style={{ marginTop: '1.25rem' }}>
+              <div className={`${styles.fieldGroup} ${styles.fieldGroupTop}`}>
                 <div className={styles.spouseSection}>
                   <h4 className={styles.subSectionTitle}>Spouse / Partner Information</h4>
                 </div>
@@ -847,7 +847,7 @@ export default function OnboardingPage() {
             )}
 
             {!wiz.maritalStatus && (
-              <p className={styles.fieldNote} style={{ marginTop: '0.75rem' }}>
+              <p className={`${styles.fieldNote} ${styles.fieldNoteTop}`}>
                 Select a marital status above, or skip this step to fill it in later.
               </p>
             )}
@@ -865,7 +865,7 @@ export default function OnboardingPage() {
               Disability Amount transfer, and Caregiver Amount.
             </p>
 
-            <div className={styles.toggleRow} style={{ marginBottom: '1.25rem' }}>
+            <div className={`${styles.toggleRow} ${styles.toggleRowBottom}`}>
               <div>
                 <div className={styles.toggleLabel}>I have children or other dependants</div>
                 <div className={styles.toggleDesc}>Enables credit and benefit tracking</div>
@@ -1016,7 +1016,7 @@ export default function OnboardingPage() {
               ))}
             </div>
 
-            <div className={styles.fieldGroup} style={{ marginTop: '1.25rem' }}>
+            <div className={`${styles.fieldGroup} ${styles.fieldGroupTop}`}>
               <div className={styles.twoCol}>
                 <FormField label="Available RRSP Room" hint="From your last CRA Notice of Assessment">
                   <Input
@@ -1031,8 +1031,7 @@ export default function OnboardingPage() {
 
                 <FormField label="TFSA">
                   <div
-                    className={`${styles.statusCard} ${wiz.usesTFSA ? styles.statusCardSelected : ''}`}
-                    style={{ marginTop: '0.25rem', cursor: 'pointer' }}
+                    className={`${styles.statusCard} ${wiz.usesTFSA ? styles.statusCardSelected : ''} ${styles.clickableStatusCard}`}
                     onClick={() => toggle('usesTFSA')}
                   >
                     {wiz.usesTFSA ? '✓ I use a TFSA' : 'I use a TFSA'}
@@ -1152,7 +1151,7 @@ export default function OnboardingPage() {
 
               {/* How do you pay yourself */}
               <div>
-                <div className={styles.subSectionTitle} style={{ marginBottom: '0.625rem' }}>How do you pay yourself?</div>
+                <div className={`${styles.subSectionTitle} ${styles.subSectionTight}`}>How do you pay yourself?</div>
                 <div className={styles.radioGridSm}>
                   {PAYS_SELF_OPTIONS.map(opt => (
                     <button

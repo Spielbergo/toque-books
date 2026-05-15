@@ -110,7 +110,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={styles.page} style={{ display: 'flex' }}>
+    <div className={styles.page}>
 
       {/* -- LEFT PANEL -- */}
       <div className={styles.brand} aria-hidden="true" tabIndex="-1">

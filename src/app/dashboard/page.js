@@ -41,6 +41,18 @@ export default function DashboardPage() {
   // Pool ALL FY data — items may have landed in the wrong bucket on import
   const allFYData   = Object.values(state.fiscalYears || {});
   const allInvoices = allFYData.flatMap(fy => fy.invoices || []);
+  const chartTooltipStyle = {
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '8px',
+    fontSize: '0.82rem',
+    color: 'var(--text-primary)',
+  };
+
+  const chartLegendStyle = {
+    fontSize: '0.8rem',
+    paddingTop: '8px',
+  };
   const allExpenses = allFYData.flatMap(fy => fy.expenses || []);
 
   const { startDate, endDate } = activeFY || {};
@@ -80,7 +92,6 @@ export default function DashboardPage() {
     eligibleDivs:     fyPY.eligibleDivs     || 0,
     employmentIncome: fyPY.employmentIncome || 0,
     otherIncome:      fyPY.otherIncome      || 0,
-    taxWithheld:      fyPY.taxWithheld      || 0,
     cppContributions: fyPY.cppContributions || 0,
     eiPremiums:       fyPY.eiPremiums       || 0,
     spouseNetIncome:  fyPY.spouseNetIncome  ?? null,
@@ -88,7 +99,8 @@ export default function DashboardPage() {
   const totalTaxOwing = corp.totalTax + personal.totalTax;
 
   // ── Payables / outstanding ───────────────────────────────────────────────
-  const payables         = invoices.filter(inv => ['sent', 'overdue'].includes(inv.status))
+  const payables = invoices
+    .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
     .sort((a, b) => (a.dueDate || a.issueDate || '').localeCompare(b.dueDate || b.issueDate || ''));
   const totalOutstanding = payables.reduce((s, inv) => s + inv.total, 0);
   const overdueInvoices  = invoices.filter(inv => inv.status === 'overdue');
@@ -118,22 +130,45 @@ export default function DashboardPage() {
     <div className={styles.page}>
       {/* Header */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Dashboard</h1>
         <span className={styles.fyLabel}>{isAllTime ? 'All Time' : (activeFY?.label || state.activeFiscalYear)}</span>
       </div>
 
-      {/* Row 1 — Stat cards */}
       <div className={styles.statsGrid}>
-        <StatCard label="Revenue (paid)" value={formatCurrency(totalRevenue)} sub={`${invoices.filter(i => i.status === 'paid').length} paid invoices`} color="success" />
-        <StatCard label="Outstanding" value={formatCurrency(totalOutstanding)} sub={`${payables.length} invoices`} color={totalOutstanding > 0 ? 'warning' : 'default'} />
-        <StatCard label="Deductible Expenses" value={formatCurrency(totalDeductibleExp)} sub={`${expenses.length} entries`} color="info" />
-        <StatCard label="HST to Remit" value={formatCurrency(hst.netRemittance)} sub={`Collected ${formatCurrency(hst.hstCollected, { compact: true })} − ITC ${formatCurrency(hst.itcTotal, { compact: true })}`} color={hst.netRemittance > 0 ? 'warning' : 'default'} />
-        <StatCard label="Est. Tax Owing" value={formatCurrency(totalTaxOwing)} sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`} color="danger" />
+        <StatCard
+          label="Revenue (paid)"
+          value={formatCurrency(totalRevenue)}
+          sub={`${invoices.filter(i => i.status === 'paid').length} paid invoices`}
+          color="success"
+        />
+        <StatCard
+          label="Outstanding"
+          value={formatCurrency(totalOutstanding)}
+          sub={`${payables.length} invoices`}
+          color={totalOutstanding > 0 ? 'warning' : 'default'}
+        />
+        <StatCard
+          label="Deductible Expenses"
+          value={formatCurrency(totalDeductibleExp)}
+          sub={`${expenses.length} entries`}
+          color="info"
+        />
+        <StatCard
+          label="HST to Remit"
+          value={formatCurrency(hst.netRemittance)}
+          sub={`Collected ${formatCurrency(hst.hstCollected, { compact: true })} − ITC ${formatCurrency(hst.itcTotal, { compact: true })}`}
+          color={hst.netRemittance > 0 ? 'warning' : 'default'}
+        />
+        <StatCard
+          label="Est. Tax Owing"
+          value={formatCurrency(totalTaxOwing)}
+          sub={`Corp ${formatCurrency(corp.totalTax, { compact: true })} + Personal ${formatCurrency(personal.totalTax, { compact: true })}`}
+          color="danger"
+        />
       </div>
 
       {/* $30k HST threshold warning */}
       {hstAlert?.exceeded && (
-        <div className={styles.alertBanner} style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 8%, var(--bg-card))' }}>
+        <div className={`${styles.alertBanner} ${styles.alertBannerDanger}`}>
           <strong>🚨 HST Registration Required</strong> — Your trailing 12-month revenue is{' '}
           <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong>, which exceeds the $30,000 CRA small supplier threshold.
           You must register for GST/HST immediately.{' '}
@@ -141,7 +176,7 @@ export default function DashboardPage() {
         </div>
       )}
       {hstAlert?.approaching && (
-        <div className={styles.alertBanner} style={{ borderColor: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 8%, var(--bg-card))' }}>
+        <div className={`${styles.alertBanner} ${styles.alertBannerWarning}`}>
           <strong>⚠️ Approaching HST Threshold</strong> — Your trailing 12-month revenue is{' '}
           <strong>{formatCurrency(hstAlert.rolling12Revenue)}</strong> (limit: $30,000).
           Once you cross $30,000 you must register for GST/HST within 29 days.{' '}
@@ -311,15 +346,11 @@ export default function DashboardPage() {
               <div className={`${styles.invoiceList} ${styles.invoiceListSm}`}>
                 {recentInvoices.map(inv => (
                   <Link key={inv.id} href={`/invoices?edit=${inv.id}`} className={styles.invoiceRow} title="Click to edit">
-                    <div className={styles.invLeft}>
-                      <span className={styles.invNum}>{inv.invoiceNumber}</span>
-                      <span className={styles.invClient}>{inv.client?.name || 'Unknown client'}</span>
-                      <span className={styles.invDate}>{formatDate(inv.issueDate)}</span>
-                    </div>
-                    <div className={styles.invRight}>
-                      <span className={styles.invAmount}>{formatCurrency(inv.total)}</span>
-                      <Badge color={getStatusColor(inv.status)}>{inv.status}</Badge>
-                    </div>
+                    <span className={styles.invNum}>{inv.invoiceNumber}</span>
+                    <span className={styles.invClient}>{inv.client?.name || 'Unknown client'}</span>
+                    <span className={styles.invDate}>{formatDate(inv.issueDate)}</span>
+                    <span className={styles.invAmount}>{formatCurrency(inv.total)}</span>
+                    <span className={styles.invStatus}><Badge color={getStatusColor(inv.status)}>{inv.status}</Badge></span>
                   </Link>
                 ))}
               </div>
@@ -352,13 +383,7 @@ export default function DashboardPage() {
                   width={48}
                 />
                 <Tooltip
-                  contentStyle={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    fontSize: '0.82rem',
-                    color: 'var(--text-primary)',
-                  }}
+                  contentStyle={chartTooltipStyle}
                   formatter={(value, name) => [
                     formatCurrency(value),
                     name === 'revenue' ? 'Revenue' : name === 'expenses' ? 'Expenses' : 'Net Income',
@@ -367,7 +392,7 @@ export default function DashboardPage() {
                 />
                 <Legend
                   formatter={v => v === 'revenue' ? 'Revenue' : v === 'expenses' ? 'Expenses' : 'Net Income'}
-                  wrapperStyle={{ fontSize: '0.8rem', paddingTop: '8px' }}
+                  wrapperStyle={chartLegendStyle}
                 />
                 <Bar dataKey="revenue"  fill="#22c55e" opacity={0.85} radius={[3,3,0,0]} maxBarSize={40} />
                 <Bar dataKey="expenses" fill="#ef4444" opacity={0.75} radius={[3,3,0,0]} maxBarSize={40} />

@@ -233,12 +233,12 @@ export default function MileagePage() {
           <FormField label="End Odometer">
             <Input type="number" value={form.endOdo} onChange={e => handleOdoChange('endOdo', e.target.value)} placeholder="km" />
           </FormField>
-          <div style={{ gridColumn: 'span 2' }}>
+          <div className={styles.modalColSpan2}>
             <FormField label="Purpose">
               <Input type="text" value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} placeholder="e.g. Client meeting, supply run" />
             </FormField>
           </div>
-          <div style={{ gridColumn: 'span 2' }}>
+          <div className={styles.modalColSpan2}>
             <FormField label="Client (optional)">
               <Input type="text" value={form.client} onChange={e => setForm(f => ({ ...f, client: e.target.value }))} placeholder="Client name" list="mileage-clients" />
               <datalist id="mileage-clients">
@@ -246,7 +246,7 @@ export default function MileagePage() {
               </datalist>
             </FormField>
           </div>
-          <div style={{ gridColumn: 'span 2' }}>
+          <div className={styles.modalColSpan2}>
             <FormField label="Notes">
               <Textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </FormField>

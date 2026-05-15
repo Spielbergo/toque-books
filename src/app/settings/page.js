@@ -473,7 +473,7 @@ export default function SettingsPage() {
                   <p className={styles.toggleHint}>Remit a flat rate on gross sales instead of tracking every ITC. Only available to businesses with annual revenue under $400,000. See the HST Tracker for a comparison.</p>
                 </div>
                 {form.hstQuickMethod && (
-                  <div className={styles.formGrid} style={{ marginTop: '0.5rem' }}>
+                  <div className={`${styles.formGrid} ${styles.formGridTightTop}`}>
                     <FormField label="Quick Method Business Type" hint="Determines your remittance rate — verify with CRA RC4058">
                       <Select value={form.hstQuickMethodType || 'services'} onChange={e => setForm(f => ({ ...f, hstQuickMethodType: e.target.value }))}>
                         <option value="services">Services (most consulting, professional services)</option>
@@ -625,10 +625,10 @@ export default function SettingsPage() {
                 Your financial data (invoices, expenses, dividends) is saved as <strong>unencrypted JSON in your browser&rsquo;s localStorage</strong>.
                 It never leaves your device except when you explicitly use <em>Save to Cloud</em>, which stores it in your private Supabase account.
               </p>
-              <p style={{ marginTop: '0.4rem' }}>
+              <p className={styles.textMarginTopSm}>
                 Your personal profile (legal name, date of birth, SIN) is stored in <strong>Supabase under your account</strong> — encrypted in transit, access-controlled to your login only.
               </p>
-              <p style={{ marginTop: '0.4rem' }}>
+              <p className={styles.textMarginTopSm}>
                 <strong>Recommendation:</strong> Lock your screen when stepping away from this device. Anyone with OS-level access to your browser profile can read the data in localStorage through the browser&rsquo;s developer tools.
               </p>
             </div>
@@ -671,7 +671,7 @@ export default function SettingsPage() {
                 <p className={cloudStatus === 'error' ? styles.importError : styles.importSuccess}>{cloudMsg}</p>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className={styles.cloudActions}>
               <Button
                 variant="secondary"
                 onClick={handleCloudSave}
@@ -796,7 +796,7 @@ export default function SettingsPage() {
       {tab === 5 && (
         <div className={styles.section}>
           <h3>Accountant Access</h3>
-          <p className={styles.sectionDesc}>Grant your accountant read-only access to this company’s financial data. When they sign in with their email they can view it at <Link href="/accountant" style={{color:'var(--accent)'}}>the Accountant View page</Link>.</p>
+          <p className={styles.sectionDesc}>Grant your accountant read-only access to this company’s financial data. When they sign in with their email they can view it at <Link href="/accountant" className={styles.accentLink}>the Accountant View page</Link>.</p>
           <p className={styles.sectionDesc}>Share this link with your accountant so they can sign in to the portal:</p>
           <div className={styles.inviteLink}>
             <code className={styles.inviteLinkUrl}>{portalUrl}</code>
@@ -964,9 +964,9 @@ export default function SettingsPage() {
                 />
               )}
 
-              <p className={styles.accessNote} style={{ marginTop: '2rem' }}>
+              <p className={`${styles.accessNote} ${styles.accessNoteTop}`}>
                 Payments processed by{' '}
-                <a href="https://www.helcim.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+                <a href="https://www.helcim.com" target="_blank" rel="noreferrer" className={styles.accentLink}>
                   Helcim Inc.
                 </a>{' '}
                 — a Canadian payment company. PCI compliant.
@@ -992,7 +992,7 @@ export default function SettingsPage() {
               <Input type="number" min="2000" max="2099" value={fyForm.startYear} onChange={e => setFYForm(f => ({ ...f, startYear: e.target.value, endYear: parseInt(e.target.value) + 1 }))} required />
             </FormField>
             <FormField label="End Year">
-              <Input type="number" min="2001" max="2100" value={fyForm.endYear} readOnly style={{ opacity: 0.7 }} />
+              <Input type="number" min="2001" max="2100" value={fyForm.endYear} readOnly className={styles.readOnlyInput} />
             </FormField>
           </div>
         </form>

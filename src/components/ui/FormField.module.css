@@ -1,12 +1,12 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1);
 }
 
 .label {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-secondary);
 }
 
@@ -22,8 +22,8 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
   transition: border-color var(--transition), box-shadow var(--transition);
   outline: none;
 }
@@ -96,7 +96,7 @@
 .adornment {
   padding: 0 0.75rem;
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   white-space: nowrap;
   border-right: 1px solid var(--border-color);
   height: 100%;
@@ -110,11 +110,11 @@
 }
 
 .hint {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 .error {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--danger-text);
 }

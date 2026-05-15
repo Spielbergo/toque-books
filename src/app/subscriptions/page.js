@@ -577,7 +577,7 @@ export default function SubscriptionsPage() {
         title={editId ? 'Edit Subscription' : 'Add Subscription'}
         size="md"
         footer={
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+          <div className={styles.modalActions}>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editId ? 'Save Changes' : 'Add Subscription'}</Button>
           </div>
@@ -672,13 +672,13 @@ export default function SubscriptionsPage() {
         title="Remove Subscription"
         size="sm"
         footer={
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+          <div className={styles.modalActions}>
             <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
             <Button variant="danger" onClick={() => doDelete(deleteConfirm)}>Remove</Button>
           </div>
         }
       >
-        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+        <p className={styles.confirmNote}>
           Are you sure you want to remove this subscription? This cannot be undone.
         </p>
       </Modal>

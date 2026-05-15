@@ -880,7 +880,7 @@ export default function PersonalPage() {
               <strong>{dividendsPaid.length}</strong>
             </div>
             {totalDivPaid > 0 && (
-              <div className={styles.divSummaryItem} style={{ marginLeft: 'auto' }}>
+              <div className={`${styles.divSummaryItem} ${styles.divSummaryItemPush}`}>
                 <Button size="sm" variant="secondary" onClick={async () => {
                   try {
                   const { pdf } = await import('@react-pdf/renderer');
@@ -1017,18 +1017,18 @@ export default function PersonalPage() {
               {extraCredits > 0 && (
                 <div className={styles.taxTotalRow}>
                   <span>Medical + donation credits (tabs 4 & 5)</span>
-                  <strong style={{ color: 'var(--success)' }}>− {formatCurrency(extraCredits)}</strong>
+                  <strong className={styles.valueSuccess}>− {formatCurrency(extraCredits)}</strong>
                 </div>
               )}
               {taxResult.taxWithheld > 0 && (
                 <div className={styles.taxTotalRow}>
                   <span>Income tax withheld at source (T4 Box 22)</span>
-                  <strong style={{ color: 'var(--success)' }}>− {formatCurrency(taxResult.taxWithheld)}</strong>
+                  <strong className={styles.valueSuccess}>− {formatCurrency(taxResult.taxWithheld)}</strong>
                 </div>
               )}
               <div className={`${styles.taxTotalRow} ${styles.taxTotalBalance}`}>
                 <span>{adjustedBalance >= 0 ? 'Balance owing (est.)' : 'Estimated refund'}</span>
-                <strong style={{ color: adjustedBalance < 0 ? 'var(--success)' : 'var(--danger)' }}>
+                <strong className={adjustedBalance < 0 ? styles.valueSuccess : styles.valueDanger}>
                   {adjustedBalance < 0 ? formatCurrency(-adjustedBalance) : formatCurrency(adjustedBalance)}
                 </strong>
               </div>
@@ -1283,11 +1283,11 @@ export default function PersonalPage() {
                 <div className={styles.spouseEstGrid}>
                   <div className={styles.spouseEstRow}><span>Net income (line 23600)</span><strong>{formatCurrency(spTax.netIncome)}</strong></div>
                   <div className={styles.spouseEstRow}><span>Total tax (before personal credits)</span><strong>{formatCurrency(spTax.totalTax)}</strong></div>
-                  {spExtra > 0 && <div className={styles.spouseEstRow}><span>Medical + donation credits</span><strong style={{ color: 'var(--success)' }}>− {formatCurrency(spExtra)}</strong></div>}
-                  {activePY.spouseTaxWithheld > 0 && <div className={styles.spouseEstRow}><span>Tax withheld at source</span><strong style={{ color: 'var(--success)' }}>− {formatCurrency(activePY.spouseTaxWithheld)}</strong></div>}
+                  {spExtra > 0 && <div className={styles.spouseEstRow}><span>Medical + donation credits</span><strong className={styles.valueSuccess}>− {formatCurrency(spExtra)}</strong></div>}
+                  {activePY.spouseTaxWithheld > 0 && <div className={styles.spouseEstRow}><span>Tax withheld at source</span><strong className={styles.valueSuccess}>− {formatCurrency(activePY.spouseTaxWithheld)}</strong></div>}
                   <div className={`${styles.spouseEstRow} ${styles.spouseEstBalance}`}>
                     <span>{spBalance >= 0 ? 'Balance owing (est.)' : 'Estimated refund'}</span>
-                    <strong style={{ color: spBalance < 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    <strong className={spBalance < 0 ? styles.valueSuccess : styles.valueDanger}>
                       {spBalance < 0 ? formatCurrency(-spBalance) : formatCurrency(spBalance)}
                     </strong>
                   </div>

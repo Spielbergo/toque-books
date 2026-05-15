@@ -503,11 +503,11 @@ export default function ExpensesPage() {
                 {flaggedTotal > 0 && (
                   <div className={styles.sredRow}>
                     <span>Estimated federal investment tax credit (~15%)</span>
-                    <strong style={{ color: 'var(--success)' }}>{formatCurrency(fedCredit)}</strong>
+                    <strong className={styles.sredCreditValue}>{formatCurrency(fedCredit)}</strong>
                   </div>
                 )}
                 {potentialTotal > 0 && (
-                  <div className={styles.sredRow} style={{ opacity: 0.75 }}>
+                  <div className={`${styles.sredRow} ${styles.sredRowMuted}`}>
                     <span>Potentially qualifying expenses not yet flagged (software, equipment, wages, legal, training)</span>
                     <strong>{formatCurrency(potentialTotal)}</strong>
                   </div>
@@ -913,11 +913,11 @@ export default function ExpensesPage() {
             <FormField label="Amount (before HST)" required>
               <Input type="number" min="0" step="0.01" prefix="$" value={form.amount} onChange={e => handleAmountChange(e.target.value)} required />
             </FormField>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', padding: '0 0 0.5rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.25rem' }}>Currency</label>
+            <div className={styles.currencyRow}>
+              <label className={styles.currencyLabel}>Currency</label>
               <Select
                 value={form.currency || 'CAD'}
-                style={{ width: '6rem' }}
+                className={styles.currencySelect}
                 onChange={async e => {
                   const cur = e.target.value;
                   setForm(f => ({ ...f, currency: cur, exchangeRateToCAD: cur === 'CAD' ? 1 : f.exchangeRateToCAD }));
@@ -936,15 +936,15 @@ export default function ExpensesPage() {
               </Select>
               {(form.currency && form.currency !== 'CAD') && (
                 <>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1 {form.currency} =</span>
+                  <span className={styles.currencyRateText}>1 {form.currency} =</span>
                   <Input
                     type="number" min="0" step="any"
                     value={form.exchangeRateToCAD || ''}
                     onChange={e => setForm(f => ({ ...f, exchangeRateToCAD: parseFloat(e.target.value) || 1 }))}
                     placeholder={rateLoading ? 'Fetching…' : 'Rate'}
-                    style={{ width: '6rem' }}
+                    className={styles.currencyRateInput}
                   />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>CAD</span>
+                  <span className={styles.currencyRateText}>CAD</span>
                 </>
               )}
             </div>
@@ -1003,14 +1003,14 @@ export default function ExpensesPage() {
                 />
                 <span>Flag as SR&amp;ED eligible</span>
               </label>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 1.5rem' }}>
+              <p className={styles.sredFieldNote}>
                 Scientific Research &amp; Experimental Development. Flag expenses that relate to R&amp;D activities for credit tracking.
               </p>
             </div>
 
             {/* Receipt attachment */}
             <div className={styles.colSpan2}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Receipt Image</div>
+              <div className={styles.receiptHeading}>Receipt Image</div>
               {form.receiptDataUrl ? (
                 <div className={styles.receiptPreviewWrap}>
                   <img src={form.receiptDataUrl} alt="Receipt" className={styles.receiptPreview} />
@@ -1031,7 +1031,7 @@ export default function ExpensesPage() {
                 ref={receiptInputRef}
                 type="file"
                 accept="image/*"
-                style={{ display: 'none' }}
+                className={styles.hiddenFileInput}
                 onChange={handleReceiptFile}
               />
             </div>

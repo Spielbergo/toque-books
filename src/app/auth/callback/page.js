@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import CanBooksLogo from '@/components/CanBooksLogo';
+import styles from './page.module.css';
 
 /**
  * Auth callback handler — handles both:
@@ -52,9 +53,9 @@ export default function AuthCallbackPage() {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: '1rem' }}>
+    <div className={styles.centeredPage}>
       <CanBooksLogo size={48} />
-      <p style={{ color: 'var(--text-secondary)' }}>Signing you in…</p>
+      <p className={styles.signingText}>Signing you in…</p>
     </div>
   );
 }

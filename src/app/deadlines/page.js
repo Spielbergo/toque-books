@@ -244,7 +244,7 @@ export default function DeadlinesPage() {
       <div className={styles.legend}>
         {Object.entries(CATEGORY_LABELS).map(([key, { label, color }]) => (
           <span key={key} className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: color }} />
+            <span className={`${styles.legendDot} ${styles[`legendDot_${key}`]}`} />
             {label}
           </span>
         ))}
@@ -269,7 +269,7 @@ export default function DeadlinesPage() {
       {/* Past deadlines */}
       {past.length > 0 && (
         <div className={styles.section}>
-          <button className={styles.sectionHead} onClick={() => setPastOpen(o => !o)} style={{ cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+          <button className={`${styles.sectionHead} ${styles.sectionHeadButton}`} onClick={() => setPastOpen(o => !o)}>
             <h2 className={styles.sectionTitle}>Past Deadlines</h2>
             <span className={styles.badge}>{past.length}</span>
             <span className={styles.chevron}>{pastOpen ? '▲' : '▼'}</span>
@@ -308,7 +308,7 @@ function DeadlineRow({ deadline, today }) {
             {deadline.link ? (
               <Link href={deadline.link} className={styles.rowLink}>{deadline.title}</Link>
             ) : deadline.title}
-            <span className={styles.catBadge} style={{ background: cat.color }}>{cat.label}</span>
+            <span className={`${styles.catBadge} ${styles[`catBadge_${deadline.category}`] || styles.catBadgeDefault}`}>{cat.label}</span>
           </div>
           <p className={styles.rowDesc}>{deadline.desc}</p>
         </div>
@@ -321,7 +321,7 @@ function DeadlineRow({ deadline, today }) {
           </span>
         )}
         {status === 'past' && (
-          <span className={styles.rowDays} style={{ color: 'var(--text-muted)' }}>Passed</span>
+          <span className={`${styles.rowDays} ${styles.rowDaysPast}`}>Passed</span>
         )}
       </div>
     </div>

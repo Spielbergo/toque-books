@@ -262,7 +262,7 @@ export default function ProposalsPage() {
       {/* ── Create / Edit Modal ── */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editProposal ? `Edit Proposal #${form.number}` : 'New Proposal'} size="lg">
         <form onSubmit={handleSave}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className={styles.modalGrid2}>
             <FormField label="Proposal #">
               <Input value={form.number} onChange={set('number')} required />
             </FormField>
@@ -273,7 +273,7 @@ export default function ProposalsPage() {
           <FormField label="Title">
             <Input value={form.title} onChange={set('title')} placeholder="e.g. Website Redesign Proposal" required />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className={styles.modalGrid2}>
             <FormField label="Status">
               <Select value={form.status} onChange={set('status')} options={STATUS_OPTIONS} />
             </FormField>
@@ -328,7 +328,7 @@ export default function ProposalsPage() {
             <Textarea value={form.notes} onChange={set('notes')} placeholder="Payment terms, conditions, or notes…" rows={3} />
           </FormField>
 
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div className={styles.modalActionsTop}>
             <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button type="submit">{editProposal ? 'Save Changes' : 'Create Proposal'}</Button>
           </div>
@@ -337,8 +337,8 @@ export default function ProposalsPage() {
 
       {/* ── Confirm Delete ── */}
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Delete Proposal?" size="sm">
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>This proposal will be permanently deleted.</p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+        <p className={styles.confirmText}>This proposal will be permanently deleted.</p>
+        <div className={styles.modalActions}>
           <Button variant="ghost" onClick={() => setConfirmDel(null)}>Cancel</Button>
           <Button variant="danger" onClick={() => handleDelete(confirmDel)}>Delete</Button>
         </div>

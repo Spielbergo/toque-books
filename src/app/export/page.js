@@ -628,7 +628,7 @@ export default function ExportPage() {
               </div>
             ))}
           </div>
-          <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
+          <p className={`${styles.corpInfoNote} ${styles.corpInfoNoteTop}`}>
             Rates: federal SBD 9% + Ontario SBD 3.2% = 12.2% on first $500K. General rate 26.5%. Ontario CCPC assumed. Verify with your accountant.
           </p>
         </>)}
@@ -903,7 +903,7 @@ export default function ExportPage() {
               ))}
             </div>
           </>)}
-          <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
+          <p className={`${styles.corpInfoNote} ${styles.corpInfoNoteTop}`}>
             Note: {t1SpouseName}&apos;s CPP/EI and other credits are not tracked here. Enter them directly in their T1 software. Spousal amount credit on your return (line 30300) is based on their net income.
           </p>
         </>)}
@@ -916,8 +916,8 @@ export default function ExportPage() {
               const depAge = dep.birthYear ? new Date().getFullYear() - parseInt(dep.birthYear) : null;
               const REL = { child: 'Child', parent: 'Parent', grandparent: 'Grandparent', sibling: 'Sibling', other: 'Dependant' };
               return (
-                <div key={dep.id ?? i} className={styles.corpInfoRow} style={{ alignItems: 'flex-start', flexDirection: 'column', gap: '0.25rem' }}>
-                  <span className={styles.corpInfoLabel} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div key={dep.id ?? i} className={`${styles.corpInfoRow} ${styles.depInfoRow}`}>
+                  <span className={`${styles.corpInfoLabel} ${styles.depPrimaryLabel}`}>
                     {dep.name || REL[dep.relationship] || 'Dependant'}
                   </span>
                   <span className={styles.corpInfoLabel}>
@@ -929,7 +929,7 @@ export default function ExportPage() {
               );
             })}
           </div>
-          <p className={styles.corpInfoNote} style={{ marginTop: '0.75rem' }}>
+          <p className={`${styles.corpInfoNote} ${styles.corpInfoNoteTop}`}>
             Dependant credits (caregiver, Canada Caregiver) for lines 30400, 30425, 30450 are not estimated here. Enter them manually in your T1 software.
           </p>
         </>)}

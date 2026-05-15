@@ -282,7 +282,7 @@ export default function TimeTrackingPage() {
           <FormField label="Description">
             <Input value={form.description} onChange={set('description')} placeholder="What did you work on?" />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className={styles.modalGrid2}>
             <FormField label="Date">
               <Input type="date" value={form.date} onChange={set('date')} required />
             </FormField>
@@ -293,7 +293,7 @@ export default function TimeTrackingPage() {
           <FormField label="Project">
             <Select value={form.projectId} onChange={set('projectId')} options={projectOptions} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div className={styles.modalGrid3}>
             <FormField label="Start Time">
               <Input type="time" value={form.startTime} onChange={set('startTime')} />
             </FormField>
@@ -304,7 +304,7 @@ export default function TimeTrackingPage() {
               <Input type="number" min="1" value={form.durationMinutes} onChange={set('durationMinutes')} placeholder="60" required />
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className={styles.modalGrid2}>
             <FormField label="Hourly Rate ($)">
               <Input type="number" min="0" step="0.01" value={form.rate} onChange={set('rate')} placeholder="0.00" />
             </FormField>
@@ -315,7 +315,7 @@ export default function TimeTrackingPage() {
               </label>
             </FormField>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div className={styles.modalActionsTop}>
             <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button type="submit" variant="primary">{editEntry ? 'Save Changes' : 'Add Entry'}</Button>
           </div>
@@ -324,8 +324,8 @@ export default function TimeTrackingPage() {
 
       {/* ── Confirm Delete ── */}
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Delete Entry?" size="sm">
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>This time entry will be permanently deleted.</p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+        <p className={styles.confirmText}>This time entry will be permanently deleted.</p>
+        <div className={styles.modalActions}>
           <Button variant="ghost" onClick={() => setConfirmDel(null)}>Cancel</Button>
           <Button variant="danger" onClick={() => handleDelete(confirmDel)}>Delete</Button>
         </div>

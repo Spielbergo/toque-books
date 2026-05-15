@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-5);
 }
 
 /* Upload panel */
@@ -9,7 +9,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
+  padding: var(--space-5);
 }
 
 /* Results panel */
@@ -24,13 +24,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.875rem 1.25rem;
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border-color);
 }
 
 .resultsPanelHeader h3 {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   margin: 0;
 }
 
@@ -38,9 +38,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.25rem;
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border-color);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .resultCard:last-child { border-bottom: none; }
@@ -50,15 +50,15 @@
 .resultInfo {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
   flex: 1;
   min-width: 0;
 }
 
 .resultFilename {
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -66,39 +66,39 @@
 }
 
 .resultBank, .resultPeriod {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
-  padding: 0.15rem 0.5rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
 }
 
 .resultTxCount {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--success-text, var(--success));
 }
 
 .resultTxNone {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-style: italic;
 }
 
 .resultActions {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-1);
   align-items: center;
   flex-shrink: 0;
 }
 
 .aiBadge {
   display: inline-block;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 0.15rem 0.45rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background: rgba(139, 92, 246, 0.12);
   color: #7c3aed;
@@ -108,10 +108,10 @@
 .aiBtn {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.75rem;
-  font-weight: 600;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   border: 1px solid rgba(139, 92, 246, 0.35);
   border-radius: var(--radius-sm);
   background: rgba(139, 92, 246, 0.07);
@@ -131,7 +131,7 @@
 }
 
 .resultError {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--danger-text, var(--danger));
   margin: 0;
 }
@@ -140,37 +140,37 @@
 .summaryBar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
+  gap: var(--space-3);
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem;
+  padding: var(--space-4) var(--space-5);
 }
 
 .summaryItem {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-1);
 }
 
 .summaryLabel {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .summaryValue {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
 }
 
 .summaryHint {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
-  margin-top: 0.1rem;
+  margin-top: var(--space-1);
 }
 
 .summaryCredit { color: var(--success); }
@@ -193,15 +193,15 @@
 .tableToolbar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-color);
 }
 
 .tableSearch {
   flex: 1;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -211,7 +211,7 @@
 .tableSearch:focus { border-color: var(--primary); }
 
 .tableCount {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
@@ -221,28 +221,28 @@
 .bulkBar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.55rem 1rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   background: var(--primary-light, var(--bg-hover));
   border-bottom: 1px solid var(--border-color);
   flex-wrap: wrap;
 }
 
 .bulkCount {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-secondary);
-  margin-right: 0.25rem;
+  margin-right: var(--space-1);
 }
 
 .bulkClear {
   margin-left: auto;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.2rem 0.4rem;
+  padding: var(--space-1) var(--space-2);
 }
 .bulkClear:hover { color: var(--text-primary); }
 
@@ -265,8 +265,8 @@
 .noResults {
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.875rem;
-  padding: 2.5rem 1rem !important;
+  font-size: var(--text-sm);
+  padding: var(--space-10) var(--space-4) !important;
 }
 
 /* Selected row highlight */
@@ -277,7 +277,7 @@
 .stmtTbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .stmtTbl thead tr {
@@ -286,10 +286,10 @@
 }
 
 .stmtTbl th {
-  padding: 0.65rem 1rem;
+  padding: var(--space-2) var(--space-4);
   text-align: left;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -297,7 +297,7 @@
 }
 
 .stmtTbl td {
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
 }
@@ -308,23 +308,23 @@
 .stmtPeriodCell {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2);
 }
 
 .stmtPeriodText {
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .stmtBankPill {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 0.1rem 0.45rem;
+  padding: var(--space-1);
   flex-shrink: 0;
 }
 
@@ -333,12 +333,12 @@
   align-items: center;
   justify-content: center;
   min-width: 2rem;
-  padding: 0.2rem 0.6rem;
+  padding: var(--space-1) var(--space-2);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -352,7 +352,7 @@
 
 .stmtRowActions {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-1);
   justify-content: flex-end;
   white-space: nowrap;
 }
@@ -361,12 +361,12 @@
 
 .netPositive {
   color: var(--success);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .netNegative {
   color: var(--danger-text, var(--danger));
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 /* Transaction modal */
@@ -377,26 +377,26 @@
 
 .txEmpty {
   text-align: center;
-  padding: 2rem;
+  padding: var(--space-8);
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
 }
 
 .rawSummary {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  margin-top: 1rem;
+  margin-top: var(--space-4);
 }
 
 .rawPre {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   white-space: pre-wrap;
   overflow-wrap: break-word;
   font-family: monospace;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   background: var(--bg-input);
-  padding: 0.75rem;
+  padding: var(--space-3);
   border-radius: var(--radius-sm);
   max-height: 200px;
   overflow-y: auto;
@@ -409,7 +409,7 @@
 .txTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .txTable thead tr {
@@ -417,10 +417,10 @@
 }
 
 .txTable th {
-  padding: 0.6rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -428,7 +428,7 @@
 }
 
 .txTable td {
-  padding: 0.6rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
 }
@@ -439,7 +439,7 @@
 .txDate {
   white-space: nowrap;
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .txDesc {
@@ -451,15 +451,15 @@
 
 .right { text-align: right !important; }
 
-.txCredit { color: var(--success); font-weight: 600; }
-.txDebit  { color: var(--danger-text, var(--danger)); font-weight: 600; }
+.txCredit { color: var(--success); font-weight: var(--weight-semibold); }
+.txDebit  { color: var(--danger-text, var(--danger)); font-weight: var(--weight-semibold); }
 
 /* Add expense confirm */
 .addExpBody {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  font-size: 0.9rem;
+  gap: var(--space-3);
+  font-size: var(--text-base);
 }
 
 .addExpDetail {
@@ -469,12 +469,12 @@
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0.75rem 1rem;
-  font-weight: 500;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-medium);
 }
 
 .addExpHint {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
 }
@@ -483,9 +483,9 @@
 .txModalSummary {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 2rem;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
+  gap: var(--space-4) var(--space-8);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
   background: var(--bg-hover);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -494,20 +494,20 @@
 .txModalStat {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-1);
 }
 
 .txModalStatLabel {
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .txModalStatValue {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
 }
 
@@ -518,7 +518,7 @@
 /* Transaction actions cell */
 .txActions {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   justify-content: flex-end;
   white-space: nowrap;
 }
@@ -526,13 +526,13 @@
 /* Inline edit row */
 .txRowEditing td {
   background: var(--accent-light, rgba(37,99,235,0.05)) !important;
-  padding: 0.4rem 0.5rem !important;
+  padding: var(--space-2) var(--space-2) !important;
 }
 
 .txEditInput {
   width: 90px;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -555,8 +555,8 @@
 }
 
 .txEditSelect {
-  padding: 0.3rem 0.4rem;
-  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -571,7 +571,7 @@
 
 .txEditActions {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   justify-content: flex-end;
   white-space: nowrap;
 }

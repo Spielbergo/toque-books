@@ -1,48 +1,49 @@
-.page { display: flex; flex-direction: column; gap: 1.25rem; }
-.empty { padding: 3rem; text-align: center; color: var(--text-muted); }
+.page { display: flex; flex-direction: column; gap: var(--space-5); }
+.empty { padding: var(--space-12); text-align: center; color: var(--text-muted); }
 
 .summaryBar {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  background: var(--bg-surface);
+  gap: var(--space-3);
+  background: var(--bg-card, var(--bg-surface));
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: var(--space-4);
 }
-.summaryItem { display: flex; flex-direction: column; gap: 0.2rem; }
-.summaryLabel { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
-.summaryValue { font-size: 1.2rem; font-weight: 700; }
-.summarySub { font-size: 0.72rem; color: var(--text-muted); }
+.summaryItem { display: flex; flex-direction: column; gap: var(--space-1); }
+.summaryLabel { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: var(--weight-medium); }
+.summaryValue { font-size: var(--text-xl); font-weight: var(--weight-bold); }
+.summarySub { font-size: var(--text-xs); color: var(--text-muted); }
 
-.toolbar { display: flex; gap: 0.5rem; align-items: center; }
-.search { flex: 1; padding: 0.45rem 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); font-size: 0.875rem; }
-.toolbarActions { display: flex; gap: 0.5rem; margin-left: auto; }
+.toolbar { display: flex; gap: var(--space-2); align-items: center; }
+.search { flex: 1; padding: var(--space-1) var(--space-3); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); font-size: var(--text-sm); }
+.toolbarActions { display: flex; gap: var(--space-2); margin-left: auto; }
 
-.tableWrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-lg); }
-.table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.table th, .table td { padding: 0.6rem 0.875rem; border-bottom: 1px solid var(--border-color); text-align: left; }
-.table th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; background: var(--bg-surface); }
+.tableWrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--bg-card, var(--bg-surface)); box-shadow: var(--shadow-card, var(--shadow-sm)); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.table th, .table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-color); text-align: left; }
+.table th { color: var(--text-muted); font-weight: var(--weight-semibold); font-size: var(--text-xs); text-transform: uppercase; background: var(--bg-card, var(--bg-surface)); }
 .table tr:last-child td { border-bottom: none; }
 .right { text-align: right !important; }
 .actions { text-align: right; white-space: nowrap; }
-.editBtn { background: none; border: none; cursor: pointer; font-size: 0.8rem; color: var(--accent); padding: 0.2rem 0.4rem; }
-.delBtn  { background: none; border: none; cursor: pointer; font-size: 0.8rem; color: var(--danger); padding: 0.2rem 0.4rem; }
-.row:hover { background: var(--bg-surface); }
-.footerRow td { background: var(--bg-surface); border-top: 2px solid var(--border-color); }
+.editBtn { background: none; border: none; cursor: pointer; font-size: var(--text-sm); color: var(--accent); padding: var(--space-1) var(--space-2); }
+.delBtn  { background: none; border: none; cursor: pointer; font-size: var(--text-sm); color: var(--danger); padding: var(--space-1) var(--space-2); }
+.row:hover { background: var(--bg-hover); }
+.footerRow td { background: var(--bg-card, var(--bg-surface)); border-top: 2px solid var(--border-color); }
 
-.disclaimer { font-size: 0.8rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md); padding: 0.75rem 1rem; border: 1px solid var(--border-color); }
+.disclaimer { font-size: var(--text-sm); color: var(--text-muted); background: var(--bg-card, var(--bg-surface)); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-color); }
 
-.modalGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem; }
+.modalGrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.modalColSpan2 { grid-column: span 2; }
 @media (max-width: 600px) { .modalGrid { grid-template-columns: 1fr; } }
-.modalActions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
+.modalActions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-5); }
 
 /* Pro gate overlay */
 .proGate {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5rem 1.5rem;
+  padding: var(--space-20) var(--space-6);
 }
 .proGateInner {
   max-width: 420px;
@@ -50,30 +51,30 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
-.proGateIcon { font-size: 3rem; line-height: 1; }
+.proGateIcon { font-size: var(--text-4xl); line-height: 1; }
 .proGateTitle {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
   letter-spacing: -0.02em;
   margin: 0;
 }
 .proGateDesc {
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: var(--leading-relaxed);
   margin: 0;
 }
 .proGateBtn {
   display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.75rem 1.75rem;
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-7);
   background: var(--accent, #4f8ef7);
   color: #fff;
-  border-radius: 8px;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   text-decoration: none;
   transition: opacity 0.15s;
 }
