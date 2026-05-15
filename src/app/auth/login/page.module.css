@@ -10,7 +10,7 @@
   min-height: 100vh;
   height: 100vh;
   font-family: var(--font-jakarta, 'Plus Jakarta Sans', system-ui, sans-serif);
-  background: var(--bg-app);
+  background: #ffffff;
   overflow: hidden;
 }
 
@@ -136,14 +136,14 @@
   justify-content: center;
   min-height: 100vh;
   padding: var(--space-10) var(--space-6);
-  background: var(--bg-app);
+  background: #ffffff;
   overflow-y: auto;
 }
 
 .formCard {
   width: 100%;
   max-width: 420px;
-  background: var(--bg-card);
+  background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--space-8);
@@ -192,6 +192,27 @@
   background: #fff;
   color: #0d1f3c;
   box-shadow: var(--shadow-sm);
+}
+
+.debugPanel {
+  border: 1px dashed #94a3b8;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-xs);
+  color: #334155;
+}
+
+.debugTitle {
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+  color: #0f172a;
+}
+
+.debugRow {
+  margin: 0 0 var(--space-1);
+  word-break: break-word;
 }
 
 /* Alerts */

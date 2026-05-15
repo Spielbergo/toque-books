@@ -6,6 +6,16 @@ import CanBooksLogo from '@/components/CanBooksLogo';
 import styles from '../../auth/login/page.module.css';
 import portalStyles from './portal.module.css';
 
+function syncSessionCookie(hasSession) {
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  const sameSite = '; SameSite=Lax';
+  if (hasSession) {
+    document.cookie = `app_session=1; path=/${sameSite}${secure}`;
+  } else {
+    document.cookie = `app_session=; path=/${sameSite}${secure}; Max-Age=0`;
+  }
+}
+
 function friendlyAuthError(err) {
   const msg = err?.message || '';
   if (msg.includes('Invalid login credentials'))  return 'Incorrect email or password.';
@@ -46,6 +56,7 @@ export default function AccountantLoginPage() {
     supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' })
       .then(({ error }) => {
         if (error) throw error;
+        syncSessionCookie(true);
         window.localStorage.setItem('accountant_mode', '1');
         window.location.href = '/accountant';
       })
@@ -93,6 +104,7 @@ export default function AccountantLoginPage() {
         });
         if (error) throw error;
       }
+      syncSessionCookie(true);
       window.localStorage.setItem('accountant_mode', '1');
       window.location.href = '/accountant';
     } catch (err) {
@@ -203,7 +215,13 @@ export default function AccountantLoginPage() {
                     <button type="button" className={styles.forgotLink} onClick={async () => {
                       if (!email) { setError('Enter your email first.'); return; }
                       setLoading(true);
-                      try { await sendPasswordResetEmail(auth, email); setInfo('Password reset email sent.'); }
+                      try {
+                        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                          redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+                        });
+                        if (error) throw error;
+                        setInfo('Password reset email sent.');
+                      }
                       catch (err) { setError(err.message); }
                       finally { setLoading(false); }
                     }}>Forgot password?</button>

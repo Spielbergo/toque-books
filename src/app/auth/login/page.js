@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import styles from './page.module.css';
 
-function withTimeout(promise, ms, label = 'request') {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => window.setTimeout(() => reject(new Error(`${label} timed out. Please try again.`)), ms)),
-  ]);
+function syncSessionCookie(hasSession) {
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  const sameSite = '; SameSite=Lax';
+  if (hasSession) {
+    document.cookie = `app_session=1; path=/${sameSite}${secure}`;
+  } else {
+    document.cookie = `app_session=; path=/${sameSite}${secure}; Max-Age=0`;
+  }
 }
 
 function friendlyError(err) {
@@ -32,9 +35,56 @@ export default function LoginPage() {
   const [gLoading, setGLoading] = useState(false);
   const [error,    setError]    = useState('');
   const [info,     setInfo]     = useState('');
+  const [debugAuth, setDebugAuth] = useState(false);
+  const [debugStage, setDebugStage] = useState('idle');
+  const [debugDetail, setDebugDetail] = useState('');
+  const [forceStay, setForceStay] = useState(false);
+
+  const trace = (stage, detail = '') => {
+    setDebugStage(stage);
+    setDebugDetail(detail || '');
+  };
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('signup') === '1') setTab('signup');
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('signup') === '1') setTab('signup');
+    const debugEnabled = params.get('debugAuth') === '1';
+    const shouldForceStay = params.get('forceStay') === '1';
+    setDebugAuth(debugEnabled);
+    setForceStay(shouldForceStay);
+
+    if (debugEnabled) {
+      const callbackStage = params.get('auth_stage');
+      const callbackError = params.get('auth_error');
+      if (callbackStage || callbackError) {
+        trace(callbackStage || 'callback_returned_error', callbackError || 'No additional error message.');
+      } else {
+        trace('login_page_loaded', 'Diagnostics enabled.');
+      }
+    }
+
+    // If an existing session is present, sync guard cookie and skip login screen.
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (debugEnabled) {
+        trace(
+          'initial_getSession_complete',
+          error?.message
+            ? `error: ${error.message}`
+            : `session_user=${data?.session?.user?.id ? 'yes' : 'no'}`,
+        );
+      }
+      if (data?.session?.user) {
+        if (debugEnabled && shouldForceStay) {
+          trace('session_found_staying', 'Existing session detected but staying on login due to forceStay=1.');
+        } else {
+          if (debugEnabled) trace('session_found_redirecting', 'Existing session detected; redirecting to /dashboard.');
+          syncSessionCookie(true);
+          window.location.href = '/dashboard';
+        }
+      }
+    }).catch((err) => {
+      if (debugEnabled) trace('initial_getSession_failed', err?.message || 'Unknown getSession error');
+    });
   }, []);
 
   const reset = () => { setError(''); setInfo(''); };
@@ -42,70 +92,71 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     reset();
+    if (debugAuth) trace(tab === 'login' ? 'email_login_started' : 'signup_started');
     if (tab === 'signup' && password !== confirm) { setError('Passwords do not match.'); return; }
     setLoading(true);
     try {
       if (tab === 'login') {
-        const { data, error } = await withTimeout(
-          supabase.auth.signInWithPassword({ email, password }),
-          15000,
-          'Sign in',
-        );
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-        document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
+        if (debugAuth) trace('email_login_success', 'Supabase accepted credentials. Syncing cookie and redirecting.');
+        syncSessionCookie(true);
         window.location.href = '/dashboard';
       } else {
-        const { data, error } = await withTimeout(
-          supabase.auth.signUp({
-            email, password,
-            options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
-          }),
-          20000,
-          'Sign up',
-        );
+        const { data, error } = await supabase.auth.signUp({
+          email, password,
+          options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
+        });
         if (error) throw error;
         if (data.session) {
-          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-          document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
+          if (debugAuth) trace('signup_success_with_session', 'Session returned immediately. Syncing cookie and redirecting.');
+          syncSessionCookie(true);
           window.location.href = '/dashboard';
         }
-        else { setInfo('Check your email for a confirmation link.'); }
+        else {
+          if (debugAuth) trace('signup_success_needs_confirmation', 'No session returned. Awaiting email confirmation.');
+          setInfo('Check your email for a confirmation link.');
+        }
       }
-    } catch (err) { setError(friendlyError(err)); }
+    } catch (err) {
+      if (debugAuth) trace('email_auth_failed', err?.message || 'Unknown email auth error');
+      setError(friendlyError(err));
+    }
     finally { setLoading(false); }
   }
 
   async function handleGoogle() {
     reset();
+    if (debugAuth) trace('google_oauth_started', 'Calling signInWithOAuth. Browser should redirect to provider.');
     setGLoading(true);
     try {
-      const { error } = await withTimeout(
-        supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        }),
-        15000,
-        'Google sign in',
-      );
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback${debugAuth ? '?debugAuth=1' : ''}` },
+      });
       if (error) throw error;
-    } catch (err) { setError(friendlyError(err)); setGLoading(false); }
+    } catch (err) {
+      if (debugAuth) trace('google_oauth_failed', err?.message || 'Unknown OAuth error');
+      setError(friendlyError(err));
+      setGLoading(false);
+    }
   }
 
   async function handleForgot() {
     if (!email) { setError('Enter your email first.'); return; }
+    if (debugAuth) trace('password_reset_started');
     setLoading(true);
     try {
-      const { error } = await withTimeout(
-        supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
-        }),
-        15000,
-        'Password reset',
-      );
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?type=recovery${debugAuth ? '&debugAuth=1' : ''}`,
+      });
       if (error) throw error;
+      if (debugAuth) trace('password_reset_sent', 'Supabase accepted reset request.');
       setInfo('Password reset email sent.');
-    } catch (err) { setError(err.message); }
+    } catch (err) {
+      if (debugAuth) trace('password_reset_failed', err?.message || 'Unknown reset error');
+      setError(err.message);
+    }
     finally { setLoading(false); }
   }
 
@@ -148,12 +199,25 @@ export default function LoginPage() {
       <div className={styles.form}>
         <div className={styles.formCard}>
           <h2 className={styles.formTitle}>{tab === 'login' ? 'Welcome back' : 'Create your account'}</h2>
-          <p className={styles.formSub}>{tab === 'login' ? 'Sign in to continue to NorthBooks.' : 'Start free � no credit card required.'}</p>
+          <p className={styles.formSub}>{tab === 'login' ? 'Sign in to continue to NorthBooks.' : 'Start free - no credit card required.'}</p>
 
           <div className={styles.tabs}>
             <button type="button" className={`${styles.tabBtn} ${tab === 'login' ? styles.tabActive : ''}`} onClick={() => { setTab('login'); reset(); }}>Sign in</button>
             <button type="button" className={`${styles.tabBtn} ${tab === 'signup' ? styles.tabActive : ''}`} onClick={() => { setTab('signup'); reset(); }}>Create account</button>
           </div>
+
+          {debugAuth && (
+            <div className={styles.debugPanel}>
+              <div className={styles.debugTitle}>Auth Diagnostics (temporary)</div>
+              <div className={styles.debugRow}><strong>Stage:</strong> {debugStage}</div>
+              <div className={styles.debugRow}><strong>Detail:</strong> {debugDetail || 'n/a'}</div>
+              <div className={styles.debugRow}><strong>forceStay:</strong> {forceStay ? 'enabled' : 'disabled'}</div>
+              <div className={styles.debugRow}><strong>Origin:</strong> {typeof window !== 'undefined' ? window.location.origin : 'n/a'}</div>
+              <div className={styles.debugRow}><strong>Supabase URL set:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'yes' : 'no'}</div>
+              <div className={styles.debugRow}><strong>Publishable key set:</strong> {process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ? 'yes' : 'no'}</div>
+              <div className={styles.debugRow}><strong>app_session cookie:</strong> {typeof document !== 'undefined' && document.cookie.includes('app_session=1') ? 'present' : 'missing'}</div>
+            </div>
+          )}
 
           {error && <div role="alert" className={styles.alertError}>{error}</div>}
           {info  && <div className={styles.alertInfo}>{info}</div>}
@@ -188,12 +252,12 @@ export default function LoginPage() {
                 Password
                 {tab === 'login' && <button type="button" className={styles.forgotLink} onClick={handleForgot}>Forgot?</button>}
               </label>
-              <input className={styles.input} type="password" placeholder="��������" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} autoComplete={tab === 'login' ? 'current-password' : 'new-password'}/>
+              <input className={styles.input} type="password" placeholder="********" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} autoComplete={tab === 'login' ? 'current-password' : 'new-password'}/>
             </div>
             {tab === 'signup' && (
               <div className={styles.field}>
                 <label className={styles.label}>Confirm password</label>
-                <input className={styles.input} type="password" placeholder="��������" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8} autoComplete="new-password"/>
+                <input className={styles.input} type="password" placeholder="********" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8} autoComplete="new-password"/>
               </div>
             )}
             <button className={styles.submitBtn} type="submit" disabled={loading || gLoading}>

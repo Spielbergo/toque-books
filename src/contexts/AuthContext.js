@@ -56,7 +56,18 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear middleware presence cookie first so route guard can never trap users.
+    _syncCookie(null);
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch {
+      // If global sign-out fails, still attempt a local sign-out and continue.
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // Ignore; we still send user to login with local guard cookie cleared.
+      }
+    }
     window.location.href = '/auth/login';
   };
 
@@ -71,10 +82,11 @@ function _syncCookie(user) {
   // Presence cookie for middleware — not cryptographically trusted,
   // real access is protected by Supabase RLS.
   const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+  const sameSite = '; SameSite=Lax';
   if (user) {
-    document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
+    document.cookie = `app_session=1; path=/${sameSite}${secure}`;
   } else {
-    document.cookie = `app_session=; path=/; SameSite=Strict${secure}; Max-Age=0`;
+    document.cookie = `app_session=; path=/${sameSite}${secure}; Max-Age=0`;
   }
 }
 

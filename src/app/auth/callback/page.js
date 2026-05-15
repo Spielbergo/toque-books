@@ -16,38 +16,50 @@ export default function AuthCallbackPage() {
     const code        = params.get('code');
     const isAccountant = params.get('accountant') === '1';
     const isRecovery   = params.get('type') === 'recovery';
+    const debugAuth    = params.get('debugAuth') === '1';
+
+    const redirectToLoginWithError = (stage, message) => {
+      if (!debugAuth) {
+        window.location.href = '/auth/login';
+        return;
+      }
+      const q = new URLSearchParams({
+        debugAuth: '1',
+        auth_stage: stage,
+        auth_error: message || 'Unknown callback failure',
+      });
+      window.location.href = `/auth/login?${q.toString()}`;
+    };
 
     const redirect = (session) => {
-      if (!session) { window.location.href = '/auth/login'; return; }
+      if (!session) {
+        redirectToLoginWithError('callback_no_session', 'Supabase callback completed but no session was returned.');
+        return;
+      }
       const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-      document.cookie = `app_session=1; path=/; SameSite=Strict${secure}`;
+      document.cookie = `app_session=1; path=/; SameSite=Lax${secure}`;
       if (isRecovery)   { window.location.href = '/settings?tab=security'; return; }
       if (isAccountant) { window.localStorage.setItem('accountant_mode', '1'); window.location.href = '/accountant'; return; }
       window.location.href = '/dashboard';
     };
 
-    const withTimeout = (promise, ms, label) => Promise.race([
-      promise,
-      new Promise((_, reject) => window.setTimeout(() => reject(new Error(`${label} timeout`)), ms)),
-    ]);
-
     if (code) {
       // Email confirmation / magic link (PKCE): exchange code for session
-      withTimeout(supabase.auth.exchangeCodeForSession(code), 15000, 'exchangeCodeForSession')
+      supabase.auth.exchangeCodeForSession(code)
         .then(({ data, error }) => {
           redirect(error ? null : data.session);
         })
-        .catch(() => {
-          window.location.href = '/auth/login?error=callback_timeout';
+        .catch((err) => {
+          redirectToLoginWithError('callback_exchange_failed', err?.message || 'exchangeCodeForSession failed');
         });
     } else {
       // OAuth (Google): session already in URL hash, getSession() picks it up
-      withTimeout(supabase.auth.getSession(), 15000, 'getSession')
+      supabase.auth.getSession()
         .then(({ data: { session }, error }) => {
           redirect(error ? null : session);
         })
-        .catch(() => {
-          window.location.href = '/auth/login?error=callback_timeout';
+        .catch((err) => {
+          redirectToLoginWithError('callback_getSession_failed', err?.message || 'getSession failed');
         });
     }
   }, []);
