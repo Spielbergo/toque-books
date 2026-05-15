@@ -14,7 +14,18 @@ import { useSubscription, PLAN_LIMITS } from '@/contexts/SubscriptionContext';
 export default function CompaniesPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { companies, activeCompanyId, createCompany, selectCompany, updateCompanyName, deleteCompany, appLoading, activeCompany } = useApp();
+  const {
+    companies,
+    activeCompanyId,
+    createCompany,
+    selectCompany,
+    updateCompanyName,
+    deleteCompany,
+    appLoading,
+    appLoadError,
+    retryAppBootstrap,
+    activeCompany,
+  } = useApp();
   const { toast } = useToast();
   const { isPro } = useSubscription();
 
@@ -29,6 +40,7 @@ export default function CompaniesPage() {
 
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting]           = useState(false);
+  const [retryingLoad, setRetryingLoad]   = useState(false);
 
   const handleCreate = async e => {
     e.preventDefault();
@@ -138,6 +150,26 @@ export default function CompaniesPage() {
 
         {appLoading ? (
           <div className={styles.loading}>Loading…</div>
+        ) : appLoadError ? (
+          <div className={styles.loadErrorBox}>
+            <h2 className={styles.loadErrorTitle}>We could not load your company data yet</h2>
+            <p className={styles.loadErrorText}>{appLoadError}</p>
+            <div className={styles.loadErrorActions}>
+              <Button
+                onClick={async () => {
+                  setRetryingLoad(true);
+                  try { await retryAppBootstrap(); }
+                  finally { setRetryingLoad(false); }
+                }}
+                loading={retryingLoad}
+              >
+                Retry Loading Companies
+              </Button>
+              <Button variant="ghost" onClick={() => window.location.reload()}>
+                Hard Refresh
+              </Button>
+            </div>
+          </div>
         ) : companies.length === 0 ? (
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>🏢</div>

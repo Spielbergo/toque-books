@@ -770,6 +770,7 @@ export function AppProvider({ children }) {
   const [companies, setCompanies]       = useState([]);
   const [activeCompanyId, setActiveId]  = useState(null);
   const [appLoading, setAppLoading]     = useState(true);
+  const [appLoadError, setAppLoadError] = useState('');
 
   // Refs for sync logic (avoid stale closures in effects)
   const activeIdRef   = useRef(null);
@@ -821,6 +822,7 @@ export function AppProvider({ children }) {
   // ── Load company data by ID ────────────────────────────────────────────
   const loadCompanyData = useCallback(async (companyId) => {
     setAppLoading(true);
+    setAppLoadError('');
     try {
       const { data: row, error } = await withTimeoutRetry(
         () => supabase
@@ -872,6 +874,7 @@ export function AppProvider({ children }) {
       try { localStorage.setItem('canbooks_active_company', companyId); } catch { /* private browsing */ }
     } catch (err) {
       console.error('loadCompanyData error:', err);
+      setAppLoadError('Could not load company data. Please retry.');
     } finally {
       setAppLoading(false);
     }
@@ -883,12 +886,14 @@ export function AppProvider({ children }) {
       setCompanies([]);
       setActiveId(null);
       activeIdRef.current = null;
+      setAppLoadError('');
       if (!authLoading) setAppLoading(false);
       return;
     }
 
     (async () => {
       setAppLoading(true);
+      setAppLoadError('');
       try {
         const { data: rows, error } = await withTimeoutRetry(
           () => supabase
@@ -926,6 +931,7 @@ export function AppProvider({ children }) {
         } catch (fallbackErr) {
           console.error('Fallback company load failed:', fallbackErr);
         }
+        setAppLoadError('Could not load your companies. Check your connection and retry.');
         setAppLoading(false);
       }
     })();
@@ -936,10 +942,56 @@ export function AppProvider({ children }) {
     if (authLoading || !user?.id || !appLoading) return;
     const timer = setTimeout(() => {
       console.error('App loading watchdog triggered. Forcing loading state to false.');
+      setAppLoadError(prev => prev || 'Loading took too long. Please retry loading your companies.');
       setAppLoading(false);
     }, 12000);
     return () => clearTimeout(timer);
   }, [authLoading, user?.id, appLoading]);
+
+  const retryAppBootstrap = useCallback(async () => {
+    if (!user?.id) return;
+
+    setAppLoadError('');
+    setAppLoading(true);
+
+    try {
+      const { data: rows, error } = await withTimeoutRetry(
+        () => supabase
+          .from('companies')
+          .select('id, name, created_at, data')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true }),
+        { label: 'retryLoadCompanies', timeoutMs: 12000, retries: 1 },
+      );
+
+      if (error) throw error;
+
+      const list = (rows || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        createdAt: r.created_at,
+        badgeLogo: r.data?.settings?.badgeLogo || null,
+      }));
+
+      setCompanies(list);
+      if (list.length === 0) {
+        setAppLoading(false);
+        return;
+      }
+
+      let preferred = activeIdRef.current;
+      if (!preferred) {
+        try { preferred = localStorage.getItem('canbooks_active_company'); } catch { /* */ }
+      }
+
+      const pick = list.find(c => c.id === preferred) ?? list[0];
+      await loadCompanyData(pick.id);
+    } catch (err) {
+      console.error('retryAppBootstrap error:', err);
+      setAppLoadError('Could not load your companies. Check your connection and retry.');
+      setAppLoading(false);
+    }
+  }, [user?.id, loadCompanyData]);
 
   // ── Keep active company's badgeLogo in sync in the companies list ────
   useEffect(() => {
@@ -1065,7 +1117,8 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       state, dispatch: wrappedDispatch, activeFY,
       activePY, activePersonalYear, userProfile,
-      companies, activeCompany, activeCompanyId, appLoading,
+      companies, activeCompany, activeCompanyId, appLoading, appLoadError,
+      retryAppBootstrap,
       createCompany, selectCompany, updateCompanyName, deleteCompany,
     }}>
       {children}

@@ -17,6 +17,7 @@ function syncSessionCookie(hasSession) {
 
 function friendlyError(err) {
   const msg = err?.message || '';
+  if (msg.includes('Network timeout'))            return 'Connection timed out. Please try again.';
   if (msg.includes('Invalid login credentials'))  return 'Incorrect email or password.';
   if (msg.includes('Email not confirmed'))         return 'Please confirm your email before signing in.';
   if (msg.includes('User already registered'))     return 'An account with this email already exists.';

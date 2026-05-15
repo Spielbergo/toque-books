@@ -93,6 +93,33 @@
   color: var(--text-muted);
 }
 
+.loadErrorBox {
+  padding: var(--space-8);
+  border: 1px solid color-mix(in srgb, var(--danger-text) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--danger-light, #fef2f2) 45%, var(--bg-surface));
+  border-radius: var(--radius-lg);
+}
+
+.loadErrorTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  font-weight: var(--weight-bold);
+}
+
+.loadErrorText {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.loadErrorActions {
+  margin-top: var(--space-4);
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* Empty state */
 .empty {
   text-align: center;

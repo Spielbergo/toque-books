@@ -14,7 +14,7 @@ export default function AppShell({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showLoadingHelp, setShowLoadingHelp] = useState(false);
   const [autoRecoveryTried, setAutoRecoveryTried] = useState(false);
-  const { appLoading, activeCompanyId, state } = useApp();
+  const { appLoading, activeCompanyId, state, retryAppBootstrap } = useApp();
   const { user, authLoading } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
@@ -106,14 +106,19 @@ export default function AppShell({ children }) {
               <button
                 type="button"
                 className={styles.loadingHelpBtn}
-                onClick={() => window.location.reload()}
+                onClick={async () => {
+                  await retryAppBootstrap();
+                }}
               >
                 Retry Load
               </button>
               <button
                 type="button"
                 className={`${styles.loadingHelpBtn} ${styles.loadingHelpBtnGhost}`}
-                onClick={() => router.replace('/companies')}
+                onClick={async () => {
+                  await retryAppBootstrap();
+                  router.replace('/companies');
+                }}
               >
                 Go to Companies
               </button>
