@@ -13,6 +13,7 @@ export default function AppShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showLoadingHelp, setShowLoadingHelp] = useState(false);
+  const [autoRecoveryTried, setAutoRecoveryTried] = useState(false);
   const { appLoading, activeCompanyId, state } = useApp();
   const { user, authLoading } = useAuth();
   const router   = useRouter();
@@ -72,11 +73,22 @@ export default function AppShell({ children }) {
   useEffect(() => {
     if (!appLoading) {
       setShowLoadingHelp(false);
+      setAutoRecoveryTried(false);
       return;
     }
     const timer = window.setTimeout(() => setShowLoadingHelp(true), 7000);
     return () => window.clearTimeout(timer);
   }, [appLoading]);
+
+  // One-time automatic recovery attempt before user manually retries.
+  useEffect(() => {
+    if (!appLoading || autoRecoveryTried) return;
+    const timer = window.setTimeout(() => {
+      setAutoRecoveryTried(true);
+      router.refresh();
+    }, 9500);
+    return () => window.clearTimeout(timer);
+  }, [appLoading, autoRecoveryTried, router]);
 
   // Full-screen loading while companies / company data load
   if (appLoading) {
@@ -86,7 +98,10 @@ export default function AppShell({ children }) {
         <p className={styles.loadingText}>Loading…</p>
         {showLoadingHelp && (
           <div className={styles.loadingHelp}>
-            <p className={styles.loadingHelpText}>Still loading your data. You can retry now.</p>
+            <p className={styles.loadingHelpText}>
+              Still loading your data.
+              {autoRecoveryTried ? ' An automatic retry has already been attempted.' : ' Attempting automatic retry...'}
+            </p>
             <div className={styles.loadingHelpActions}>
               <button
                 type="button"

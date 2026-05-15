@@ -828,7 +828,7 @@ export function AppProvider({ children }) {
           .select('data')
           .eq('id', companyId)
           .single(),
-        { label: 'loadCompanyData', timeoutMs: 15000, retries: 0 },
+        { label: 'loadCompanyData', timeoutMs: 12000, retries: 1 },
       );
 
       if (error) throw error;
@@ -896,7 +896,7 @@ export function AppProvider({ children }) {
             .select('id, name, created_at, data')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true }),
-          { label: 'loadCompanies', timeoutMs: 15000, retries: 0 },
+          { label: 'loadCompanies', timeoutMs: 12000, retries: 1 },
         );
 
         if (error) throw error;
