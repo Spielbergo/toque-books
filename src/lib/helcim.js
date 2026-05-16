@@ -5,20 +5,34 @@
 
 const HELCIM_API_BASE = 'https://api.helcim.com/v2';
 
-function getHelcimApiToken() {
-  const raw =
-    process.env.HELCIM_API_TOKEN ||
-    process.env.HELCIM_API_ACCESS_TOKEN ||
-    process.env.HELCIM_TOKEN ||
-    '';
-
-  const normalized = raw.trim().replace(/^['\"]|['\"]$/g, '');
-  if (!normalized) throw new Error('HELCIM_API_TOKEN not configured');
-  return normalized;
+function normalizeToken(raw) {
+  return (raw || '').trim().replace(/^['\"]|['\"]$/g, '');
 }
 
-async function helcimFetch(path, method = 'GET', body = null) {
-  const token = getHelcimApiToken();
+function getTokenFromEnv(names, label) {
+  for (const name of names) {
+    const value = normalizeToken(process.env[name]);
+    if (value) return value;
+  }
+
+  throw new Error(`${label} not configured`);
+}
+
+function getHelcimApiToken() {
+  return getTokenFromEnv(
+    ['HELCIM_API_TOKEN', 'HELCIM_API_ACCESS_TOKEN', 'HELCIM_TOKEN'],
+    'HELCIM_API_TOKEN'
+  );
+}
+
+function getHelcimPayJsToken() {
+  return getTokenFromEnv(
+    ['HELCIM_PAY_JS_TOKEN', 'HELCIM_HELCIMPAY_TOKEN', 'HELCIM_PAY_TOKEN', 'HELCIM_API_TOKEN'],
+    'HELCIM_PAY_JS_TOKEN'
+  );
+}
+
+async function helcimFetch(path, method = 'GET', body = null, token = getHelcimApiToken()) {
 
   const opts = {
     method,
@@ -49,12 +63,18 @@ export async function initHelcimCheckout({
   amount = 0,
   customerRequest,
 } = {}) {
-  return helcimFetch('/helcim-pay/initialize', 'POST', {
-    paymentType,
-    amount,
-    currency,
-    ...(customerRequest && { customerRequest }),
-  });
+  const payJsToken = getHelcimPayJsToken();
+  return helcimFetch(
+    '/helcim-pay/initialize',
+    'POST',
+    {
+      paymentType,
+      amount,
+      currency,
+      ...(customerRequest && { customerRequest }),
+    },
+    payJsToken
+  );
 }
 
 /** Create a new Helcim customer. */

@@ -42,7 +42,7 @@ export async function POST(req) {
       return NextResponse.json(
         {
           error:
-            'Helcim credentials rejected (401). Verify HELCIM_API_TOKEN in production environment settings.',
+            'Helcim credentials rejected (401). Verify HELCIM_PAY_JS_TOKEN (or API token with HelcimPay initialize permission) in production environment settings.',
         },
         { status: 500 }
       );
