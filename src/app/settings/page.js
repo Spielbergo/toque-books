@@ -1068,20 +1068,48 @@ export default function SettingsPage() {
 
 function BillingCheckout({ checkoutToken, secretToken, onSuccess, onClose }) {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!checkoutToken) return;
 
-    // Load the HelcimPay.js script dynamically
-    const script = document.createElement('script');
-    script.src = 'https://helcimcdn.net/helcim-js/v1/static/helcim-pay.js';
-    script.async = true;
-    script.onload = () => {
+    const helcimScriptUrl = 'https://secure.helcim.app/helcim-pay/services/start.js';
+    let script = document.querySelector(`script[src="${helcimScriptUrl}"]`);
+
+    const openCheckout = () => {
       if (typeof window.appendHelcimPayIframe === 'function') {
         window.appendHelcimPayIframe(checkoutToken);
+      } else {
+        toast({
+          message: 'Could not open checkout',
+          detail: 'Helcim checkout script loaded but did not initialize.',
+          type: 'error',
+        });
+        onClose?.();
       }
     };
-    document.body.appendChild(script);
+
+    if (script) {
+      if (typeof window.appendHelcimPayIframe === 'function') {
+        openCheckout();
+      } else {
+        script.addEventListener('load', openCheckout, { once: true });
+      }
+    } else {
+      script = document.createElement('script');
+      script.src = helcimScriptUrl;
+      script.async = true;
+      script.onload = openCheckout;
+      script.onerror = () => {
+        toast({
+          message: 'Could not open checkout',
+          detail: 'Failed to load Helcim checkout script.',
+          type: 'error',
+        });
+        onClose?.();
+      };
+      document.body.appendChild(script);
+    }
 
     // Listen for the payment result
     function handleMessage(e) {
@@ -1091,7 +1119,7 @@ function BillingCheckout({ checkoutToken, secretToken, onSuccess, onClose }) {
       if (e.data?.eventStatus === 'SUCCESS' && e.data?.eventMessage) {
         const { data: txData, hash } = e.data.eventMessage;
         completeSubscription({ ...txData, hash });
-      } else if (e.data?.eventStatus === 'CLOSED') {
+      } else if (e.data?.eventStatus === 'HIDE' || e.data?.eventStatus === 'CLOSED') {
         onClose?.();
       }
     }
@@ -1119,11 +1147,11 @@ function BillingCheckout({ checkoutToken, secretToken, onSuccess, onClose }) {
     window.addEventListener('message', handleMessage);
     return () => {
       window.removeEventListener('message', handleMessage);
-      script.remove();
+      script?.removeEventListener?.('load', openCheckout);
       // Remove the iframe if HelcimPay injected one
       document.querySelector('iframe[id^="helcim"]')?.remove();
     };
-  }, [checkoutToken, secretToken, onSuccess, onClose]);
+  }, [checkoutToken, secretToken, onSuccess, onClose, toast]);
 
   return null;
 }
