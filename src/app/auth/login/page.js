@@ -15,6 +15,23 @@ function syncSessionCookie(hasSession) {
   }
 }
 
+function safeTimeout(promise, ms, label) {
+  return Promise.race([
+    promise.then((result) => {
+      console.log(`[auth] ${label} completed successfully`);
+      return result;
+    }),
+    new Promise((_, reject) => {
+      const timer = window.setTimeout(() => {
+        console.error(`[auth] ${label} timed out after ${ms}ms`);
+        reject(new Error(`${label} timed out`));
+      }, ms);
+      // Attach timer so caller can optionally clear it if needed
+      promise.finally(() => window.clearTimeout(timer));
+    }),
+  ]);
+}
+
 function friendlyError(err) {
   const msg = err?.message || '';
   if (msg.includes('Network timeout'))            return 'Connection timed out. Please try again.';
@@ -66,7 +83,9 @@ export default function LoginPage() {
     }
 
     // If an existing session is present, sync guard cookie and skip login screen.
+    console.log('[auth:startup] calling getSession...');
     supabase.auth.getSession().then(({ data, error }) => {
+      console.log('[auth:startup] getSession returned', { hasSession: !!data?.session, error: error?.message });
       if (debugEnabled) {
         trace(
           'initial_getSession_complete',
@@ -85,6 +104,7 @@ export default function LoginPage() {
         }
       }
     }).catch((err) => {
+        console.error('[auth:startup] getSession error:', err?.message || err);
       if (debugEnabled) trace('initial_getSession_failed', err?.message || 'Unknown getSession error');
     });
   }, []);
@@ -100,7 +120,11 @@ export default function LoginPage() {
     try {
       if (tab === 'login') {
         console.log('[auth] attempting email login...');
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await safeTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          30000,
+          'signInWithPassword',
+        );
         if (error) throw error;
         if (debugAuth) trace('email_login_success', 'Supabase accepted credentials. Syncing cookie and redirecting.');
         console.log('[auth] login succeeded, redirecting...');
@@ -108,10 +132,14 @@ export default function LoginPage() {
         window.location.href = '/dashboard';
       } else {
         console.log('[auth] attempting signup...');
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await safeTimeout(
+          supabase.auth.signUp({
           email, password,
           options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
-        });
+          }),
+          35000,
+          'signUp',
+        );
         if (error) throw error;
         if (debugAuth) trace('signup_attempt', `data.session=${data?.session ? 'yes' : 'no'}`);
         if (data.session) {
@@ -140,10 +168,14 @@ export default function LoginPage() {
     setGLoading(true);
     try {
       console.log('[auth] attempting Google OAuth...');
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await safeTimeout(
+        supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${window.location.origin}/auth/callback${debugAuth ? '?debugAuth=1' : ''}` },
-      });
+        }),
+        30000,
+        'signInWithOAuth',
+      );
       if (error) throw error;
       if (debugAuth) trace('google_oauth_success', 'OAuth redirect initiated.');
     } catch (err) {
@@ -160,9 +192,13 @@ export default function LoginPage() {
     setLoading(true);
     try {
       console.log('[auth] attempting password reset...');
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await safeTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?type=recovery${debugAuth ? '&debugAuth=1' : ''}`,
-      });
+        }),
+        30000,
+        'resetPasswordForEmail',
+      );
       if (error) throw error;
       if (debugAuth) trace('password_reset_sent', 'Supabase accepted reset request.');
       console.log('[auth] password reset email sent');

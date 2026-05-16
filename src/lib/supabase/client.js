@@ -10,6 +10,16 @@ export function getSupabaseClient() {
   if (!_client) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    
+    const urlLength = url ? url.length : 0;
+    const keyLength = key ? key.length : 0;
+    console.log('[supabase:client] initializing with env vars', { 
+      hasUrl: !!url, 
+      urlLength,
+      hasKey: !!key, 
+      keyLength,
+      environment: typeof process !== 'undefined' ? 'node' : 'browser',
+    });
 
     if (!url || !key) {
       console.error('Supabase client error: env vars missing', { 
@@ -21,6 +31,7 @@ export function getSupabaseClient() {
 
     console.debug('Initializing Supabase client with URL:', url);
     _client = createClient(url, key);
+    console.log('[supabase:client] client created successfully');
   }
   return _client;
 }
