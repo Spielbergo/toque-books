@@ -34,6 +34,25 @@ export function ThemeProvider({ children }) {
   const userUidRef   = useRef(null);
   const saveTimerRef = useRef(null);
 
+  async function loadAppearanceForUser(userId) {
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('appearance')
+        .eq('id', userId)
+        .single();
+      const appearance = data?.appearance;
+      if (appearance?.theme && VALID_THEMES.includes(appearance.theme)) {
+        setThemeState(appearance.theme);
+      }
+      if (appearance?.accent && VALID_ACCENTS.includes(appearance.accent)) {
+        setAccentState(appearance.accent);
+      }
+    } catch {
+      // DB unavailable — keep localStorage values
+    }
+  }
+
   // Load persisted values on mount
   useEffect(() => {
     const storedTheme  = localStorage.getItem('canbooks-theme');
@@ -60,26 +79,14 @@ export function ThemeProvider({ children }) {
 
   // Sync with Supabase when user logs in/out
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user ?? null;
       if (user) {
         userUidRef.current = user.id;
-        try {
-          const { data } = await supabase
-            .from('users')
-            .select('appearance')
-            .eq('id', user.id)
-            .single();
-          const appearance = data?.appearance;
-          if (appearance?.theme && VALID_THEMES.includes(appearance.theme)) {
-            setThemeState(appearance.theme);
-          }
-          if (appearance?.accent && VALID_ACCENTS.includes(appearance.accent)) {
-            setAccentState(appearance.accent);
-          }
-        } catch {
-          // DB unavailable — keep localStorage values
-        }
+        // Keep auth callback synchronous to avoid Supabase auth lock contention.
+        window.setTimeout(() => {
+          loadAppearanceForUser(user.id);
+        }, 0);
       } else {
         userUidRef.current = null;
       }
