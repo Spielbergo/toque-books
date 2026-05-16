@@ -5,9 +5,20 @@
 
 const HELCIM_API_BASE = 'https://api.helcim.com/v2';
 
+function getHelcimApiToken() {
+  const raw =
+    process.env.HELCIM_API_TOKEN ||
+    process.env.HELCIM_API_ACCESS_TOKEN ||
+    process.env.HELCIM_TOKEN ||
+    '';
+
+  const normalized = raw.trim().replace(/^['\"]|['\"]$/g, '');
+  if (!normalized) throw new Error('HELCIM_API_TOKEN not configured');
+  return normalized;
+}
+
 async function helcimFetch(path, method = 'GET', body = null) {
-  const token = process.env.HELCIM_API_TOKEN;
-  if (!token) throw new Error('HELCIM_API_TOKEN not configured');
+  const token = getHelcimApiToken();
 
   const opts = {
     method,
@@ -22,9 +33,11 @@ async function helcimFetch(path, method = 'GET', body = null) {
   const res = await fetch(`${HELCIM_API_BASE}${path}`, opts);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(
+    const err = new Error(
       data?.errors?.[0]?.message || data?.message || `Helcim API error ${res.status}`
     );
+    err.status = res.status;
+    throw err;
   }
   return data;
 }

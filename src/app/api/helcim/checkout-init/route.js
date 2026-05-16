@@ -37,6 +37,17 @@ export async function POST(req) {
     });
   } catch (err) {
     console.error('Helcim checkout-init error:', err);
-    return NextResponse.json({ error: err.message }, { status: 502 });
+
+    if (err?.status === 401) {
+      return NextResponse.json(
+        {
+          error:
+            'Helcim credentials rejected (401). Verify HELCIM_API_TOKEN in production environment settings.',
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ error: err.message || 'Could not initialize checkout' }, { status: 502 });
   }
 }
