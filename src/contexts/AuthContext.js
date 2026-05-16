@@ -30,25 +30,6 @@ export function AuthProvider({ children }) {
       _syncCookie(session?.user);
     });
 
-    // Fallback probe: if INITIAL_SESSION is missed, unblock via a timed session read.
-    Promise.race([
-      supabase.auth.getSession(),
-      new Promise((_, reject) => window.setTimeout(() => reject(new Error('getSession timeout')), 2500)),
-    ])
-      .then((result) => {
-        const session = result?.data?.session;
-        if (session?.user) {
-          setUser(session.user);
-          _syncCookie(session.user);
-        }
-      })
-      .catch(() => {
-        // Ignore fallback errors; auth listener and hard timeout still resolve loading.
-      })
-      .finally(() => {
-        finishInit();
-      });
-
     return () => {
       window.clearTimeout(hardTimeout);
       subscription.unsubscribe();

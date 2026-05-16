@@ -82,31 +82,11 @@ export default function LoginPage() {
       }
     }
 
-    // If an existing session is present, sync guard cookie and skip login screen.
-    console.log('[auth:startup] calling getSession...');
-    supabase.auth.getSession().then(({ data, error }) => {
-      console.log('[auth:startup] getSession returned', { hasSession: !!data?.session, error: error?.message });
-      if (debugEnabled) {
-        trace(
-          'initial_getSession_complete',
-          error?.message
-            ? `error: ${error.message}`
-            : `session_user=${data?.session?.user?.id ? 'yes' : 'no'}`,
-        );
-      }
-      if (data?.session?.user) {
-        if (debugEnabled && shouldForceStay) {
-          trace('session_found_staying', 'Existing session detected but staying on login due to forceStay=1.');
-        } else {
-          if (debugEnabled) trace('session_found_redirecting', 'Existing session detected; redirecting to /dashboard.');
-          syncSessionCookie(true);
-          window.location.href = '/dashboard';
-        }
-      }
-    }).catch((err) => {
-        console.error('[auth:startup] getSession error:', err?.message || err);
-      if (debugEnabled) trace('initial_getSession_failed', err?.message || 'Unknown getSession error');
-    });
+    // Avoid getSession lock contention during login bootstrap.
+    // Let AuthContext handle initial session restoration via onAuthStateChange.
+    if (debugEnabled) {
+      trace('login_page_ready', 'Waiting for user action. Session restoration handled by AuthContext listener.');
+    }
   }, []);
 
   const reset = () => { setError(''); setInfo(''); };
