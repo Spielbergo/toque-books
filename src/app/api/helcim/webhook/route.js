@@ -12,6 +12,11 @@ export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
+/** Helcim or intermediaries may issue HEAD checks. */
+export async function HEAD() {
+  return new Response(null, { status: 200 });
+}
+
 /**
  * POST /api/helcim/webhook
  *
@@ -27,11 +32,28 @@ export async function GET() {
 export async function POST(req) {
   const rawBody = await req.text();
 
-  // ── Verify HMAC signature ──────────────────────────────────────────────────
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    // Empty or non-JSON body — Helcim sends this as a validation ping
+    return NextResponse.json({ ok: true });
+  }
+
+  if (event.type !== 'cardTransaction') {
+    // Not a type we handle — acknowledge and move on
+    return NextResponse.json({ ok: true });
+  }
+
+  // ── Verify HMAC signature for real transaction events ─────────────────────
   if (WEBHOOK_SECRET) {
-    const webhookId        = req.headers.get('webhook-id') || '';
+    const webhookId = req.headers.get('webhook-id') || '';
     const webhookTimestamp = req.headers.get('webhook-timestamp') || '';
-    const webhookSig       = req.headers.get('webhook-signature') || '';
+    const webhookSig = req.headers.get('webhook-signature') || '';
+
+    if (!webhookId || !webhookTimestamp || !webhookSig) {
+      return NextResponse.json({ error: 'Missing webhook signature headers' }, { status: 401 });
+    }
 
     const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
     const secretBytes = Buffer.from(WEBHOOK_SECRET, 'base64');
@@ -51,19 +73,6 @@ export async function POST(req) {
     if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) {
       return NextResponse.json({ error: 'Webhook timestamp out of range' }, { status: 400 });
     }
-  }
-
-  let event;
-  try {
-    event = JSON.parse(rawBody);
-  } catch {
-    // Empty or non-JSON body — Helcim sends this as a validation ping
-    return NextResponse.json({ ok: true });
-  }
-
-  if (event.type !== 'cardTransaction') {
-    // Not a type we handle — acknowledge and move on
-    return NextResponse.json({ ok: true });
   }
 
   try {
